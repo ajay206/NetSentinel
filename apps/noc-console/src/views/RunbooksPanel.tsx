@@ -1,4 +1,5 @@
 import React from 'react';
+import { CardHeader } from '../components/ui/Card';
 import type { RunbookDoc, RunbookHit } from '../types.runbook';
 import { MarkdownPreview } from '../components/MarkdownPreview';
 
@@ -79,11 +80,18 @@ export const RunbooksPanel: React.FC<RunbooksPanelProps> = ({
   }
 
   return (
-    <div className="bg-slate-900 border border-slate-700 rounded-lg p-4" data-testid="runbooks-panel">
-      <div className="flex items-baseline justify-between mb-3 gap-2">
-        <h3 className="text-slate-200 font-semibold">Suggested runbooks</h3>
-        <span className="text-xs text-slate-500 truncate">{alarmLabel ?? 'select an alarm'}</span>
-      </div>
+    <div className="ns-card" data-testid="runbooks-panel">
+      <CardHeader
+        as="h3"
+        title="Suggested runbooks"
+        subtitle="Repair procedures that match the selected alarm."
+        info="Hybrid keyword + vector search over the runbook library, boosted by the predicted fault type."
+        actions={
+          <span className="text-xs text-slate-500 truncate max-w-[12rem]">
+            {alarmLabel ?? 'select an alarm'}
+          </span>
+        }
+      />
       {body}
       {alarmLabel && selectedId && (
         <div className="border-t border-slate-700 mt-4 pt-3">

@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { sortIncidents, durationLabel } from '../lib/incidents';
-import type { Incident, IncidentList } from '../types.incident';
+import type { IncidentList } from '../types.incident';
+import { Card, SeverityChip, StateMessage } from '../components/ui/Card';
 
 interface IncidentBoardProps {
   data?: IncidentList;
@@ -10,23 +11,13 @@ interface IncidentBoardProps {
   onSelect: (id: string | null) => void;
 }
 
-const severityStyles: Record<Incident['severity'], string> = {
-  critical: 'bg-red-500',
-  major: 'bg-orange-500',
-  minor: 'bg-yellow-400',
-  warning: 'bg-sky-400',
-  indeterminate: 'bg-slate-500',
-  cleared: 'bg-slate-500',
-};
+const TITLE = 'Incident board';
+const SUBTITLE = 'Related alarms grouped into incidents. Click one to filter the alarm feeds.';
+const INFO =
+  'incident-service groups alarms that are close in time (5 min) and in the network topology. ' +
+  'The root site is the affected site closest to the core.';
 
-const severityLabels: Record<Incident['severity'], string> = {
-  critical: 'CRITICAL',
-  major: 'MAJOR',
-  minor: 'MINOR',
-  warning: 'WARNING',
-  indeterminate: 'INDETERMINATE',
-  cleared: 'CLEARED',
-};
+const ROW = 'grid grid-cols-[5.75rem_6rem_minmax(0,1fr)_4rem_4.5rem] items-center gap-2';
 
 export function IncidentBoard({
   data,
@@ -42,34 +33,23 @@ export function IncidentBoard({
 
   if (isLoading) {
     return (
-      <div
-        className="bg-slate-900 border border-slate-700 rounded-lg p-4"
-        data-testid="loading-state"
-      >
-        Loading incidents…
-      </div>
+      <Card title={TITLE} subtitle={SUBTITLE} info={INFO} testId="loading-state">
+        <StateMessage kind="loading">Loading incidents…</StateMessage>
+      </Card>
     );
   }
-
   if (isError) {
     return (
-      <div
-        className="bg-slate-900 border border-slate-700 rounded-lg p-4"
-        data-testid="error-state"
-      >
-        Incident service unavailable
-      </div>
+      <Card title={TITLE} subtitle={SUBTITLE} info={INFO} testId="error-state">
+        <StateMessage kind="error">Incident service unavailable</StateMessage>
+      </Card>
     );
   }
-
   if (!data || sortedIncidents.length === 0) {
     return (
-      <div
-        className="bg-slate-900 border border-slate-700 rounded-lg p-4"
-        data-testid="empty-state"
-      >
-        No incidents yet — run a scenario (e.g. make sim)
-      </div>
+      <Card title={TITLE} subtitle={SUBTITLE} info={INFO} testId="empty-state">
+        <StateMessage kind="empty">No incidents yet — run a scenario (e.g. make sim)</StateMessage>
+      </Card>
     );
   }
 
@@ -77,77 +57,90 @@ export function IncidentBoard({
   const ratio = (stats.compressionRatio ?? 0).toFixed(1);
 
   return (
-    <section className="bg-slate-900 border border-slate-700 rounded-lg p-4 space-y-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-white">Incident board</h2>
-        <div className="text-sm text-slate-400">
+    <Card
+      title={TITLE}
+      subtitle={SUBTITLE}
+      info={INFO}
+      testId="incident-board"
+      actions={
+        <span className="rounded bg-slate-800 px-2 py-0.5 text-xs text-slate-300 tabular-nums whitespace-nowrap">
           {stats.alarms} alarms → {stats.incidents} incidents ({ratio}×)
-        </div>
-      </div>
-
-      {selectedId && (
-        <div className="flex items-center justify-between bg-slate-800 border border-slate-700 rounded-lg p-3">
-          <span className="text-sm text-slate-300 font-mono">Showing alarms for {selectedId}</span>
-          <button
-            type="button"
-            onClick={() => onSelect(null)}
-            className="text-sm text-sky-400 hover:text-sky-300 underline"
-            data-testid="clear-filter"
-          >
-            Clear filter
-          </button>
-        </div>
-      )}
-
-      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        {sortedIncidents.map((incident) => {
-          const isSelected = selectedId === incident.id;
-          const duration = durationLabel(incident.firstSeen, incident.lastSeen);
-          return (
+        </span>
+      }
+    >
+      <div className="flex h-full min-h-0 flex-col gap-2">
+        {selectedId && (
+          <div className="flex items-center justify-between rounded-lg border border-sky-500/40 bg-sky-500/10 px-3 py-2">
+            <span className="font-mono text-xs text-sky-200">Showing alarms for {selectedId}</span>
             <button
-              key={incident.id}
               type="button"
-              onClick={() => onSelect(isSelected ? null : incident.id)}
-              aria-pressed={isSelected}
-              data-testid={`incident-${incident.id}`}
-              className={`
-                bg-slate-900 border border-slate-700 rounded-lg p-4
-                text-left transition-all
-                ${isSelected ? 'ring-2 ring-sky-400 border-sky-500' : 'hover:border-slate-600'}
-              `}
+              onClick={() => onSelect(null)}
+              className="text-xs font-medium text-sky-300 hover:text-sky-200 underline"
+              data-testid="clear-filter"
             >
-              <div className="flex items-start justify-between gap-2 mb-3">
-                <span
-                  data-testid={`severity-${incident.id}`}
-                  className={`
-                    px-2 py-0.5 text-xs font-medium rounded text-white
-                    ${severityStyles[incident.severity]}
-                  `}
-                >
-                  {severityLabels[incident.severity]}
-                </span>
-                <span
-                  data-testid={`status-${incident.id}`}
-                  className={`
-                    px-2 py-0.5 text-xs font-medium rounded
-                    ${incident.status === 'open' ? 'bg-amber-500/20 text-amber-400' : 'bg-slate-700 text-slate-400'}
-                  `}
-                >
-                  {incident.status === 'open' ? 'OPEN' : 'CLEARED'}
-                </span>
-              </div>
-              <div className="space-y-2 text-sm">
-                <div className="font-mono text-slate-300">{incident.rootSiteId}</div>
-                {incident.region && <div className="text-slate-400">{incident.region}</div>}
-                <div className="text-slate-500">
-                  {incident.alarmCount} alarms · {incident.siteIds?.length ?? 0} sites
-                </div>
-                <div className="text-slate-500 font-mono">{duration}</div>
-              </div>
+              Clear filter
             </button>
-          );
-        })}
+          </div>
+        )}
+        <div className={`${ROW} ns-thead px-3 py-1.5`} role="row">
+          <span>Severity</span>
+          <span>Root site</span>
+          <span>Size</span>
+          <span>Duration</span>
+          <span>Status</span>
+        </div>
+        <ul className="ns-scroll space-y-1">
+          {sortedIncidents.map((incident) => {
+            const isSelected = selectedId === incident.id;
+            return (
+              <li key={incident.id}>
+                <button
+                  type="button"
+                  onClick={() => onSelect(isSelected ? null : incident.id)}
+                  aria-pressed={isSelected}
+                  data-testid={`incident-${incident.id}`}
+                  title={`${incident.id}: click to ${isSelected ? 'clear the filter' : 'filter the alarm feeds'}`}
+                  className={`${ROW} w-full rounded-lg px-3 py-2 text-left text-xs transition-colors ${
+                    isSelected
+                      ? 'bg-sky-500/10 ring-2 ring-sky-400'
+                      : 'bg-slate-800/40 hover:bg-slate-800'
+                  }`}
+                >
+                  <span data-testid={`severity-${incident.id}`} className="inline-flex">
+                    <SeverityChip severity={incident.severity} />
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block truncate font-mono text-slate-200">
+                      {incident.rootSiteId}
+                    </span>
+                    {incident.region && (
+                      <span className="block truncate text-slate-500">{incident.region}</span>
+                    )}
+                  </span>
+                  <span className="text-slate-400 tabular-nums">
+                    {incident.alarmCount} {incident.alarmCount === 1 ? 'alarm' : 'alarms'} ·{' '}
+                    {incident.siteIds?.length ?? 0}{' '}
+                    {(incident.siteIds?.length ?? 0) === 1 ? 'site' : 'sites'}
+                  </span>
+                  <span className="font-mono text-slate-400">
+                    {durationLabel(incident.firstSeen, incident.lastSeen)}
+                  </span>
+                  <span
+                    data-testid={`status-${incident.id}`}
+                    className={`w-fit rounded px-1.5 py-0.5 text-[11px] font-medium ${
+                      incident.status === 'open'
+                        ? 'bg-amber-500/20 text-amber-300'
+                        : 'bg-slate-700 text-slate-400'
+                    }`}
+                  >
+                    {incident.status === 'open' ? 'OPEN' : 'CLEARED'}
+                  </span>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
       </div>
-    </section>
+    </Card>
   );
 }

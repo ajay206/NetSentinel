@@ -64,7 +64,7 @@ def test_fibre_cut_through_mcp(client):
     assert upstreams[0]._session is None  # session closed after the request
 
 
-def test_mcp_server_down_degrades_to_404(client, monkeypatch):
+def test_mcp_server_down_is_503_not_404(client, monkeypatch):
     c, _ = client
 
     async def broken():
@@ -77,8 +77,21 @@ def test_mcp_server_down_degrades_to_404(client, monkeypatch):
         yield  # pragma: no cover
 
     app.dependency_overrides[get_upstream] = broken
-    # No evidence at all (alarms come through MCP) -> 404, with no crash
-    assert c.post("/analyze", json={"site_id": "SITE-010"}).status_code == 404
+    # The alarm tool failed (not "no alarms"): surface 503, not a misleading 404
+    resp = c.post("/analyze", json={"siteId": "SITE-010"})
+    assert resp.status_code == 503
+    assert "mcp-server unavailable" in resp.json()["detail"]
+
+
+def test_mcp_tool_error_is_502(client, monkeypatch):
+    c, _ = client
+    backends.TRANSPORT = make_transport({"/api/alarms/enriched/recent"})
+    try:
+        resp = c.post("/analyze", json={"siteId": "SITE-010"})
+    finally:
+        backends.TRANSPORT = None
+    assert resp.status_code == 502, resp.text
+    assert "get_alarms" in resp.json()["detail"]
 
 
 async def test_tool_error_becomes_warning():

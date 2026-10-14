@@ -1,12 +1,36 @@
+import os
 import re
 from typing import Any
 
 from mcp.server.fastmcp import FastMCP
+from mcp.server.transport_security import TransportSecuritySettings
 
 from mcp_server.backends import BackendError, Backends
 
+DEFAULT_ALLOWED_HOSTS = "localhost:*,127.0.0.1:*,mcp-server:*"
+DEFAULT_ALLOWED_ORIGINS = "http://localhost:*,http://127.0.0.1:*"
+
+
+def _csv(name: str, default: str) -> list[str]:
+    return [h.strip() for h in os.getenv(name, default).split(",") if h.strip()]
+
+
+def transport_security() -> TransportSecuritySettings:
+    """DNS-rebinding protection that also accepts the compose service name.
+
+    FastMCP's default only allows localhost, so the copilot calling http://mcp-server:8006 got
+    421 "Invalid Host header". Override with MCP_ALLOWED_HOSTS / MCP_ALLOWED_ORIGINS (CSV).
+    """
+    return TransportSecuritySettings(
+        enable_dns_rebinding_protection=True,
+        allowed_hosts=_csv("MCP_ALLOWED_HOSTS", DEFAULT_ALLOWED_HOSTS),
+        allowed_origins=_csv("MCP_ALLOWED_ORIGINS", DEFAULT_ALLOWED_ORIGINS),
+    )
+
+
 mcp = FastMCP(
     "netsentinel",
+    transport_security=transport_security(),
     instructions=(
         "NetSentinel MCP Server provides tools for network operations:\n"
         "- get_alarms: recent enriched alarms for a site\n"

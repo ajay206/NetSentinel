@@ -1,3 +1,16 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Fix 1 redesign: shared panel chrome (see src/theme.ts for the tokens) */
+@layer components {
+  .ns-card {
+    @apply flex h-full min-h-0 flex-col rounded-xl border border-slate-800 bg-slate-900 p-4 shadow-sm;
+  }
+  .ns-scroll {
+    @apply min-h-0 flex-1 overflow-y-auto;
+  }
+  .ns-thead {
+    @apply sticky top-0 border-b border-slate-700 bg-slate-900 text-left text-[11px] uppercase tracking-wider text-slate-400;
+  }
+}

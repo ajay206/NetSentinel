@@ -467,3 +467,35 @@ def test_incidents_proxy_down(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(main, "incident_transport", httpx.MockTransport(refuse))
     with TestClient(app) as client:
         assert client.get("/api/incidents").status_code == 503
+
+
+def test_copilot_analyze_siteid_through_gateway(monkeypatch) -> None:
+    """smoke.py, `make analyze` and the console send `siteId`; the real copilot app must
+    accept it end-to-end via the gateway proxy (was 422: extra=forbid + no alias)."""
+    import api_gateway.main as gw
+    import httpx
+    from copilot_orchestrator.api import app as copilot_app
+    from copilot_orchestrator.api import get_llm, get_upstream
+    from copilot_orchestrator.clients.llm import OffLLM
+    from copilot_orchestrator.clients.upstream import Upstream
+
+    def upstream_handler(req: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json={"items": [], "results": []})
+
+    copilot_app.dependency_overrides[get_llm] = OffLLM
+    copilot_app.dependency_overrides[get_upstream] = lambda: Upstream(
+        "http://gw", "http://ml", "http://rag", transport=httpx.MockTransport(upstream_handler)
+    )
+    gw.copilot_transport = httpx.ASGITransport(app=copilot_app)
+    try:
+        client = TestClient(app)
+        for key in ("siteId", "site_id"):
+            resp = client.post("/api/copilot/analyze", json={key: "SITE-012", "window": "30m"})
+            assert resp.status_code != 422, resp.text
+            # valid request: 200/404, or 502 because the stub upstream returns no real alarm payload
+            assert resp.status_code in (200, 404, 502)
+        bad = client.post("/api/copilot/analyze", json={"site": "SITE-012"})
+        assert bad.status_code == 422
+    finally:
+        gw.copilot_transport = None
+        copilot_app.dependency_overrides.clear()

@@ -1,11 +1,17 @@
 # Profiles and memory budget:
 # core services (~1.5 GB total), UI profile adds ~192 MB, Sim profile adds ~256 MB,
 # Pipeline profile (alarm-ingest ~160 MB + kpi-service ~192 MB) adds ~350 MB.
-# The console runs natively on the host and is not containerized.
+# The console runs in the `ui` profile (nginx on http://localhost:5173); `make console` is the
+# optional native dev server. The `cli` profile is the tools image used by make/demo.sh, so the
+# host needs only Docker, make and git. Every depends_on entry carries an explicit `condition`.
+# Fixed project name, so volumes are always netsentinel_<name> (see `make reset-db`).
+name: netsentinel
+
 services:
   kafka:
     image: apache/kafka:3.8.0
-    profiles: ["core"]
+    # Also in every profile whose services depend on it, so any profile combination is valid.
+    profiles: ["core", "ui", "pipeline", "sim", "ops"]
     ports:
       - "9092:9092"
     environment:
@@ -33,7 +39,7 @@ services:
 
   timescaledb:
     image: timescale/timescaledb:latest-pg16
-    profiles: ["core"]
+    profiles: ["core", "pipeline"]
     ports:
       - "5432:5432"
     environment:
@@ -91,7 +97,20 @@ services:
         condition: service_healthy
         required: false
       timescaledb:
+        condition: service_started
         required: false
+    restart: unless-stopped
+
+  noc-console:
+    build:
+      context: apps/noc-console
+    profiles: ["ui"]
+    ports:
+      - "5173:80"
+    mem_limit: 64m
+    depends_on:
+      api-gateway:
+        condition: service_started
     restart: unless-stopped
 
   alarm-ingest:
@@ -269,6 +288,8 @@ services:
       ML_SERVICE_URL: http://ml-service:8003
       RAG_SERVICE_URL: http://rag-service:8004
       MCP_SERVICE_TOKEN: ${MCP_SERVICE_TOKEN:-dev-only-change-me}
+      # Host headers accepted by FastMCP's DNS-rebinding protection (else 421 Invalid Host header)
+      MCP_ALLOWED_HOSTS: "localhost:*,127.0.0.1:*,mcp-server:*"
     mem_limit: 128m
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request;urllib.request.urlopen('http://localhost:8006/healthz')\""]
@@ -301,6 +322,19 @@ services:
     depends_on:
       kafka:
         condition: service_healthy
+    restart: "no"
+
+  # CLI tools (netgen-sim, smoke test, gateway helper): `docker compose --profile cli run --rm tools`
+  tools:
+    build:
+      context: .
+      dockerfile: docker/tools/Dockerfile
+    profiles: ["cli"]
+    environment:
+      KAFKA_BOOTSTRAP: kafka:29092
+      GATEWAY_URL: http://api-gateway:8000
+      CONSOLE_URL: http://noc-console
+    mem_limit: 192m
     restart: "no"
 
 volumes:

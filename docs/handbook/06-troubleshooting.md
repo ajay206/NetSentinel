@@ -89,12 +89,12 @@ The topology seed does not contain the site ID, or the site ID in the raw alarm 
 ### 14. kpi-service unreachable (503)
 **Symptom**: The API‑gateway returns `503 Service Unavailable` with message *“kpi-service unreachable”*.  
 **Cause**: The KPI service container is not running, crashed, or the `KPI_SERVICE_URL` env var points to the wrong host/port.  
-**Fix**: `docker compose ps` → restart the service (`docker compose up -d kpi-service`). Check logs (`docker compose logs kpi-service`). Ensure the port matches `PORT` env var.  
+**Fix**: `make ps` → restart the service (`docker compose up -d kpi-service`). Check logs (`make logs S=kpi-service`). Ensure the port matches `PORT` env var.  
 
 ### 15. readyz 503 (DB)
 **Symptom**: `GET /readyz` returns `503 Service Unavailable`.  
 **Cause**: TimescaleDB is not reachable, credentials are wrong, or migrations have not been applied.  
-**Fix**: Confirm the TimescaleDB container is up (`docker compose ps`). Test connectivity: `docker compose exec timescaledb psql -U $POSTGRES_USER -c "\dt"`. Apply migrations manually if needed (`make kpi-service` will run them at startup).  
+**Fix**: Confirm the TimescaleDB container is up (`make ps`). Test connectivity: `docker compose exec timescaledb psql -U $POSTGRES_USER -c "\dt"`. Apply migrations manually if needed (`make kpi-service` will run them at startup).  
 
 ### 16. Duplicate‑key / no new rows after replay
 **Symptom**: After replaying a Kafka partition, the row count in `kpi_samples` does not increase.  
@@ -310,7 +310,7 @@ Then refresh the console.
 **Fix:** Re‑authenticate in the console to obtain a fresh JWT and reconnect, ensuring the token is appended to the WebSocket URL.
 
 ### 42. make demo times out waiting for /readyz
-- Check the Docker compose logs for `api-gateway` (`docker compose logs api-gateway`).
+- Check the Docker compose logs for `api-gateway` (`make logs S=api-gateway`).
 - Kafka may be slow on first start; increase `DEMO_WAIT_S` (e.g., `make demo DEMO_WAIT_S=480`).
 
 ### 43. smoke kpi_anomaly check fails
@@ -319,7 +319,7 @@ Then refresh the console.
 
 ### 44. smoke copilot check fails “no runbook citations”
 - The local Ollama model may not be running; start it or pull the image with `make ollama-pull`.
-- Verify `rag-service` is ready (`docker compose logs rag-service`) and that runbooks have been ingested (look for “runbooks loaded” in the logs).
+- Verify `rag-service` is ready (`make logs S=rag-service`) and that runbooks have been ingested (look for “runbooks loaded” in the logs).
 
 ### 45. health check lists services down
 - The missing service profile was not started. Restart Docker compose with the required profile, e.g. `docker compose up --profile rag`.
@@ -348,3 +348,45 @@ Then refresh the console.
 - The service replays `alarms.enriched` from the earliest offset; if the topic retention or compaction removed earlier alarms, the replay will be incomplete.  
 - Check topic configuration (`cleanup.policy=compact,delete` and `retention.ms`).  
 - Ensure the same full alarm stream is available for replay.
+
+### 51. `make demo`: compose rejects `depends_on` (api-gateway → timescaledb)
+- Fixed: every `depends_on` entry now has an explicit `condition` (`service_started`/`service_healthy`), and `kafka`/`timescaledb` are also in the profiles that depend on them, so every profile combination passes `docker compose config`.
+- If you edit compose.yaml, validate with `docker compose --profile core --profile ui config -q`.
+
+### 52. Container exits with `failed to create directory /home/appuser/.cache/uv`
+- Cause: images ran `uv run --no-sync …` as a non-root user without a writable home, and uv tried to create its cache.
+- Fixed: CMD/ENTRYPOINT run `uvicorn` / `netgen-sim` straight from the venv (on PATH); `UV_NO_CACHE=1` and `UV_CACHE_DIR=/tmp/uv-cache` are set defensively. Rebuild: `docker compose --profile … build --no-cache <svc>`.
+
+### 53. kpi-service crashes with `PoolClosed`, or auth fails for user "postgres"
+- The crash is fixed: when the DB is down or rejects the password, kpi-service now stays up with `/readyz` = 503 and retries with backoff (fresh connection pool per attempt). `make logs S=kpi-service` shows `KPI store not ready (...)`.
+- **Stale pg-data volume:** Postgres reads `POSTGRES_PASSWORD` only when the volume is first initialised. If `.env` changed later (or another checkout created the volume), auth keeps failing. Run `make reset-db` (deletes `netsentinel_pg-data`, i.e. all stored KPIs), then `make demo`.
+- rag-service gets the same treatment: if Qdrant starts after it, it retries ingest instead of staying unready.
+
+### 54. Host `uv sync` fails building xgboost (missing libomp / compiler)
+- The demo no longer runs anything on the host except Docker: KPI back-fill, the fibre_cut scenario, the smoke test and `make token/analyze/anomalies` run in the `tools` container (`docker compose --profile cli run --rm tools …`).
+- ml-service now depends on `xgboost` (prebuilt wheels for linux x86_64/aarch64, macOS arm64/x86_64, Windows); the NVIDIA NCCL GPU dependency is excluded via `[tool.uv] override-dependencies`.
+- Native development on macOS still needs `brew install libomp` to import xgboost.
+
+### 55. `docker compose logs <svc>` says "no such service"
+- Services live in profiles; compose only sees enabled ones. Use `make logs S=<svc>` (`F=1` to follow) or `make ps`, which pass every profile.
+
+### 56. `make smoke` copilot check fails with 422
+- Cause: copilot-orchestrator's `AnalyzeRequest` only accepted `site_id` (extra=forbid), while smoke.py, `make analyze` and the API convention use `siteId`.
+- Fixed: `siteId` is the field alias (`site_id` still accepted); the console now sends `siteId`. The copilot OpenAPI contract was regenerated.
+
+### 57. Port 5173 already in use
+- The console now runs as the `noc-console` container (nginx, profile `ui`). Stop it (`docker compose --profile ui stop noc-console`) before running the native Vite dev server, or vice versa.
+
+### 58. Copilot returns 404 "No alarms" while alarms exist (mcp-server 421 Invalid Host header)
+- Cause: FastMCP's DNS-rebinding protection only allowed `localhost`, so calls to `http://mcp-server:8006/mcp` from the copilot container got 421. The copilot treated the failed alarm tool as "no evidence" (404).
+- Fixed: mcp-server allows `localhost:*`, `127.0.0.1:*` and `mcp-server:*` (override with `MCP_ALLOWED_HOSTS` / `MCP_ALLOWED_ORIGINS`, comma-separated). The copilot now returns **503** when mcp-server is unreachable and **502** when the alarm tool errors; 404 means the tool really returned no alarms.
+- Check: `make logs S=mcp-server` shows no `Invalid Host header`; `make analyze SITE=SITE-012` returns an answer.
+
+### 59. http://localhost:5173 shows nothing after `make demo`
+- Cause: the dashboard used to run only through host npm (`make console`).
+- Fixed: the `noc-console` container (profile `ui`) serves it. Check `make ps` and `make logs S=noc-console`. The smoke `console` check fails if the page or the `/health` proxy is down.
+- Blank page while the API calls fail: the gateway isn't ready yet (`make logs S=api-gateway`). nginx retries resolving `api-gateway` every 10 s.
+
+### 60. Console sign-in bounces back to the login screen (every /api call 401, /ws 403)
+- Cause: `login()` in `apps/noc-console/src/lib/auth.ts` returned the session without saving it. The fetch wrapper therefore sent no `Authorization` header, the first 401 cleared the session, and `withToken()` added no `?token=` to the WebSocket URLs.
+- Fixed: `login()` now calls `saveSession(session)`. `src/lib/auth.login.test.ts` checks the stored session, the Bearer header and the WebSocket `?token=`.

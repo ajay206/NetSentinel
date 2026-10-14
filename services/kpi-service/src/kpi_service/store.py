@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import math
 from collections.abc import Sequence
 from datetime import UTC, datetime
@@ -97,9 +98,14 @@ class MemoryStore:
 
 
 class PgStore:
-    def __init__(self, dsn: str) -> None:
-        self._pool = AsyncConnectionPool(
-            dsn,
+    def __init__(self, dsn: str, connect_timeout: float = 10.0) -> None:
+        self._dsn = dsn
+        self._connect_timeout = connect_timeout
+        self._pool = self._new_pool()
+
+    def _new_pool(self) -> AsyncConnectionPool:
+        return AsyncConnectionPool(
+            self._dsn,
             min_size=1,
             max_size=4,
             open=False,
@@ -107,8 +113,17 @@ class PgStore:
         )
 
     async def migrate(self) -> None:
-        await self._pool.open()
-        await self._pool.wait()
+        # A failed wait() (DB not up yet, wrong password) closes the pool, and a closed pool
+        # can never be reopened (PoolClosed). So on failure, discard it and build a fresh one
+        # for the next attempt.
+        try:
+            await self._pool.open()
+            await self._pool.wait(timeout=self._connect_timeout)
+        except Exception:
+            with contextlib.suppress(Exception):
+                await self._pool.close()
+            self._pool = self._new_pool()
+            raise
         migrations_dir = Path(__file__).parent / "migrations"
         sql_files = sorted(migrations_dir.glob("*.sql"))
         async with self._pool.connection() as conn:

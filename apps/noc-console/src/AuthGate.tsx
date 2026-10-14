@@ -18,11 +18,19 @@ export const AuthGate: React.FC = () => {
     setSession(null);
   }, [queryClient]);
 
-  useEffect(() => installAuthFetch(logout), [logout]);
+  // Child effects run before this one, so App's first queries could go out without the bearer
+  // token. Mount App only after the fetch wrapper is installed.
+  const [fetchReady, setFetchReady] = useState(false);
+  useEffect(() => {
+    const uninstall = installAuthFetch(logout);
+    setFetchReady(true);
+    return uninstall;
+  }, [logout]);
 
   if (!session) {
     return <LoginScreen onLogin={setSession} />;
   }
+  if (!fetchReady) return null;
   // key: remount on user change so WebSockets reconnect with the new token
   return <App key={session.username} session={session} onLogout={logout} />;
 };

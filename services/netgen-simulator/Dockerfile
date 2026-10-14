@@ -1,30 +1,31 @@
-# Build stage
+# Multi-arch: python:3.12-slim and the uv image both publish linux/amd64 and linux/arm64.
 FROM ghcr.io/astral-sh/uv:0.12.23 AS uv
 
-# Runtime stage
 FROM python:3.12-slim
 
-# Install uv
 COPY --from=uv /uv /bin/uv
 
-# Set working directory
+# uv is only used at build time; never let it touch a cache in $HOME at runtime.
+ENV UV_NO_CACHE=1 \
+    UV_CACHE_DIR=/tmp/uv-cache \
+    UV_LINK_MODE=copy \
+    UV_COMPILE_BYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PATH="/app/.venv/bin:$PATH"
+
 WORKDIR /app
 
-# Copy workspace files
 COPY pyproject.toml uv.lock README.md ./
 # Every workspace member must be present for `uv sync --frozen`
 COPY libs ./libs
 COPY services ./services
 
-# Install dependencies (production only)
 RUN uv sync --frozen --no-dev --package netgen-simulator
 
-# Create non-root user
-RUN useradd --create-home --shell /bin/bash appuser
+RUN useradd --create-home --uid 1000 --shell /usr/sbin/nologin appuser
 USER appuser
+ENV HOME=/home/appuser
 
-# Set PATH to include uv-installed packages
-ENV PATH="/app/.venv/bin:$PATH"
-
-ENTRYPOINT ["uv", "run", "--no-sync", "netgen-sim"]
+# Also reused by `docker compose run --rm netgen-simulator <subcommand>` from the Makefile.
+ENTRYPOINT ["netgen-sim"]
 CMD ["run", "--seed", "42", "--scenario", "fibre_cut", "--speed", "60x", "--loop"]

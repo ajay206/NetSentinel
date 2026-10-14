@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
+import logging
 import os
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta
@@ -32,7 +34,9 @@ DATABASE_URL = os.getenv(
 _store: MemoryStore | PgStore | None = None
 _consumer_task: asyncio.Task[None] | None = None
 _writer: BatchWriter | None = None
+_startup_task: asyncio.Task[None] | None = None
 _state: dict[str, Any] = {"connected": False}
+logger = logging.getLogger("kpi-service")
 
 
 def get_store() -> MemoryStore | PgStore:
@@ -48,29 +52,55 @@ def _build_store() -> MemoryStore | PgStore:
     return PgStore(DATABASE_URL)
 
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    global _store, _consumer_task, _writer, _state
-    if _store is None:
-        _store = _build_store()
-    _writer = BatchWriter(_store)
+async def _try_migrate(store: MemoryStore | PgStore) -> bool:
+    try:
+        await store.migrate()
+    except Exception as exc:  # DB down, auth failure, ...
+        logger.warning("KPI store not ready (%s: %s); will retry", type(exc).__name__, exc)
+        return False
+    _state["migrated"] = True
+    return True
 
-    for attempt in range(10):
-        try:
-            await _store.migrate()
-            break
-        except Exception:
-            if attempt == 9:
-                raise
-            await asyncio.sleep(3)
 
-    if not DISABLE_KAFKA:
+def _start_consumer() -> None:
+    global _consumer_task
+    if not DISABLE_KAFKA and _store is not None and _writer is not None:
         _consumer_task = asyncio.create_task(
             consume_forever(_store, _writer, KAFKA_BOOTSTRAP, KPI_TOPIC, _state)
         )
 
+
+async def _migrate_with_backoff(store: MemoryStore | PgStore, max_delay: float = 30.0) -> None:
+    delay = 1.0
+    while not await _try_migrate(store):
+        await asyncio.sleep(delay)
+        delay = min(delay * 2, max_delay)
+    logger.info("KPI store ready")
+    _start_consumer()
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    global _store, _consumer_task, _writer, _state, _startup_task
+    if _store is None:
+        _store = _build_store()
+    _writer = BatchWriter(_store)
+
+    # Never crash on a slow or misconfigured DB: try once now, then keep retrying with
+    # backoff in the background. /readyz stays 503 until migrations are done.
+    _state["migrated"] = False
+    if not await _try_migrate(_store):
+        _startup_task = asyncio.create_task(_migrate_with_backoff(_store))
+    else:
+        _start_consumer()
+
     yield
 
+    if _startup_task:
+        _startup_task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await _startup_task
+        _startup_task = None
     if _consumer_task:
         _consumer_task.cancel()
         try:
@@ -91,7 +121,7 @@ async def healthz() -> dict[str, str]:
 
 @app.get("/readyz")
 async def readyz() -> JSONResponse:
-    store_ok = await _store.ping() if _store else False
+    store_ok = bool(_state.get("migrated")) and (await _store.ping() if _store else False)
     kafka_ok = DISABLE_KAFKA or _state.get("connected", False)
     status = "ready" if store_ok and kafka_ok else "not ready"
     code = 200 if store_ok and kafka_ok else 503

@@ -1,4 +1,5 @@
 import React from 'react';
+import { CardHeader } from './ui/Card';
 import type { DemoStage } from '../lib/demoPath';
 
 interface DemoPathProps {
@@ -21,8 +22,12 @@ export const DemoPath: React.FC<DemoPathProps> = ({ stages, hint }) => {
   const currentHint = allDone ? undefined : (hint ?? defaultHints[stages[firstPendingIndex].id]);
 
   return (
-    <div className="bg-slate-900 border border-slate-700 rounded-lg p-4 text-slate-100">
-      <h2 className="mb-4 text-lg font-semibold">Demo path (fibre_cut)</h2>
+    <div className="ns-card text-slate-100">
+      <CardHeader
+        title="Demo path (fibre_cut)"
+        subtitle="The five steps of the fibre-cut walkthrough; each turns green when it is done."
+        info="Start the demo stack, then follow the steps: alarms arrive, a KPI anomaly appears, click a root alarm to classify it, open a runbook, ask the copilot."
+      />
       <ol className="flex items-center justify-between">
         {stages.map((stage, idx) => {
           const isCurrent = idx === firstPendingIndex && !stage.done;

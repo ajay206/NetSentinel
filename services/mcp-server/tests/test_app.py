@@ -80,3 +80,38 @@ def test_readyz_without_token():
         response = client.get("/readyz")
         assert response.status_code == 200
         assert response.json() == {"status": "ready", "auth": "token"}
+
+
+def test_transport_security_allows_compose_host(monkeypatch):
+    from mcp_server.server import transport_security
+
+    monkeypatch.delenv("MCP_ALLOWED_HOSTS", raising=False)
+    ts = transport_security()
+    assert ts.enable_dns_rebinding_protection
+    assert "mcp-server:*" in ts.allowed_hosts and "localhost:*" in ts.allowed_hosts
+    monkeypatch.setenv("MCP_ALLOWED_HOSTS", "a:*, b:1")
+    assert transport_security().allowed_hosts == ["a:*", "b:1"]
+
+
+def test_mcp_host_header_mcp_server_accepted_other_rejected():
+    """The copilot calls http://mcp-server:8006/mcp: must not get 421 Invalid Host header."""
+    init = {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "initialize",
+        "params": {
+            "protocolVersion": "2025-03-26",
+            "capabilities": {},
+            "clientInfo": {"name": "test", "version": "0"},
+        },
+    }
+    headers = {"Authorization": "Bearer t0k", "Accept": "application/json, text/event-stream"}
+    from mcp_server.server import mcp
+
+    mcp._session_manager = None  # a session manager can only run once; other tests used it
+    with patch.dict(os.environ, {"MCP_SERVICE_TOKEN": "t0k", "MCP_ALLOW_NO_TOKEN": "0"}):
+        with TestClient(build_app()) as client:
+            ok = client.post("/mcp", json=init, headers={**headers, "Host": "mcp-server:8006"})
+            assert ok.status_code == 200, ok.text
+            bad = client.post("/mcp", json=init, headers={**headers, "Host": "evil.example:8006"})
+            assert bad.status_code == 421

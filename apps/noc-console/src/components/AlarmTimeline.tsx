@@ -1,158 +1,260 @@
-import { bucketAt, isBurst, type Severity, type TimelineResponse } from '../lib/timeline';
-import { useState, useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
+import { Card, StateMessage } from './ui/Card';
+import {
+  bucketAt,
+  formatHHMM,
+  isBurst,
+  niceTicks,
+  peakBucket,
+  stormAnnotation,
+  type Severity,
+  type TimelineResponse,
+} from '../lib/timeline';
+import { severityHex, severityLabel } from '../theme';
 
 interface AlarmTimelineProps {
   data?: TimelineResponse;
   isLoading: boolean;
   isError: boolean;
+  /** Root site of the largest open incident (incident-service), used in the peak annotation. */
+  rootSiteId?: string | null;
 }
 
-const SEVERITY_COLORS: Record<Severity, string> = {
-  critical: 'bg-red-500',
-  major: 'bg-orange-500',
-  minor: 'bg-yellow-400',
-  warning: 'bg-sky-400',
-  cleared: 'bg-slate-500',
-};
+const TITLE = 'Alarm storm timeline';
+const SUBTITLE = 'Alarms raised per minute, stacked by severity. A tall bar means an alarm storm.';
+const INFO =
+  'Each bar is one minute. Colours stack critical, major, minor, warning and cleared alarms. ' +
+  'The busiest minute is outlined and annotated with the root site reported by the incident ' +
+  'service. Click a bar or use the slider to inspect a minute.';
 
-const SEVERITY_ORDER: Severity[] = ['critical', 'major', 'minor', 'warning', 'cleared'];
+// Bottom-up stacking order (most severe at the bottom, where the eye starts)
+const STACK: Severity[] = ['critical', 'major', 'minor', 'warning', 'cleared'];
 
-export function AlarmTimeline({ data, isLoading, isError }: AlarmTimelineProps) {
-  // null = follow the newest bucket as the storm grows
+// Chart geometry (SVG user units; the SVG scales to the card width)
+const W = 720;
+const H = 230;
+const M = { left: 44, right: 16, top: 30, bottom: 36 };
+const PLOT_W = W - M.left - M.right;
+const PLOT_H = H - M.top - M.bottom;
+// At least this many slots, so 1-3 buckets don't become one huge bar (data is right-aligned)
+const MIN_SLOTS = 30;
+
+export function AlarmTimeline({ data, isLoading, isError, rootSiteId }: AlarmTimelineProps) {
+  // null = follow the peak
   const [picked, setPicked] = useState<number | null>(null);
 
-  const bucketCount = data?.buckets?.length ?? 0;
-  const selectedIndex =
-    picked === null ? Math.max(0, bucketCount - 1) : Math.min(picked, bucketCount - 1);
-  const setSelectedIndex = setPicked;
-  const selectedBucket = useMemo(() => bucketAt(data, selectedIndex), [data, selectedIndex]);
-  const peak = data?.peak ?? 0;
-  const burst = selectedBucket ? isBurst(selectedBucket, peak) : false;
-
-  const formatTime = (iso: string) => {
-    try {
-      return new Date(iso).toISOString().slice(11, 19);
-    } catch {
-      return iso;
-    }
-  };
+  const buckets = data?.buckets ?? [];
+  const n = buckets.length;
+  const peak = useMemo(() => peakBucket(data), [data]);
+  const annotation = useMemo(() => stormAnnotation(data, rootSiteId), [data, rootSiteId]);
 
   if (isLoading) {
     return (
-      <div className="bg-slate-900 border border-slate-700 rounded-lg p-4">
-        <h2 className="text-lg font-medium text-slate-100 mb-4">Alarm storm timeline</h2>
-        <p className="text-slate-400 text-center py-8">Loading timeline…</p>
-      </div>
+      <Card title={TITLE} subtitle={SUBTITLE} info={INFO} testId="timeline-card">
+        <StateMessage kind="loading">Loading timeline…</StateMessage>
+      </Card>
     );
   }
-
   if (isError) {
     return (
-      <div className="bg-slate-900 border border-slate-700 rounded-lg p-4">
-        <h2 className="text-lg font-medium text-slate-100 mb-4">Alarm storm timeline</h2>
-        <p className="text-red-400 text-center py-8">Timeline unavailable</p>
-      </div>
+      <Card title={TITLE} subtitle={SUBTITLE} info={INFO} testId="timeline-card">
+        <StateMessage kind="error">
+          Timeline unavailable — the gateway could not load alarm history.
+        </StateMessage>
+      </Card>
     );
   }
-
-  if (!data || !bucketCount) {
+  if (!data || n === 0 || !peak) {
     return (
-      <div className="bg-slate-900 border border-slate-700 rounded-lg p-4">
-        <h2 className="text-lg font-medium text-slate-100 mb-4">Alarm storm timeline</h2>
-        <p className="text-slate-400 text-center py-8">
-          No alarms yet — run a scenario (e.g. fibre_cut)
-        </p>
-      </div>
+      <Card title={TITLE} subtitle={SUBTITLE} info={INFO} testId="timeline-card">
+        <StateMessage kind="empty">No alarms yet — run a scenario (e.g. make sim).</StateMessage>
+      </Card>
     );
   }
 
-  const maxHeight = 120;
+  const selectedIndex = picked === null ? peak.index : Math.min(picked, n - 1);
+  const selected = bucketAt(data, selectedIndex);
+  const ticks = niceTicks(peak.bucket.total);
+  const yMax = ticks[ticks.length - 1] || 1;
+  const slots = Math.max(n, MIN_SLOTS);
+  const slotW = PLOT_W / slots;
+  const barW = Math.max(2, slotW * 0.7);
+  const x0 = M.left + (slots - n) * slotW; // right-align: newest minute at the right edge
+  const y = (v: number) => M.top + PLOT_H - (v / yMax) * PLOT_H;
+  const labelEvery = Math.max(1, Math.ceil(n / 6));
+  const peakX = x0 + peak.index * slotW + slotW / 2;
+  const calloutAnchor = peakX > W - 160 ? 'end' : peakX < M.left + 160 ? 'start' : 'middle';
 
   return (
-    <div className="bg-slate-900 border border-slate-700 rounded-lg p-4">
-      <h2 className="text-lg font-medium text-slate-100 mb-4">Alarm storm timeline</h2>
-      <div className="relative h-[140px] mb-4">
-        <div
-          className="flex items-end h-full gap-1 overflow-x-auto px-2 pb-2"
-          role="img"
-          aria-label="Alarm timeline bars"
+    <Card title={TITLE} subtitle={SUBTITLE} info={INFO} testId="timeline-card">
+      {annotation && (
+        <p
+          data-testid="storm-annotation"
+          className="mb-2 inline-flex items-center gap-2 rounded-md bg-red-500/10 px-2.5 py-1 text-sm font-medium text-red-300 ring-1 ring-red-500/30"
         >
-          {data.buckets.map((bucket, idx) => {
-            const height = peak > 0 ? Math.max(4, (bucket.total / peak) * maxHeight) : 4;
-            const isSelected = idx === selectedIndex;
-            const burstBar = isBurst(bucket, peak);
-            return (
-              <div
-                key={bucket.start}
-                data-testid="timeline-bar"
-                className={`relative flex flex-col items-center cursor-pointer transition-all ${isSelected ? 'ring-2 ring-sky-400' : burstBar ? 'ring-1 ring-red-500/60' : ''}`}
-                onClick={() => setSelectedIndex(idx)}
-                style={{ width: '28px', height: `${maxHeight + 20}px` }}
-              >
-                <div
-                  className="flex flex-col-reverse w-full h-full"
-                  style={{ height: `${height}px` }}
+          <span className="h-2 w-2 rounded-full bg-red-400" aria-hidden />
+          {annotation}
+        </p>
+      )}
+      <svg
+        viewBox={`0 0 ${W} ${H}`}
+        width="100%"
+        role="img"
+        aria-label="Alarm storm timeline chart"
+        className="block"
+      >
+        {ticks.map((t) => (
+          <g key={t}>
+            <line x1={M.left} x2={W - M.right} y1={y(t)} y2={y(t)} stroke="#1e293b" />
+            <text x={M.left - 6} y={y(t) + 3} fill="#94a3b8" fontSize={10} textAnchor="end">
+              {t}
+            </text>
+          </g>
+        ))}
+        <text
+          transform={`translate(12 ${M.top + PLOT_H / 2}) rotate(-90)`}
+          fill="#94a3b8"
+          fontSize={10}
+          textAnchor="middle"
+        >
+          Alarms per minute
+        </text>
+        <line
+          x1={M.left}
+          x2={W - M.right}
+          y1={M.top + PLOT_H}
+          y2={M.top + PLOT_H}
+          stroke="#475569"
+        />
+
+        {buckets.map((b, i) => {
+          const cx = x0 + i * slotW + slotW / 2;
+          let acc = 0;
+          const isPeak = i === peak.index;
+          const isSel = i === selectedIndex;
+          return (
+            <g
+              key={b.start}
+              data-testid="timeline-bar"
+              data-peak={isPeak ? 'true' : undefined}
+              onClick={() => setPicked(i)}
+              style={{ cursor: 'pointer' }}
+            >
+              <title>{`${formatHHMM(b.start)} IST — ${b.total} alarms`}</title>
+              {/* full-height hit area */}
+              <rect x={cx - slotW / 2} y={M.top} width={slotW} height={PLOT_H} fill="transparent" />
+              {STACK.map((sev) => {
+                const c = b.bySeverity[sev] ?? 0;
+                if (!c) return null;
+                const top = y(acc + c);
+                const h = y(acc) - top;
+                acc += c;
+                return (
+                  <rect
+                    key={sev}
+                    x={cx - barW / 2}
+                    y={top}
+                    width={barW}
+                    height={h}
+                    fill={severityHex[sev]}
+                  />
+                );
+              })}
+              {(isPeak || isSel) && (
+                <rect
+                  x={cx - barW / 2 - 2}
+                  y={y(b.total) - 2}
+                  width={barW + 4}
+                  height={y(0) - y(b.total) + 2}
+                  fill="none"
+                  stroke={isPeak ? '#f8fafc' : '#38bdf8'}
+                  strokeWidth={1.5}
+                  strokeDasharray={isPeak ? undefined : '3 2'}
+                />
+              )}
+              {i % labelEvery === 0 || i === n - 1 ? (
+                <text
+                  x={cx}
+                  y={M.top + PLOT_H + 14}
+                  fill="#94a3b8"
+                  fontSize={10}
+                  textAnchor="middle"
                 >
-                  {SEVERITY_ORDER.map((sev) => {
-                    const count = bucket.bySeverity[sev];
-                    if (!count) return null;
-                    const sevHeight = peak > 0 ? (count / peak) * maxHeight : 0;
-                    return (
-                      <div
-                        key={sev}
-                        className={`${SEVERITY_COLORS[sev]} w-full`}
-                        style={{ height: `${sevHeight}px` }}
-                      />
-                    );
-                  })}
-                </div>
-                <span className="text-xs text-slate-500 mt-1 hidden sm:block">
-                  {formatTime(bucket.start).slice(0, 5)}
-                </span>
-              </div>
-            );
-          })}
+                  {formatHHMM(b.start)}
+                </text>
+              ) : null}
+            </g>
+          );
+        })}
+
+        {/* Peak callout above the bar */}
+        <text
+          data-testid="storm-callout"
+          x={peakX}
+          y={Math.max(12, y(peak.bucket.total) - 8)}
+          fill="#fca5a5"
+          fontSize={11}
+          fontWeight={600}
+          textAnchor={calloutAnchor}
+        >
+          {`Peak ${peak.bucket.total} @ ${formatHHMM(peak.bucket.start)}`}
+        </text>
+        <text x={M.left + PLOT_W / 2} y={H - 4} fill="#94a3b8" fontSize={10} textAnchor="middle">
+          Time (IST)
+        </text>
+      </svg>
+
+      <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-slate-300">
+        <div className="flex flex-wrap items-center gap-3" data-testid="timeline-legend">
+          {STACK.map((sev) => (
+            <span key={sev} className="inline-flex items-center gap-1.5">
+              <span
+                className="h-2.5 w-2.5 rounded-sm"
+                style={{ backgroundColor: severityHex[sev] }}
+              />
+              {severityLabel(sev)}
+            </span>
+          ))}
         </div>
       </div>
-      <div className="mb-4">
-        <label htmlFor="timeline-scrub" className="sr-only">
-          Scrub timeline
-        </label>
+
+      {n > 1 && (
         <input
-          id="timeline-scrub"
           type="range"
-          min={0}
-          max={bucketCount - 1}
-          value={selectedIndex}
-          onChange={(e) => setSelectedIndex(Number(e.target.value))}
           aria-label="Scrub timeline"
-          className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500"
+          min={0}
+          max={n - 1}
+          value={selectedIndex}
+          onChange={(e) => setPicked(Number(e.target.value))}
+          className="mt-3 w-full accent-sky-500"
         />
-      </div>
-      <div className="space-y-2">
-        <div className="flex items-center gap-3 text-sm">
-          <span className="font-medium text-slate-200">
-            {formatTime(selectedBucket?.start ?? '')} UTC
+      )}
+
+      {selected && (
+        <div
+          className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 rounded-lg bg-slate-800/60 px-3 py-2 text-xs"
+          data-testid="timeline-selected"
+        >
+          <span className="font-medium text-slate-100">
+            {formatHHMM(selected.start)} IST · {selected.total} alarms
           </span>
-          {burst && (
-            <span className="px-2 py-0.5 bg-red-900/50 border border-red-700 text-red-300 rounded text-xs font-medium">
+          {STACK.map((sev) => (
+            <span key={sev} className="inline-flex items-center gap-1 text-slate-300">
+              <span
+                className="h-2 w-2 rounded-full"
+                style={{ backgroundColor: severityHex[sev] }}
+              />
+              {severityLabel(sev)}{' '}
+              <span className="tabular-nums">{selected.bySeverity[sev] ?? 0}</span>
+            </span>
+          ))}
+          {isBurst(selected, data.peak) && (
+            <span className="rounded bg-red-500/15 px-2 py-0.5 font-medium text-red-300 ring-1 ring-red-500/30">
               Burst
             </span>
           )}
         </div>
-        <dl className="grid grid-cols-2 gap-1 text-sm text-slate-300">
-          {SEVERITY_ORDER.map((sev) => (
-            <div key={sev} className="flex justify-between">
-              <dt className="capitalize">{sev}</dt>
-              <dd className="font-mono text-slate-100">{selectedBucket?.bySeverity[sev] ?? 0}</dd>
-            </div>
-          ))}
-          <div className="col-span-2 border-t border-slate-700 pt-1 flex justify-between font-medium">
-            <dt>Total</dt>
-            <dd className="text-slate-100">{selectedBucket?.total ?? 0}</dd>
-          </div>
-        </dl>
-      </div>
-    </div>
+      )}
+    </Card>
   );
 }

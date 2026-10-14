@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import asyncio
+import contextlib
 import logging
 import os
 import re
@@ -64,10 +66,24 @@ def build_state(app: FastAPI) -> None:
         logger.exception("rag-service ingest failed; /readyz will report 503")
 
 
+async def _retry_build_state(app: FastAPI, max_delay: float = 30.0) -> None:
+    """Qdrant may start after us: keep retrying with backoff instead of staying unready."""
+    delay = 1.0
+    while not app.state.ready:
+        await asyncio.sleep(delay)
+        await asyncio.to_thread(build_state, app)
+        delay = min(delay * 2, max_delay)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     build_state(app)
+    task = None if app.state.ready else asyncio.create_task(_retry_build_state(app))
     yield
+    if task is not None:
+        task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await task
 
 
 app = FastAPI(title="rag-service", version="0.1.0", lifespan=lifespan)

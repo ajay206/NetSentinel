@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { CardHeader } from './ui/Card';
 import type { Topology, PerceivedSeverity } from '../types';
 
 type Props = {
@@ -202,7 +203,7 @@ export const NetworkMap: React.FC<Props> = ({
           x={padding + 4}
           y={p.y}
           textAnchor="start"
-          className="text-[11px] uppercase fill-slate-500"
+          className="text-[11px] uppercase tracking-widest fill-slate-600"
         >
           {region}
         </text>
@@ -211,21 +212,23 @@ export const NetworkMap: React.FC<Props> = ({
   };
 
   return (
-    <section className="w-full">
-      <header className="flex items-center justify-between mb-2">
-        <h2 className="text-xl font-semibold text-slate-200">
-          Network map
-        </h2>
-        <div className="flex items-center space-x-4 text-sm text-slate-400">
+    <section className="ns-card">
+      <CardHeader
+        title="Network map"
+        subtitle="Sites coloured by their worst active alarm."
+        info="Squares are core sites, diamonds hubs, circles access sites. Regions run north to south."
+        actions={
+        <div className="flex items-center gap-3 text-xs text-slate-400">
           <span>{counts?.sites ?? 0} sites</span>
           <span>{counts?.nodes ?? 0} nodes</span>
           <span>{counts?.cells ?? 0} cells</span>
           <span>{counts?.links ?? 0} links</span>
         </div>
-      </header>
+        }
+      />
 
       {/* Legend */}
-      <div className="flex flex-wrap gap-2 mb-2">
+      <div className="flex flex-wrap gap-x-3 gap-y-1 mb-2 text-xs text-slate-400">
         <span className="flex items-center gap-1">
           <svg className="w-4 h-4">
             <rect width="10" height="10" fill="#94a3b8" />
@@ -264,9 +267,9 @@ export const NetworkMap: React.FC<Props> = ({
         viewBox={viewBox}
         className="w-full h-auto bg-slate-900/30 border border-slate-700 rounded"
       >
+        {renderRegions()}
         {renderLinks()}
         {renderSites()}
-        {renderRegions()}
       </svg>
     </section>
   );

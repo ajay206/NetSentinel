@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { CardHeader, SeverityChip } from './ui/Card';
 import type { Alarm, PerceivedSeverity } from '../types';
 import { getSeverityStyles, severityRank } from '../lib/severity';
 import { formatIST } from '../lib/time';
@@ -36,9 +37,12 @@ export const LiveAlarms: React.FC<LiveAlarmsProps> = ({ alarms }) => {
   );
 
   return (
-    <div className="bg-slate-900 border border-slate-700 rounded-lg p-3 h-full flex flex-col">
-      <div className="flex items-center justify-between mb-3">
-        <h2 className="text-slate-200 font-semibold">Live Alarms</h2>
+    <div className="ns-card">
+      <CardHeader
+        title="Live Alarms"
+        subtitle="Raw alarms as they arrive from the network, newest first."
+        info="TMF642-style alarms from the simulator, streamed over a WebSocket. Use the chips to filter by severity."
+        actions={
         <div className="flex flex-wrap gap-1">
           <button
             onClick={() => setActiveFilter('all')}
@@ -67,7 +71,8 @@ export const LiveAlarms: React.FC<LiveAlarmsProps> = ({ alarms }) => {
             );
           })}
         </div>
-      </div>
+        }
+      />
 
       {alarms.length === 0 ? (
         <div className="flex-1 flex items-center justify-center text-slate-500">
@@ -78,38 +83,35 @@ export const LiveAlarms: React.FC<LiveAlarmsProps> = ({ alarms }) => {
           <p>No {activeFilter} alarms</p>
         </div>
       ) : (
-        <div className="overflow-y-auto flex-1">
+        <div className="ns-scroll">
           <table className="w-full text-xs">
             <thead>
-              <tr className="text-slate-500 border-b border-slate-700">
-                <th className="text-left py-1.5">Time (IST)</th>
-                <th className="text-left py-1.5">Severity</th>
-                <th className="text-left py-1.5">Site</th>
-                <th className="text-left py-1.5">Alarm Type</th>
-                <th className="text-left py-1.5">Probable Cause</th>
-                <th className="text-left py-1.5">Specific Problem</th>
+              <tr className="ns-thead">
+                <th className="py-2 pl-2 pr-3 font-medium">Time (IST)</th>
+                <th className="py-2 pr-3 font-medium">Severity</th>
+                <th className="py-2 pr-3 font-medium">Site</th>
+                <th className="py-2 pr-3 font-medium">Alarm Type</th>
+                <th className="py-2 pr-3 font-medium">Probable Cause</th>
+                <th className="py-2 pr-3 font-medium">Specific Problem</th>
               </tr>
             </thead>
             <tbody>
               {filtered.map((alarm) => {
-                const styles = getSeverityStyles(alarm.perceivedSeverity);
                 return (
                   <tr
                     key={alarm.id}
-                    className={`border-b border-slate-800 ${styles.rowBorder} hover:bg-slate-800/50`}
+                    className={`border-b border-slate-800 hover:bg-slate-800/50`}
                   >
-                    <td className="py-1.5 text-slate-400 font-mono">
+                    <td className="py-2 pl-2 pr-3 whitespace-nowrap text-slate-400 font-mono">
                       {formatIST(alarm.alarmRaisedTime)}
                     </td>
-                    <td className="py-1.5">
-                      <span className={`inline-flex px-1.5 py-0.25 rounded text-xs ${styles.badge}`}>
-                        {alarm.perceivedSeverity}
-                      </span>
+                    <td className="py-2 pr-3">
+                      <SeverityChip severity={alarm.perceivedSeverity} />
                     </td>
-                    <td className="py-1.5 text-slate-300">{alarm.siteId}</td>
-                    <td className="py-1.5 text-slate-300">{alarm.alarmType}</td>
-                    <td className="py-1.5 text-slate-400">{alarm.probableCause}</td>
-                    <td className="py-1.5 text-slate-400">{alarm.specificProblem}</td>
+                    <td className="py-2 pr-3 text-slate-300">{alarm.siteId}</td>
+                    <td className="py-2 pr-3 text-slate-300">{alarm.alarmType}</td>
+                    <td className="py-2 pr-3 text-slate-400">{alarm.probableCause}</td>
+                    <td className="py-2 pr-3 text-slate-400">{alarm.specificProblem}</td>
                   </tr>
                 );
               })}

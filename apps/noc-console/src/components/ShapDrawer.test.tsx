@@ -97,4 +97,32 @@ describe('ShapDrawer', () => {
     );
     expect(screen.getByText(/ml-service unreachable/)).toBeInTheDocument();
   });
+
+  it('keeps the fault badge when SHAP explanation fails', () => {
+    render(
+      <ShapDrawer
+        alarm={alarm}
+        prediction={prediction}
+        isLoading={false}
+        isError={true}
+        onClose={() => {}}
+      />,
+    );
+    expect(screen.getByTestId('fault-badge')).toHaveTextContent('Fibre cut 72%');
+    expect(screen.getByText(/ml-service unreachable/)).toBeInTheDocument();
+  });
+
+  it('shows a SHAP loading state without hiding a ready prediction', () => {
+    render(
+      <ShapDrawer
+        alarm={alarm}
+        prediction={prediction}
+        isLoading={true}
+        isError={false}
+        onClose={() => {}}
+      />,
+    );
+    expect(screen.getByTestId('fault-badge')).toHaveTextContent('Fibre cut 72%');
+    expect(screen.getByText('Loading SHAP explanation…')).toBeInTheDocument();
+  });
 });

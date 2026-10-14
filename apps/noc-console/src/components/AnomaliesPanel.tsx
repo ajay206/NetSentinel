@@ -1,4 +1,5 @@
 import React from 'react';
+import { CardHeader } from './ui/Card';
 import type { AnomalyItem, AnomalyList } from '../types.anomaly';
 import { formatIST } from '../lib/time';
 
@@ -45,13 +46,14 @@ export const AnomaliesPanel: React.FC<Props> = ({
   };
 
   return (
-    <section className="bg-slate-900 border border-slate-700 rounded-lg p-3 text-xs">
+    <section className="ns-card text-xs">
       <header className="flex justify-between items-center mb-2">
         <div>
-          <h2 className="font-semibold">Anomalies</h2>
-          <p className="text-slate-400 text-xs">
-            stats baseline &middot; robust z + CUSUM
-          </p>
+          <CardHeader
+            title="Anomalies"
+            subtitle="Cells whose KPI left its normal range (robust z-score + CUSUM)."
+            info="ml-service learns a per-cell baseline from 7 days of KPIs. Score = how many robust standard deviations away the value is."
+          />
         </div>
         <div className="flex items-center gap-2">
           <select
