@@ -207,3 +207,27 @@ Introduces the `copilot-orchestrator` service that analyses recent alarms and KP
 - [ ] **Docker health** – `docker compose up -d` starts all services, `docker compose ps` shows healthy.  
 - [ ] **Browser e2e with Ollama** – pending; will be executed in Phase 2.
 
+## Step 11 – W11 gateway JWT/RBAC + alarm storm timeline
+
+### Summary
+Step 11 introduces JWT‑based authentication and role‑based access control directly inside the FastAPI API gateway. It also adds the alarm‑storm timeline view to the console. All authentication is performed by an ASGI middleware; no external reverse‑proxy or IdP is required for the local development environment.
+
+### Changes
+
+| Component | Change |
+|-----------|--------|
+| `services/api-gateway` | New ASGI middleware for HS256 JWT validation, role checks, and in‑memory sliding‑window rate limiting. Added `/api/auth/*` endpoints and WebSocket token handling. |
+| `contracts/openapi/api-gateway-auth.yaml` | New generated OpenAPI spec (`make gateway-contract`) to include auth endpoints and RBAC‑protected routes. |
+| Console UI | Login screen, sessionStorage token handling, disabled Copilot button for viewers, alarm‑storm timeline panel with burst detection. |
+| `compose.yaml` | Added `JWT_SECRET` and `GATEWAY_SERVICE_TOKEN` env vars (dev defaults) for the gateway, copilot-orchestrator and mcp-server; `ALARM_INGEST_URL`. |
+| `copilot-orchestrator`, `mcp-server` | Send `GATEWAY_SERVICE_TOKEN` when reading alarms from the gateway. |
+| Docs | ADR-003 (accepted), handbook setup, services, troubleshooting #37–41, changelog. |
+
+### Verification
+- **api-gateway**: 54 pytest cases covering authentication, RBAC, rate limiting, WebSocket handling, and the timeline aggregation.  
+- **Console**: 91 Vitest unit/integration tests for login flow, token storage, UI role gating, and timeline rendering.  
+- **CI**: the `.github/workflows/ci.yml` steps re-run in a clean clone (uv sync, ruff, pytest; npm ci, lint, typecheck, test, build); a drift test keeps the gateway contract current.  
+- **Manual checks (Mac)**:  
+  1. Open the console in a browser, log in with each demo user.  
+  2. Restart compose with a real `JWT_SECRET` and confirm sessions survive a gateway restart.  
+  3. Run `uv run netgen-sim … fibre_cut` and verify a burst badge appears on the timeline.

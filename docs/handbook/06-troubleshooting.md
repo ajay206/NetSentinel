@@ -283,3 +283,28 @@ Then refresh the console.
 
 ---  
 *For any other issues, consult the CI logs or open a ticket in the NetSentinel repo.*
+
+### 37. Console keeps returning to login
+**Symptom:** After a successful login the UI immediately redirects back to the login page.  
+**Cause:** The JWT is missing, expired (default 8 h), or the gateway was restarted without a persistent `JWT_SECRET`.  
+**Fix:** Ensure `JWT_SECRET` is set to a stable value in `.env` and restart the compose stack. Re‑login to obtain a fresh token.
+
+### 38. 403 “Requires role operator” when a viewer tries to analyze
+**Symptom:** Viewer user clicks “Analyze site” and receives HTTP 403.  
+**Cause:** The endpoint `POST /api/copilot/analyze` is restricted to the `operator` role.  
+**Fix:** Log in as `operator` (or `admin`) or adjust `GATEWAY_USERS` to grant the viewer the `operator` role.
+
+### 39. 429 Too Many Requests with Retry‑After header
+**Symptom:** API calls start returning 429.  
+**Cause:** Rate limits exceeded – either `RATE_LIMIT_PER_MIN` per user (default 600) or `LOGIN_RATE_PER_MIN` per IP (default 10).  
+**Fix:** Wait for the period indicated in `Retry-After` or increase the limits in the environment for dev/testing.
+
+### 40. Internal services (copilot‑orchestrator / mcp‑server) receive 401 from the gateway
+**Symptom:** Logs show 401 responses from the gateway when internal services call APIs.  
+**Cause:** `GATEWAY_SERVICE_TOKEN` is missing or does not match the token configured in the gateway.  
+**Fix:** Set the same `GATEWAY_SERVICE_TOKEN` value in the `.env` of `api-gateway`, `copilot-orchestrator`, and `mcp-server`. Restart the services.
+
+### 41. WebSocket closes with code 4401
+**Symptom:** A WebSocket connection is terminated with close code 4401.  
+**Cause:** No token or an expired/invalid token was supplied via the `?token=` query parameter.  
+**Fix:** Re‑authenticate in the console to obtain a fresh JWT and reconnect, ensuring the token is appended to the WebSocket URL.

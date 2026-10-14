@@ -13,6 +13,12 @@ ANOMALY_KPIS = ("dlThroughputMbps", "availabilityPct", "rrcSetupSuccessPct")
 _SEVERITY_RANK = {"critical": 0, "major": 1, "minor": 2, "warning": 3, "indeterminate": 4}
 
 
+def gateway_headers() -> dict[str, str] | None:
+    """W11: the gateway requires auth; internal callers send GATEWAY_SERVICE_TOKEN."""
+    token = os.getenv("GATEWAY_SERVICE_TOKEN")
+    return {"Authorization": f"Bearer {token}"} if token else None
+
+
 def _parse_ts(value: str | None) -> datetime | None:
     if not value:
         return None
@@ -149,7 +155,9 @@ class Upstream(ToolRecorder):
     async def _alarms_for_site(self, site_id: str, window_minutes: int) -> list[dict[str, Any]]:
         try:
             async with self._client() as c:
-                resp = await c.get(f"{self.gateway_url}/api/alarms/enriched/recent")
+                resp = await c.get(
+                    f"{self.gateway_url}/api/alarms/enriched/recent", headers=gateway_headers()
+                )
                 resp.raise_for_status()
                 alarms = resp.json()
         except (httpx.HTTPError, ValueError) as exc:

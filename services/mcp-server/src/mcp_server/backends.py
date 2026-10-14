@@ -9,6 +9,12 @@ import httpx
 TRANSPORT: httpx.AsyncBaseTransport | None = None
 
 
+def gateway_headers() -> dict[str, str] | None:
+    """W11: the gateway requires auth; internal callers send GATEWAY_SERVICE_TOKEN."""
+    token = os.getenv("GATEWAY_SERVICE_TOKEN")
+    return {"Authorization": f"Bearer {token}"} if token else None
+
+
 class BackendError(Exception):
     """Raised when a backend service call fails."""
 
@@ -53,7 +59,7 @@ class Backends:
         url = f"{self.gateway_url}/api/alarms/enriched/recent"
         async with self._client() as client:
             try:
-                resp = await client.get(url)
+                resp = await client.get(url, headers=gateway_headers())
                 resp.raise_for_status()
                 data = resp.json()
             except (httpx.HTTPError, ValueError) as exc:
