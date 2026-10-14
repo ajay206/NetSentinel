@@ -1,7 +1,11 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Header } from './components/Header';
 import { LiveAlarms } from './components/LiveAlarms';
 import { EnrichedAlarms } from './components/EnrichedAlarms';
+import { FaultBadge } from './components/FaultBadge';
+import { ShapDrawer } from './components/ShapDrawer';
+import { useFaultExplanation, useFaultPrediction } from './hooks/useFault';
+import type { EnrichedAlarm } from './types.enriched';
 import { useEnrichedFeed } from './hooks/useEnrichedFeed';
 import { ServiceHealth } from './components/ServiceHealth';
 import { PlaceholderPanel } from './components/PlaceholderPanel';
@@ -22,6 +26,13 @@ export const App: React.FC = () => {
   const { data: topology, isLoading: topoLoading, isError: topoError } = useTopology();
   const { activity: kpiActivity, status: kpiStatus } = useKpiActivity();
 
+  const [selectedKey, setSelectedKey] = useState<string | null>(null);
+  // Follow the latest version of the selected alarm (dedup count can grow)
+  const selected: EnrichedAlarm | null =
+    enrichedAlarms.find((a) => a.dedup.key === selectedKey) ?? null;
+  const prediction = useFaultPrediction(selected);
+  const explanation = useFaultExplanation(selected);
+
   const severityBySite = useMemo(() => worstSeverityBySite(alarms), [alarms]);
 
   return (
@@ -38,7 +49,19 @@ export const App: React.FC = () => {
 
         {/* Row 1b: enriched feed from alarm-ingest (W4) */}
         <div className="lg:col-span-3">
-          <EnrichedAlarms alarms={enrichedAlarms} status={enrichedStatus} />
+          <EnrichedAlarms
+            alarms={enrichedAlarms}
+            status={enrichedStatus}
+            selectedKey={selectedKey}
+            onSelect={(a) => setSelectedKey(a.dedup.key)}
+            selectedBadge={
+              <FaultBadge
+                prediction={prediction.data}
+                isLoading={prediction.isLoading}
+                isError={prediction.isError}
+              />
+            }
+          />
         </div>
 
         {/* Row 2 */}
@@ -60,6 +83,14 @@ export const App: React.FC = () => {
           <PlaceholderPanel title="Copilot" week={9} />
         </div>
       </main>
+      <ShapDrawer
+        alarm={selected}
+        prediction={prediction.data}
+        explanation={explanation.data}
+        isLoading={prediction.isLoading || explanation.isLoading}
+        isError={prediction.isError || explanation.isError}
+        onClose={() => setSelectedKey(null)}
+      />
     </div>
   );
 };

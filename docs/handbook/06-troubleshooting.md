@@ -139,3 +139,25 @@ Then refresh the console.
   export MLFLOW_TRACKING_URI=http://mlflow:5000
   ```
   The service will automatically switch to server logging.
+
+### 21. 503 Service Unavailable – No model registered
+**Symptom:** `/predict` or `/explain` returns HTTP 503.  
+**Cause:** `AUTO_TRAIN=0` and the registry does not contain a model entry.  
+**Fix:**  
+1. Run `make ml-train-xgb` to generate and register a synthetic model.  
+2. Or set `AUTO_TRAIN=1` and restart `ml-service` so it can auto‑train on first request.  
+
+### 22. 503 Service Unavailable – Drawer shows error
+**Symptom:** In the NOC console, clicking an alarm row opens the `ShapDrawer` side panel, but it displays “Error loading explanation (503)”.  
+**Cause:** The gateway could not reach `ml-service` (service down or network partition).  
+**Fix:**  
+1. Verify `ml-service` container is running: `docker ps | grep ml-service`.  
+2. Check logs: `docker logs ml-service`.  
+3. Restart the stack: `docker compose restart ml-service api-gateway`.  
+
+### 23. Slow first request after startup
+**Symptom:** The first `/predict` or `/explain` call after container start takes ~5‑10 seconds. Subsequent calls are fast.  
+**Cause:** With `AUTO_TRAIN=1` and no pre‑registered model, the service trains a minimal synthetic XGBoost model on‑the‑fly.  
+**Fix:**  
+- Pre‑train and register a model (`make ml-train-xgb`) before starting the demo.  
+- Or accept the warm‑up latency as expected behaviour for the auto‑train path.

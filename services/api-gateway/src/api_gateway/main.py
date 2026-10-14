@@ -418,3 +418,29 @@ async def ml_proxy(path: str, request: Request) -> JSONResponse:
     except ValueError:
         return JSONResponse({"detail": "ml-service returned non-JSON"}, status_code=502)
     return JSONResponse(body, status_code=resp.status_code)
+
+
+@app.post("/api/ml/{action}")
+async def ml_post_proxy(action: str, request: Request) -> JSONResponse:
+    """Forward fault classification calls to ml-service (W7): /api/ml/predict, /api/ml/explain."""
+    if action not in ("predict", "explain"):
+        return JSONResponse({"detail": "Not found"}, status_code=404)
+    body = await request.body()
+    if len(body) > 64_000:
+        return JSONResponse({"detail": "Request too large"}, status_code=413)
+    try:
+        async with httpx.AsyncClient(transport=ml_transport, timeout=20.0) as client:
+            resp = await client.post(
+                f"{ML_SERVICE_URL}/{action}",
+                content=body,
+                params=request.query_params,
+                headers={"Content-Type": "application/json"},
+            )
+    except httpx.HTTPError as exc:
+        logger.warning("ml-service unreachable: %s", exc)
+        return JSONResponse({"detail": "ml-service unreachable"}, status_code=503)
+    try:
+        payload = resp.json()
+    except ValueError:
+        return JSONResponse({"detail": "ml-service returned non-JSON"}, status_code=502)
+    return JSONResponse(payload, status_code=resp.status_code)

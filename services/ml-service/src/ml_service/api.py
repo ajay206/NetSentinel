@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import logging
 import os
+import threading
 from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
 import httpx
 import numpy as np
@@ -10,12 +13,17 @@ from fastapi import FastAPI, HTTPException, Query
 from pydantic import BaseModel, ConfigDict, Field
 
 from ml_service.baselines import detect
+from ml_service.classifier import FaultClassifier
 from ml_service.synth import KPI_NAMES
 
-app = FastAPI(title="ML Service - Anomaly Detection", version="0.1.0")
+app = FastAPI(title="ML Service - anomalies and fault classifier", version="0.2.0")
 
 KPI_SERVICE_URL = os.environ.get("KPI_SERVICE_URL", "http://localhost:8002")
 ANOMALY_Z = float(os.environ.get("ANOMALY_Z", "3.5"))
+MODELS_DIR = os.environ.get("MODELS_DIR", "models")
+MODEL_NAME = os.environ.get("MODEL_NAME", "fault_classifier")
+AUTO_TRAIN = os.environ.get("AUTO_TRAIN", "1") == "1"
+logger = logging.getLogger("ml-service")
 PORT = int(os.environ.get("PORT", "8003"))
 
 BASELINE_HOURS = 168  # always learn the baseline from up to 7 days of history
@@ -213,6 +221,60 @@ async def anomalies_aggregate(
     )
 
     return AggregateAnomaliesResponse(kpi=kpi, hours=hours, items=all_anomalies[:limit])
+
+
+class FaultRequest(BaseModel):
+    alarm: dict[str, Any]
+    context: dict[str, Any] | None = None
+
+
+_model: FaultClassifier | None = None
+_model_lock = threading.Lock()
+
+
+def get_model() -> FaultClassifier:
+    """Load the classifier by registry name; train a small synthetic one if none exists."""
+    global _model
+    if _model is not None:
+        return _model
+    with _model_lock:
+        if _model is None:
+            try:
+                _model = FaultClassifier.load(name=MODEL_NAME, models_dir=MODELS_DIR)
+            except FileNotFoundError:
+                if not AUTO_TRAIN:
+                    raise
+                from ml_service.train_xgb import train
+
+                logger.info("No registered model in %s; training a synthetic one", MODELS_DIR)
+                train(out_dir=MODELS_DIR, register=True)
+                _model = FaultClassifier.load(name=MODEL_NAME, models_dir=MODELS_DIR)
+    return _model
+
+
+def _model_or_503() -> FaultClassifier:
+    try:
+        return get_model()
+    except FileNotFoundError as exc:
+        raise HTTPException(
+            status_code=503, detail="No fault model registered - run make ml-train-xgb"
+        ) from exc
+
+
+@app.post("/predict")
+def predict(req: FaultRequest) -> dict[str, Any]:
+    """Predict the fault type for one enriched alarm.
+
+    Sync on purpose: FastAPI runs it in a threadpool, so a first-call auto-train
+    does not block the event loop.
+    """
+    return _model_or_503().predict(req.alarm, req.context)
+
+
+@app.post("/explain")
+def explain(req: FaultRequest, top_k: int = Query(5, ge=1, le=20)) -> dict[str, Any]:
+    """Top SHAP (TreeSHAP) contributions for the predicted class."""
+    return _model_or_503().explain(req.alarm, req.context, top_k=top_k)
 
 
 def run() -> None:

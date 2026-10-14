@@ -75,6 +75,40 @@ paths:
         '404': {description: Unknown cell or no data}
         '422': {description: Unknown KPI or hours out of range}
         '502': {description: kpi-service error}
+  /predict:
+    post:
+      summary: Classify the likely fault type of an enriched alarm (W7, XGBoost)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/FaultRequest'}
+      responses:
+        '200':
+          description: Prediction
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/FaultPrediction'}
+        '422': {description: Invalid body}
+        '503': {description: No model registered and AUTO_TRAIN=0}
+  /explain:
+    post:
+      summary: TreeSHAP explanation (top-k feature contributions) for the predicted class
+      parameters:
+        - {name: top_k, in: query, schema: {type: integer, minimum: 1, maximum: 20, default: 5}}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/FaultRequest'}
+      responses:
+        '200':
+          description: Explanation
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/FaultExplanation'}
+        '422': {description: Invalid body}
+        '503': {description: No model registered and AUTO_TRAIN=0}
 components:
   parameters:
     kpi:
@@ -94,3 +128,34 @@ components:
         score: {type: number, description: absolute robust z-score of the residual}
         method: {type: string, enum: [zscore, cusum, both]}
         direction: {type: string, enum: [high, low]}
+    FaultRequest:
+      type: object
+      required: [alarm]
+      properties:
+        alarm: {type: object, description: Enriched alarm (see alarm-enriched schema); label fields are ignored}
+        context: {type: object, nullable: true, description: Optional KPI/topology context}
+    FaultPrediction:
+      type: object
+      required: [faultType, confidence, probabilities, modelVersion]
+      properties:
+        faultType: {type: string}
+        confidence: {type: number}
+        probabilities: {type: object, additionalProperties: {type: number}}
+        modelVersion: {type: string}
+    FaultExplanation:
+      type: object
+      required: [faultType, confidence, modelVersion, baseValue, contributions]
+      properties:
+        faultType: {type: string}
+        confidence: {type: number}
+        modelVersion: {type: string}
+        baseValue: {type: number}
+        contributions:
+          type: array
+          items:
+            type: object
+            required: [feature, value, shap]
+            properties:
+              feature: {type: string}
+              value: {type: number}
+              shap: {type: number}

@@ -450,3 +450,27 @@ flowchart LR
 --- 
 
 *All Week 3 items are marked **BUILT** and ready for junior developers to explore, run, and extend.*
+
+## ml-service: fault classifier (W7)
+
+- **Port:** `8003` (FastAPI)  
+- **Endpoints**  
+  - `POST /predict`  
+    - **Request body:** `{ "alarm": <enriched_alarm>, "context": <optional> }`  
+    - **Response:** `{ "faultType": "<type>", "confidence": <0‑1>, "probabilities": { "<type>": <p>, … }, "modelVersion": "<hash>" }`  
+  - `POST /explain?top_k=5` (allowed 1‑20)  
+    - **Request body:** same as `/predict`  
+    - **Response:** `{ "faultType": "<type>", "confidence": <0‑1>, "modelVersion": "<hash>", "baseValue": <float>, "contributions": [ { "feature": "<name>", "value": <numeric>, "shap": <float> }, … ] }`  
+
+- **Model handling**  
+  - Models are stored under `MODELS_DIR` (default `models`).  
+  - Registry file: `models/registry.json`.  
+  - `MODEL_NAME` env var selects which registered model to load.  
+  - `AUTO_TRAIN=1` (default) → if no model is present, a tiny synthetic model is trained on first request.  
+  - `AUTO_TRAIN=0` → `/predict` and `/explain` return **503 Service Unavailable**.  
+
+- **Explanation engine** uses XGBoost’s built‑in TreeSHAP (`predict(pred_contribs=True)`). No external `shap` dependency.  
+
+- **Integration**  
+  - The `api-gateway` proxies `POST /api/ml/predict` and `POST /api/ml/explain` to this service.  
+  - NOC console renders the fault badge and a side‑panel (`ShapDrawer`) with the top SHAP contributions as horizontal bars.

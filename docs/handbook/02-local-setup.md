@@ -209,3 +209,31 @@ make ml-train                    # offline precision/recall/F1 on synthetic grou
 
 Expected: the **Anomalies** panel lists cells with a `z` score badge, and the KPI chart shows
 red dots plus an "N anomalies" badge on anomalous points. Times are shown in IST.
+
+## Fault classifier (W7) – Local setup
+
+```bash
+# 1. Build and start the demo stack (docker-compose)
+docker compose up -d
+
+# 2. Train the XGBoost model (optional – AUTO_TRAIN will handle missing model)
+make ml-train-xgb   # runs: python -m ml_service.train_xgb --register
+
+# 3. Verify the model is registered
+cat models/registry.json
+
+# 4. Call the classifier via the API gateway
+curl -X POST http://localhost:8000/api/ml/predict \
+     -H "Content-Type: application/json" \
+     -d '{"alarm": {"severity": 3, "node_type": "router", "blast_radius": 2, "dedup_cnt": 1, "kpi": 0.78, "group_sz": 4}}'
+
+# 5. Get an explanation (top‑5 features)
+curl -X POST "http://localhost:8000/api/ml/explain?top_k=5" \
+     -H "Content-Type: application/json" \
+     -d '{"alarm": {"severity": 3, "node_type": "router", "blast_radius": 2, "dedup_cnt": 1, "kpi": 0.78, "group_sz": 4}}'
+```
+
+**Notes**
+- The gateway enforces a 64 KB request‑body limit (returns **413 Payload Too Large** if exceeded).  
+- If `ml-service` is down, the gateway returns **503 Service Unavailable**.  
+- Non‑JSON payloads result in **502 Bad Gateway** from the gateway.

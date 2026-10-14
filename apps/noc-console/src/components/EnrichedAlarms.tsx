@@ -7,10 +7,20 @@ import type { ConnectionStatus } from '../hooks/useAlarmFeed';
 interface EnrichedAlarmsProps {
   alarms: EnrichedAlarm[];
   status?: ConnectionStatus;
+  /** W7: click a row to classify it and open the SHAP drawer. */
+  selectedKey?: string | null;
+  onSelect?: (alarm: EnrichedAlarm) => void;
+  selectedBadge?: React.ReactNode;
 }
 
 /** W4: alarms after alarm-ingest (normalised, enriched with topology, deduped, correlated). */
-export const EnrichedAlarms: React.FC<EnrichedAlarmsProps> = ({ alarms, status }) => {
+export const EnrichedAlarms: React.FC<EnrichedAlarmsProps> = ({
+  alarms,
+  status,
+  selectedKey = null,
+  onSelect,
+  selectedBadge,
+}) => {
   const summary = useMemo(() => {
     const deduped = alarms.reduce((sum, a) => sum + Math.max(0, a.dedup.count - 1), 0);
     const groups = new Set(
@@ -69,7 +79,11 @@ export const EnrichedAlarms: React.FC<EnrichedAlarmsProps> = ({ alarms, status }
                 return (
                   <tr
                     key={a.dedup.key}
-                    className={`border-b border-slate-800 ${styles.rowBorder} hover:bg-slate-800/50`}
+                    onClick={onSelect ? () => onSelect(a) : undefined}
+                    aria-selected={selectedKey === a.dedup.key}
+                    className={`border-b border-slate-800 ${styles.rowBorder} hover:bg-slate-800/50 ${
+                      onSelect ? 'cursor-pointer' : ''
+                    } ${selectedKey === a.dedup.key ? 'bg-slate-800/70' : ''}`}
                   >
                     <td className="py-1.5 pl-2 text-slate-400 font-mono">
                       {formatIST(a.alarmRaisedTime)}
@@ -89,7 +103,10 @@ export const EnrichedAlarms: React.FC<EnrichedAlarmsProps> = ({ alarms, status }
                     <td className="py-1.5 text-slate-400">
                       {a.enrichment.nodeTypes.join(', ') || '—'}
                     </td>
-                    <td className="py-1.5 text-slate-400">{a.specificProblem}</td>
+                    <td className="py-1.5 text-slate-400">
+                      <div>{a.specificProblem}</div>
+                      {selectedKey === a.dedup.key && selectedBadge}
+                    </td>
                     <td className="py-1.5">
                       {a.dedup.count > 1 ? (
                         <span className="px-1.5 rounded bg-violet-500/15 text-violet-300">

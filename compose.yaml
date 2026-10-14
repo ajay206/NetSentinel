@@ -143,6 +143,8 @@ services:
     environment:
       KPI_SERVICE_URL: http://kpi-service:8002
       ANOMALY_Z: "3.5"
+      MODELS_DIR: /tmp/models
+      AUTO_TRAIN: "1"
     mem_limit: 256m
     depends_on:
       kpi-service:
