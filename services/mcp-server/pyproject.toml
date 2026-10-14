@@ -1,0 +1,22 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "mcp-server"
+version = "0.1.0"
+description = "NetSentinel mcp-server: FastMCP tools over Phase 1 services (W10)"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "mcp[cli]>=1.20,<2",
+    "httpx>=0.27",
+    "uvicorn[standard]>=0.30",
+    "starlette>=0.40",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/mcp_server"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"

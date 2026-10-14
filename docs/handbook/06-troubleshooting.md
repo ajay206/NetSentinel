@@ -234,3 +234,52 @@ Then refresh the console.
 1. Review the cited IDs in the response – they should match alarm IDs (`ALM-…`), anomaly IDs (`ANOM-<cellId>-<kpi>-<ts>`), or runbook IDs (`RB-…`).  
 2. If hallucinations persist, try a larger model by setting `OLLAMA_MODEL` to a higher‑capacity model (e.g., `qwen2.5:7b`).  
 3. Ensure the prompt includes the full list of retrieved context IDs to reduce hallucination risk.
+
+# Troubleshooting – Step 10 (W10)
+
+### 32. Tool‑call chips appear red / “mcp-server unavailable”
+- **Cause:** `mcp-server` is not running or cannot be reached on the internal network.
+- **Fix:**  
+  ```bash
+  docker compose ps | grep mcp-server   # should show “Up”
+  docker compose up -d mcp-server        # start it if stopped
+  ```
+- Verify the token matches (`docker logs mcp-server` will show “401 Unauthorized” if mismatched).
+
+### 33. 401 Unauthorized in `mcp-server` logs
+- **Cause:** `Authorization: Bearer $MCP_SERVICE_TOKEN` header missing or token incorrect.
+- **Fix:** Ensure the same token is set in both `.env` (Docker) and the shell where you run `make copilot`.  
+  ```bash
+  export MCP_SERVICE_TOKEN=correct-token
+  make up-copilot
+  ```
+
+### 34. `mcp-server` exits with “MCP_SERVICE_TOKEN is required”
+- **Cause:** Environment variable not set and `MCP_ALLOW_NO_TOKEN` is not `1`.
+- **Fix:**  
+  ```bash
+  export MCP_SERVICE_TOKEN=your-token
+  # or for quick local dev only
+  export MCP_ALLOW_NO_TOKEN=1
+  make mcp
+  ```
+
+### 35. Contract test fails after changing a tool definition
+- **Cause:** The generated contract files are out‑of‑date.
+- **Fix:** Regenerate both contracts:  
+  ```bash
+  make mcp-contract
+  make copilot-contract
+  ```
+  Then re‑run the test suite (`pytest -q`).
+
+### 36. `mcp dev` Inspector won’t start
+- **Cause:** Node or npx is missing on the host.
+- **Fix:** Install Node (≥18) and ensure `npx` is on the PATH, then retry `make mcp-dev`.  
+  If you cannot install Node, fall back to the HTTP server mode:
+  ```bash
+  make mcp   # runs the FastAPI server; use curl to test token handling.
+  ```
+
+---  
+*For any other issues, consult the CI logs or open a ticket in the NetSentinel repo.*

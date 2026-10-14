@@ -17,6 +17,13 @@ export interface CopilotAnswer {
   steps: CopilotStep[];
 }
 
+export interface ToolCall {
+  name: string;
+  ok: boolean;
+  durationMs: number;
+  transport: 'mcp' | 'http';
+}
+
 export interface AnalyzeResponse {
   siteId: string;
   window: string;
@@ -27,5 +34,7 @@ export interface AnalyzeResponse {
   errors: string[];
   sourceIds: string[];
   warnings: string[];
+  /** W10: evidence calls (MCP tools, or direct HTTP when TOOLS=http). */
+  toolCalls?: ToolCall[];
   durationMs: number;
 }

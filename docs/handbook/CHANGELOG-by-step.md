@@ -175,3 +175,35 @@ Introduces the `copilot-orchestrator` service that analyses recent alarms and KP
 - [x] Documentation files are present and referenced in the repo README.
 - [ ] Manual browser test: run `make up-copilot`, open the NOC UI, trigger “Analyze site” and verify result cards (not automated in CI).
 - [ ] Real Ollama run on a developer Mac (Ajay) – confirmed model loads and answers are returned.
+
+## Step 10 – W10 mcp-server (internal tool layer)
+
+### Summary
+- Introduced `mcp-server` Docker service (port 8006, compose profile `copilot`, 128 MiB memory limit, no published ports).
+- Added four MCP tools (`get_alarms`, `predict_fault`, `search_runbooks`, `kpi_anomalies`) with unified JSON schema contracts.
+- Updated Copilot orchestrator to use `TOOLS=mcp` by default; toolCalls now include transport metadata.
+- Implemented token‑based ASGI auth middleware; `MCP_ALLOW_NO_TOKEN` dev flag.
+- Generated contract artifacts (`netsentinel-tools.json`, `copilot-orchestrator.yaml`) via make targets.
+- Updated UI to show tool‑call chips with latency and transport tooltips.
+
+### Changes
+| Component | Change |
+|-----------|--------|
+| `services/mcp-server` | New service, FastMCP SDK v1 (`mcp[cli]>=1.20,<2` locked at 1.30.0). |
+| `contracts/mcp/netsentinel-tools.json` | Auto‑generated tool definitions. |
+| `contracts/openapi/copilot-orchestrator.yaml` | Updated to include `toolCalls` array and MCP transport. |
+| `docs/adr/ADR-010-mcp-internal-tool-layer.md` | Architectural decision record. |
+| `docs/handbook/*` | Handbook sections for services, setup, troubleshooting, and changelog. |
+| CI / Tests | Added contract validation, MCP auth tests, and e2e Copilot flow through real FastMCP server. |
+
+### Verification Checklist
+- [x] **Unit / integration tests** (`pytest`) – all pass, including contract drift checks.  
+- [x] **Static analysis** – `ruff check` and `ruff format` run clean.  
+- [x] **Frontend checks** – `vitest` lint, type‑check, and build succeed.  
+- [x] **Documentation** – `docs-check` passes; all new markdown files render.  
+- [x] **CI workflow** – steps of `.github/workflows/ci.yml` re-run locally in a clean clone.  
+- [x] **Local streamable‑HTTP smoke test** – token accepted, wrong token yields 401 (checked).  
+- [ ] **MCP Inspector** – verified on Ajay’s Mac (requires Node/npx).  
+- [ ] **Docker health** – `docker compose up -d` starts all services, `docker compose ps` shows healthy.  
+- [ ] **Browser e2e with Ollama** – pending; will be executed in Phase 2.
+

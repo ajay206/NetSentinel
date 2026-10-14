@@ -321,3 +321,57 @@ services:
 make analyze SITE=SITE-012 WINDOW=30m
 ```
 The gateway proxies the request to `http://localhost:8005/analyze` with a 90 s timeout.
+
+## MCP tool layer (W10)
+
+This guide walks you through building, running, and configuring the new **mcp-server** service.
+
+### 1. Run locally (no Docker)
+
+```bash
+make mcp          # uvicorn --factory mcp_server.app:build_app --port 8006
+                  # sets MCP_ALLOW_NO_TOKEN=1 so a token is not required
+curl -s localhost:8006/healthz
+```
+
+For Docker, `make up-copilot` starts both `mcp-server` and `copilot-orchestrator` on the compose network. mcp-server publishes no host ports; only other containers can reach it. Set `MCP_SERVICE_TOKEN` in `.env` (do not use the compose default).
+
+### 2. Development Mode (Inspector)
+
+```bash
+make mcp-dev      # → uv run mcp dev services/mcp-server/src/mcp_server/server.py
+```
+
+*Requires Node & npx for the MCP Inspector UI.*  
+
+### 3. Environment Variables
+
+| Variable | Required? | Description |
+|----------|-----------|-------------|
+| `MCP_SERVICE_TOKEN` | Yes (unless `MCP_ALLOW_NO_TOKEN=1`) | Bearer token used by the ASGI auth middleware. |
+| `MCP_ALLOW_NO_TOKEN` | No | Set to `1` for local dev to bypass token requirement. |
+| `TOOLS` | No (default `mcp`) | `mcp` = evidence via mcp-server; `http` = W9 direct calls. |
+| `MCP_URL` | No | Defaults to `http://localhost:8006/mcp` (compose: `http://mcp-server:8006/mcp`). |
+| `MCP_SERVICE_TOKEN` (copilot) | Same as mcp-server | Bearer token the copilot sends. |
+
+**Tip:** Add the token to `.env` (used by `docker compose`) and **do not** rely on the dev default.
+
+### 4. Regenerate Contracts
+
+Whenever a tool signature changes:
+
+```bash
+make mcp-contract        # generates contracts/mcp/netsentinel-tools.json
+make copilot-contract    # generates contracts/openapi/copilot-orchestrator.yaml
+```
+
+Both contracts are validated by CI; mismatches cause test failures.
+
+### 5. Run Copilot with MCP
+
+```bash
+export MCP_SERVICE_TOKEN=your-secret-token   # for local uvicorn
+make mcp &                                  # or: make up-copilot (Docker)
+TOOLS=mcp MCP_URL=http://localhost:8006/mcp MCP_SERVICE_TOKEN=$MCP_SERVICE_TOKEN make copilot
+make analyze SITE=SITE-012
+```

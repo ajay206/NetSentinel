@@ -1,0 +1,139 @@
+{
+  "server": "netsentinel",
+  "transport": "streamable-http at /mcp, Authorization: Bearer <MCP_SERVICE_TOKEN>",
+  "tools": [
+    {
+      "name": "get_alarms",
+      "inputSchema": {
+        "properties": {
+          "site_id": {
+            "title": "Site Id",
+            "type": "string"
+          },
+          "window_minutes": {
+            "default": 30,
+            "title": "Window Minutes",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "site_id"
+        ],
+        "title": "get_alarmsArguments",
+        "type": "object"
+      },
+      "outputSchema": {
+        "additionalProperties": true,
+        "title": "get_alarmsDictOutput",
+        "type": "object"
+      }
+    },
+    {
+      "name": "kpi_anomalies",
+      "inputSchema": {
+        "properties": {
+          "site_id": {
+            "title": "Site Id",
+            "type": "string"
+          },
+          "hours": {
+            "default": 1,
+            "title": "Hours",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "site_id"
+        ],
+        "title": "kpi_anomaliesArguments",
+        "type": "object"
+      },
+      "outputSchema": {
+        "additionalProperties": true,
+        "title": "kpi_anomaliesDictOutput",
+        "type": "object"
+      }
+    },
+    {
+      "name": "predict_fault",
+      "inputSchema": {
+        "properties": {
+          "alarm": {
+            "additionalProperties": true,
+            "title": "Alarm",
+            "type": "object"
+          }
+        },
+        "required": [
+          "alarm"
+        ],
+        "title": "predict_faultArguments",
+        "type": "object"
+      },
+      "outputSchema": {
+        "additionalProperties": true,
+        "title": "predict_faultDictOutput",
+        "type": "object"
+      }
+    },
+    {
+      "name": "search_runbooks",
+      "inputSchema": {
+        "properties": {
+          "query": {
+            "title": "Query",
+            "type": "string"
+          },
+          "fault_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Fault Type"
+          },
+          "top_k": {
+            "default": 3,
+            "title": "Top K",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "title": "search_runbooksArguments",
+        "type": "object"
+      },
+      "outputSchema": {
+        "additionalProperties": true,
+        "title": "search_runbooksDictOutput",
+        "type": "object"
+      }
+    }
+  ],
+  "resourceTemplates": [
+    {
+      "uriTemplate": "runbook://{runbook_id}",
+      "mimeType": "text/markdown"
+    }
+  ],
+  "prompts": [
+    {
+      "name": "analyze_site",
+      "arguments": [
+        {
+          "name": "site_id",
+          "required": true
+        },
+        {
+          "name": "window",
+          "required": false
+        }
+      ]
+    }
+  ]
+}

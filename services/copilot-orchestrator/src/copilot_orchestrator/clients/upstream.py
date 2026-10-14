@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import time
 from datetime import datetime, timedelta
 from typing import Any
 
@@ -55,7 +56,74 @@ def select_site_alarms(
     return in_window[:limit]
 
 
-class Upstream:
+class ToolRecorder:
+    """Records one entry per evidence call so the console can show tool-call chips.
+
+    Subclasses implement ``_alarms_for_site`` / ``_anomalies_for_site`` / ``_predict`` /
+    ``_runbooks`` and append to ``self.warnings`` on failure.
+    """
+
+    transport_name = "http"
+    TOOL_NAMES = {
+        "alarms_for_site": "get_alarms",
+        "anomalies_for_site": "kpi_anomalies",
+        "predict": "predict_fault",
+        "runbooks": "search_runbooks",
+    }
+
+    def __init__(self) -> None:
+        self.warnings: list[str] = []
+        self.tool_calls: list[dict[str, Any]] = []
+
+    async def _timed(self, key: str, coro: Any) -> Any:
+        before = len(self.warnings)
+        t0 = time.perf_counter()
+        raised = True
+        try:
+            result = await coro
+            raised = False
+            return result
+        finally:
+            self.tool_calls.append(
+                {
+                    "name": self.TOOL_NAMES[key],
+                    "ok": not raised and len(self.warnings) == before,
+                    "durationMs": int((time.perf_counter() - t0) * 1000),
+                    "transport": self.transport_name,
+                }
+            )
+
+    async def alarms_for_site(self, site_id: str, window_minutes: int) -> list[dict[str, Any]]:
+        return await self._timed("alarms_for_site", self._alarms_for_site(site_id, window_minutes))
+
+    async def anomalies_for_site(self, site_id: str, hours: int = 1) -> list[dict[str, Any]]:
+        return await self._timed("anomalies_for_site", self._anomalies_for_site(site_id, hours))
+
+    async def predict(self, alarm: dict[str, Any]) -> dict[str, Any] | None:
+        return await self._timed("predict", self._predict(alarm))
+
+    async def runbooks(self, query: str, fault_type: str | None) -> list[dict[str, Any]]:
+        return await self._timed("runbooks", self._runbooks(query, fault_type))
+
+    async def aclose(self) -> None:
+        """Release resources (no-op for plain HTTP)."""
+
+    async def _alarms_for_site(self, site_id: str, window_minutes: int) -> list[dict[str, Any]]:
+        raise NotImplementedError
+
+    async def _anomalies_for_site(self, site_id: str, hours: int) -> list[dict[str, Any]]:
+        raise NotImplementedError
+
+    async def _predict(self, alarm: dict[str, Any]) -> dict[str, Any] | None:
+        raise NotImplementedError
+
+    async def _runbooks(self, query: str, fault_type: str | None) -> list[dict[str, Any]]:
+        raise NotImplementedError
+
+
+class Upstream(ToolRecorder):
+    """W9 path: call gateway / ml-service / rag-service directly over HTTP (TOOLS=http)."""
+
     def __init__(
         self,
         gateway_url: str | None = None,
@@ -71,14 +139,14 @@ class Upstream:
         self.rag_url = (rag_url or os.getenv("RAG_SERVICE_URL", "http://localhost:8004")).rstrip(
             "/"
         )
+        super().__init__()
         self._transport = transport
         self._timeout = timeout
-        self.warnings: list[str] = []
 
     def _client(self) -> httpx.AsyncClient:
         return httpx.AsyncClient(timeout=self._timeout, transport=self._transport)
 
-    async def alarms_for_site(self, site_id: str, window_minutes: int) -> list[dict[str, Any]]:
+    async def _alarms_for_site(self, site_id: str, window_minutes: int) -> list[dict[str, Any]]:
         try:
             async with self._client() as c:
                 resp = await c.get(f"{self.gateway_url}/api/alarms/enriched/recent")
@@ -92,7 +160,7 @@ class Upstream:
             return []
         return select_site_alarms(alarms, site_id, window_minutes)
 
-    async def anomalies_for_site(self, site_id: str, hours: int = 1) -> list[dict[str, Any]]:
+    async def _anomalies_for_site(self, site_id: str, hours: int = 1) -> list[dict[str, Any]]:
         found: list[dict[str, Any]] = []
         prefix = f"{site_id}-"
         try:
@@ -110,7 +178,7 @@ class Upstream:
         found.sort(key=lambda i: float(i.get("score", 0)), reverse=True)
         return found[:10]
 
-    async def predict(self, alarm: dict[str, Any]) -> dict[str, Any] | None:
+    async def _predict(self, alarm: dict[str, Any]) -> dict[str, Any] | None:
         try:
             async with self._client() as c:
                 resp = await c.post(f"{self.ml_url}/predict", json={"alarm": alarm})
@@ -120,7 +188,7 @@ class Upstream:
             self.warnings.append(f"fault prediction unavailable: {type(exc).__name__}")
             return None
 
-    async def runbooks(self, query: str, fault_type: str | None) -> list[dict[str, Any]]:
+    async def _runbooks(self, query: str, fault_type: str | None) -> list[dict[str, Any]]:
         body = {"query": query[:500], "top_k": 3, "mode": "hybrid", "faultType": fault_type}
         try:
             async with self._client() as c:

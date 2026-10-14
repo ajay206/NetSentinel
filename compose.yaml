@@ -204,11 +204,39 @@ services:
       OLLAMA_URL: http://host.docker.internal:11434
       OLLAMA_MODEL: qwen2.5:1.5b
       LLM: ollama
+      # W10: evidence via MCP tools (TOOLS=http = direct W9 calls)
+      TOOLS: mcp
+      MCP_URL: http://mcp-server:8006/mcp
+      MCP_SERVICE_TOKEN: ${MCP_SERVICE_TOKEN:-dev-only-change-me}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     mem_limit: 192m
+    depends_on:
+      mcp-server:
+        condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request;urllib.request.urlopen('http://localhost:8005/healthz')\""]
+      interval: 10s
+      retries: 5
+    restart: unless-stopped
+
+  mcp-server:
+    build:
+      context: .
+      dockerfile: services/mcp-server/Dockerfile
+    profiles: ["copilot"]
+    # Internal only: no published ports, so only containers on the compose network (the
+    # copilot) can reach it, and every /mcp call needs the service token.
+    expose:
+      - "8006"
+    environment:
+      GATEWAY_URL: http://api-gateway:8000
+      ML_SERVICE_URL: http://ml-service:8003
+      RAG_SERVICE_URL: http://rag-service:8004
+      MCP_SERVICE_TOKEN: ${MCP_SERVICE_TOKEN:-dev-only-change-me}
+    mem_limit: 128m
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request;urllib.request.urlopen('http://localhost:8006/healthz')\""]
       interval: 10s
       retries: 5
     restart: unless-stopped
