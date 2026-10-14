@@ -144,3 +144,34 @@ Runbook retrieval: 42 synthetic markdown runbooks are chunked, embedded and stor
 - [x] **make rag-eval**: hybrid top-3 1.00 (hash-384 and bge-small); see `evals/rag_report.md`.
 - [ ] **Docker checks on Ajay's Mac**: pending.
 - [ ] **End-to-end check**: pending (alarm → fault badge → runbooks in the browser).
+
+## Step 9 – W9 simple copilot (local LLM)
+
+**Summary**  
+Introduces the `copilot-orchestrator` service that analyses recent alarms and KPI anomalies for a site using a local Ollama LLM. The service validates structured JSON output, retries on validation errors, and falls back to a deterministic answer when needed.
+
+**Changes**
+- New FastAPI service (`copilot-orchestrator`) with `POST /analyze`, `GET /healthz`, `GET /readyz`.
+- Added Docker Compose profile `copilot` with 128 MiB memory limit.
+- Implemented upstream data gathering (alarms, anomalies, fault‑type prediction, runbooks) with warning‑only error handling.
+- Integrated local Ollama (`qwen2.5:1.5b`) via `/api/chat`; configurable via `OLLAMA_URL` and `OLLAMA_MODEL`.
+- Added strict Pydantic `Answer` schema and citation validation logic.
+- Retry loop (max 3 attempts) feeding validation errors back to the LLM.
+- Deterministic fallback path that builds an answer from the gathered evidence.
+- Updated UI “Copilot analyze” panel (site input, window selector, result cards, badges).
+- Added ADR 009 documenting the decision to use a simple local LLM.
+- Added handbook files for service overview, setup, and troubleshooting.
+- CI enhancements:
+  * Unit tests for each component.
+  * End‑to‑end fibre‑cut test with `httpx.MockTransport` and a `MockLLM` that forces citation failures → verifies fallback after 3 attempts.
+  * Contract test that keeps `contracts/openapi/copilot-orchestrator.yaml` in sync with the FastAPI app.
+- Linting and type‑checking (ruff, mypy) integrated into CI.
+
+**Verification checklist**
+- [x] `pytest` passes all unit tests.
+- [x] CI e2e fibre‑cut test runs with mocked LLM and asserts fallback behaviour.
+- [x] OpenAPI contract (`contracts/openapi/copilot-orchestrator.yaml`) is up‑to‑date.
+- [x] Code passes `ruff` linting and `mypy` type checks.
+- [x] Documentation files are present and referenced in the repo README.
+- [ ] Manual browser test: run `make up-copilot`, open the NOC UI, trigger “Analyze site” and verify result cards (not automated in CI).
+- [ ] Real Ollama run on a developer Mac (Ajay) – confirmed model loads and answers are returned.

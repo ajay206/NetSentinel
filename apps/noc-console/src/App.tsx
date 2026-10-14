@@ -8,10 +8,11 @@ import { useFaultExplanation, useFaultPrediction } from './hooks/useFault';
 import { useRunbook, useRunbookSearch } from './hooks/useRunbooks';
 import { buildRunbookQuery } from './lib/runbookQuery';
 import { RunbooksPanel } from './views/RunbooksPanel';
+import { CopilotPanel } from './views/CopilotPanel';
+import { useCopilotAnalyze } from './hooks/useCopilot';
 import type { EnrichedAlarm } from './types.enriched';
 import { useEnrichedFeed } from './hooks/useEnrichedFeed';
 import { ServiceHealth } from './components/ServiceHealth';
-import { PlaceholderPanel } from './components/PlaceholderPanel';
 import { NetworkMap } from './components/NetworkMap';
 import { KpiActivity } from './components/KpiActivity';
 import { KpiChartsContainer } from './components/KpiChartsContainer';
@@ -44,6 +45,7 @@ export const App: React.FC = () => {
   const runbookSearch = useRunbookSearch(runbookQuery, predictedFault);
   const [runbookId, setRunbookId] = useState<string | null>(null);
   const runbookDoc = useRunbook(runbookId);
+  const copilot = useCopilotAnalyze();
   const selectAlarm = (key: string | null) => {
     setSelectedKey(key);
     setRunbookId(null);
@@ -107,7 +109,14 @@ export const App: React.FC = () => {
             docLoading={runbookDoc.isLoading}
             onClosePreview={() => setRunbookId(null)}
           />
-          <PlaceholderPanel title="Copilot" week={9} />
+          <CopilotPanel
+            defaultSiteId={selected?.siteId ?? null}
+            onAnalyze={(siteId, window) => copilot.mutate({ siteId, window })}
+            result={copilot.data}
+            isPending={copilot.isPending}
+            error={copilot.error}
+            onOpenRunbook={setRunbookId}
+          />
         </div>
       </main>
       <ShapDrawer

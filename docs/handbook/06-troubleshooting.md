@@ -190,3 +190,47 @@ Then refresh the console.
   1. Ensure the host has outbound internet access for the initial download.  
   2. Alternatively, stay on the default `hash-384` embedder for offline CI.  
   3. After the model is cached (`~/.cache/fastembed`), subsequent runs work offline.
+
+### 28. Panel always shows “fallback (no LLM)”
+
+**Symptoms**: The UI displays the badge *fallback (no LLM)* and no LLM‑generated answer.
+
+**Possible causes & fixes**
+| Cause | Check | Remedy |
+|-------|-------|--------|
+| Ollama not running | `ps aux | grep ollama` or `curl http://localhost:11434/api/version` | Start Ollama: `ollama serve`. |
+| Model not pulled | `ollama list` – model `qwen2.5:1.5b` missing | Run `make ollama-pull`. |
+| `LLM=off` environment variable set | `docker exec copilot-orchestrator env | grep LLM` | Unset or set `LLM=on`. |
+| Wrong `OLLAMA_URL` / network issue | Verify container can reach `host.docker.internal:11434` | Ensure `extra_hosts` entry is present; test with `curl http://host.docker.internal:11434/api/version` from inside the container. |
+
+### 29. 404 No alarms for this site
+
+**Symptoms**: API returns 404 with message `No alarms for site in window` (the panel shows “No alarms for this site in the window”).
+
+**Possible causes & fixes**
+| Cause | Check | Remedy |
+|-------|-------|--------|
+| Wrong `site_id` | Confirm pattern `^SITE-\d{3}$`. | Use a valid site ID (e.g., `SITE-012`). |
+| Window too short | Verify alarms exist in the synthetic recent buffer. | Increase window (e.g., 30 m → 60 m). |
+| Gateway recent buffer empty | Inspect `/api/alarms/enriched/recent` mock data. | Ensure the CI or demo seed populates recent alarms for the site. |
+
+### 30. Slow first answer (approaching 90 s)
+
+**Symptoms**: The first `Analyze site` request takes close to the 90 s timeout.
+
+**Explanation**: The model is lazily loaded on first inference; subsequent calls are fast.
+
+**Mitigation**
+* Warm‑up the model after Ollama start: `curl -X POST http://localhost:11434/api/chat -d '{"model":"qwen2.5:1.5b","messages":[{"role":"user","content":"ping"}]}'`.
+* Increase the timeout in the gateway if needed (not recommended for the demo).
+
+### 31. Errors list shows citation failures
+
+**Symptoms**: Validation reports “sourceId XYZ not found in context” or “runbookId not among retrieved runbooks”.
+
+**Root cause**: The small model sometimes hallucinates IDs. After three retries the orchestrator falls back to the deterministic answer.
+
+**Actions**
+1. Review the cited IDs in the response – they should match alarm IDs (`ALM-…`), anomaly IDs (`ANOM-<cellId>-<kpi>-<ts>`), or runbook IDs (`RB-…`).  
+2. If hallucinations persist, try a larger model by setting `OLLAMA_MODEL` to a higher‑capacity model (e.g., `qwen2.5:7b`).  
+3. Ensure the prompt includes the full list of retrieved context IDs to reduce hallucination risk.

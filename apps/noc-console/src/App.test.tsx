@@ -111,5 +111,7 @@ describe('App', () => {
     // W8: runbooks panel is mounted and waits for an alarm selection
     expect(screen.getByRole('heading', { name: 'Suggested runbooks' })).toBeInTheDocument();
     expect(screen.getByText('Click an enriched alarm to see runbooks.')).toBeInTheDocument();
+    // W9: copilot panel replaces the placeholder
+    expect(screen.getByRole('heading', { name: 'Copilot analyze' })).toBeInTheDocument();
   });
 });

@@ -1,0 +1,377 @@
+# Generated from copilot_orchestrator.api:app.openapi(); regenerate after model changes.
+openapi: 3.1.0
+info:
+  title: NetSentinel copilot-orchestrator
+  version: 0.1.0
+  description: 'Simple (non-LangGraph) analyze flow (W9): gathers alarms (gateway), KPI anomalies and
+    fault type (ml-service) and runbooks (rag-service), asks a local Ollama model (qwen2.5:1.5b) for a
+    JSON answer, validates it with Pydantic plus citation checks, retries up to 3 times, else returns
+    a deterministic fallback. Exposed via the gateway as POST /api/copilot/analyze. Generated from the
+    FastAPI app.'
+paths:
+  /healthz:
+    get:
+      summary: Healthz
+      operationId: healthz_healthz_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+                title: Response Healthz Healthz Get
+  /readyz:
+    get:
+      summary: Readyz
+      operationId: readyz_readyz_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                additionalProperties: true
+                type: object
+                title: Response Readyz Readyz Get
+  /analyze:
+    post:
+      summary: Analyze Endpoint
+      operationId: analyze_endpoint_analyze_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AnalyzeRequest'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalyzeResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+        '404':
+          description: No alarms for the site in the window
+components:
+  schemas:
+    AlarmRef:
+      properties:
+        id:
+          type: string
+          title: Id
+        siteId:
+          type: string
+          title: Siteid
+        specificProblem:
+          type: string
+          title: Specificproblem
+        perceivedSeverity:
+          type: string
+          title: Perceivedseverity
+        alarmRaisedTime:
+          type: string
+          title: Alarmraisedtime
+        role:
+          type: string
+          title: Role
+      additionalProperties: false
+      type: object
+      required:
+      - id
+      - siteId
+      - specificProblem
+      - perceivedSeverity
+      - alarmRaisedTime
+      - role
+      title: AlarmRef
+    AnalyzeRequest:
+      properties:
+        site_id:
+          type: string
+          pattern: ^SITE-\d{3}$
+          title: Site Id
+        window:
+          type: string
+          pattern: ^\d{1,3}m$
+          title: Window
+          default: 30m
+      additionalProperties: false
+      type: object
+      required:
+      - site_id
+      title: AnalyzeRequest
+    AnalyzeResponse:
+      properties:
+        siteId:
+          type: string
+          title: Siteid
+        window:
+          type: string
+          title: Window
+        answer:
+          $ref: '#/components/schemas/Answer'
+        generatedBy:
+          type: string
+          enum:
+          - llm
+          - fallback
+          title: Generatedby
+        model:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Model
+        attempts:
+          type: integer
+          title: Attempts
+        errors:
+          items:
+            type: string
+          type: array
+          title: Errors
+        context:
+          $ref: '#/components/schemas/Context'
+        sourceIds:
+          items:
+            type: string
+          type: array
+          title: Sourceids
+          description: Every id the answer was allowed to cite
+        warnings:
+          items:
+            type: string
+          type: array
+          title: Warnings
+          description: Upstream services that failed
+        durationMs:
+          type: integer
+          title: Durationms
+      additionalProperties: false
+      type: object
+      required:
+      - siteId
+      - window
+      - answer
+      - generatedBy
+      - model
+      - attempts
+      - errors
+      - context
+      - sourceIds
+      - durationMs
+      title: AnalyzeResponse
+    AnomalyRef:
+      properties:
+        id:
+          type: string
+          title: Id
+        cellId:
+          type: string
+          title: Cellid
+        kpi:
+          type: string
+          title: Kpi
+        ts:
+          type: string
+          title: Ts
+        score:
+          type: number
+          title: Score
+        direction:
+          type: string
+          title: Direction
+      additionalProperties: false
+      type: object
+      required:
+      - id
+      - cellId
+      - kpi
+      - ts
+      - score
+      - direction
+      title: AnomalyRef
+    Answer:
+      properties:
+        suspectedCause:
+          type: string
+          maxLength: 300
+          minLength: 1
+          title: Suspectedcause
+        faultType:
+          type: string
+          title: Faulttype
+        confidence:
+          type: number
+          maximum: 1.0
+          minimum: 0.0
+          title: Confidence
+        evidence:
+          items:
+            $ref: '#/components/schemas/Claim'
+          type: array
+          maxItems: 5
+          minItems: 1
+          title: Evidence
+        steps:
+          items:
+            $ref: '#/components/schemas/Step'
+          type: array
+          maxItems: 6
+          title: Steps
+      additionalProperties: false
+      type: object
+      required:
+      - suspectedCause
+      - faultType
+      - confidence
+      - evidence
+      - steps
+      title: Answer
+    Claim:
+      properties:
+        text:
+          type: string
+          maxLength: 300
+          minLength: 1
+          title: Text
+        sources:
+          items:
+            type: string
+          type: array
+          maxItems: 5
+          minItems: 1
+          title: Sources
+      additionalProperties: false
+      type: object
+      required:
+      - text
+      - sources
+      title: Claim
+    Context:
+      properties:
+        site_id:
+          type: string
+          title: Site Id
+        window_minutes:
+          type: integer
+          title: Window Minutes
+        alarms:
+          items:
+            $ref: '#/components/schemas/AlarmRef'
+          type: array
+          title: Alarms
+        anomalies:
+          items:
+            $ref: '#/components/schemas/AnomalyRef'
+          type: array
+          title: Anomalies
+        fault:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Fault
+        runbooks:
+          items:
+            $ref: '#/components/schemas/RunbookRef'
+          type: array
+          title: Runbooks
+      additionalProperties: false
+      type: object
+      required:
+      - site_id
+      - window_minutes
+      - alarms
+      - anomalies
+      - fault
+      - runbooks
+      title: Context
+    HTTPValidationError:
+      properties:
+        detail:
+          items:
+            $ref: '#/components/schemas/ValidationError'
+          type: array
+          title: Detail
+      type: object
+      title: HTTPValidationError
+    RunbookRef:
+      properties:
+        runbookId:
+          type: string
+          title: Runbookid
+        title:
+          type: string
+          title: Title
+        section:
+          type: string
+          title: Section
+        snippet:
+          type: string
+          title: Snippet
+      additionalProperties: false
+      type: object
+      required:
+      - runbookId
+      - title
+      - section
+      - snippet
+      title: RunbookRef
+    Step:
+      properties:
+        text:
+          type: string
+          maxLength: 300
+          minLength: 1
+          title: Text
+        runbookId:
+          type: string
+          pattern: ^RB-[A-Z]{3}-\d{3}$
+          title: Runbookid
+        section:
+          type: string
+          title: Section
+      additionalProperties: false
+      type: object
+      required:
+      - text
+      - runbookId
+      - section
+      title: Step
+    ValidationError:
+      properties:
+        loc:
+          items:
+            anyOf:
+            - type: string
+            - type: integer
+          type: array
+          title: Location
+        msg:
+          type: string
+          title: Message
+        type:
+          type: string
+          title: Error Type
+        input:
+          title: Input
+        ctx:
+          type: object
+          title: Context
+      type: object
+      required:
+      - loc
+      - msg
+      - type
+      title: ValidationError
+servers:
+- url: http://localhost:8005

@@ -276,3 +276,48 @@ curl -s -XPOST localhost:8000/api/rag/search \
 ```
 
 The response contains the top‑3 runbook suggestions with titles, sections, snippets, scores, and predicted fault types.
+
+## Copilot with a local LLM (W9) – Setup
+
+### Prerequisites
+1. **Homebrew** (macOS) – for installing Ollama.  
+2. **Docker & Docker Compose** – to run the demo stack.  
+3. **Python 3.11+** – for local development (`uvicorn`, `httpx`, `pydantic`, etc.).
+
+### Install and start Ollama
+```bash
+brew install ollama          # installs the Ollama binary
+ollama serve                 # starts the Ollama server (listens on 127.0.0.1:11434)
+make ollama-pull            # pulls qwen2.5:1.5b (≈1 GB)
+```
+
+### Docker Compose integration
+`compose.yaml` includes an extra host entry so containers can reach the host‑side Ollama:
+
+```yaml
+services:
+  copilot-orchestrator:
+    build: {context: ., dockerfile: services/copilot-orchestrator/Dockerfile}
+    profiles: [copilot]
+    ports:
+      - "8005:8005"
+    mem_limit: 192m
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      - OLLAMA_URL=http://host.docker.internal:11434
+      - OLLAMA_MODEL=qwen2.5:1.5b
+```
+
+### Make targets
+| Target | Description |
+|--------|-------------|
+| `make copilot` | Runs the orchestrator locally with `uvicorn` (useful for debugging). |
+| `make up-copilot` | Starts the full demo stack (gateway, ml‑service, rag‑service, and copilot‑orchestrator) via Docker Compose. |
+| `make analyze SITE=SITE-012 WINDOW=30m` | Sends a `POST /api/copilot/analyze` request through the gateway (curl wrapper). |
+
+### Example analysis call
+```bash
+make analyze SITE=SITE-012 WINDOW=30m
+```
+The gateway proxies the request to `http://localhost:8005/analyze` with a 90 s timeout.

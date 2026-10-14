@@ -1,4 +1,4 @@
-.PHONY: up-core up-tools up-ui down topics test lint fmt smoke sim sim-loop sim-docker gateway console-install console console-build console-lint console-test test-all ingest up-pipeline enriched-peek ingest-stats kpi-service kpi-stats kpi-query ml ml-train anomalies topology kpis kpis-follow kpis-peek docs-check ml-train-xgb up-rag rag rag-ingest rag-eval runbooks
+.PHONY: up-core up-tools up-ui down topics test lint fmt smoke sim sim-loop sim-docker gateway console-install console console-build console-lint console-test test-all ingest up-pipeline enriched-peek ingest-stats kpi-service kpi-stats kpi-query ml ml-train anomalies topology kpis kpis-follow kpis-peek docs-check ml-train-xgb up-rag rag rag-ingest rag-eval runbooks copilot up-copilot analyze ollama-pull
 
 up-core:
 	docker compose --profile core up -d
@@ -115,6 +115,21 @@ rag-ingest:
 
 rag-eval:
 	uv run python -m rag_service.eval --mode all --k 3
+
+copilot:
+	uv run uvicorn copilot_orchestrator.api:app --port 8005
+
+up-copilot:
+	docker compose --profile copilot up -d --build copilot-orchestrator
+
+ollama-pull:
+	ollama pull qwen2.5:1.5b
+
+SITE ?= SITE-012
+WINDOW ?= 30m
+analyze:
+	curl -s -XPOST localhost:8000/api/copilot/analyze -H 'content-type: application/json' \
+		-d '{"site_id":"$(SITE)","window":"$(WINDOW)"}'; echo
 
 anomalies:
 	curl -s "localhost:8000/api/ml/anomalies?hours=24&limit=5"; echo

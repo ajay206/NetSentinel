@@ -495,3 +495,23 @@ flowchart LR
   - `GET /api/rag/runbooks/{id}` – validates `id` against the regex `^RB-[A-Z]{3}-\d{3}$`; otherwise returns **404**.  
 
 The service ingests the synthetic runbooks (42 markdown files under `data/runbooks`) by chunking each `##` section, generating deterministic chunk IDs, and storing vectors in Qdrant with cosine distance.  Re‑ingest is idempotent because Qdrant point IDs are derived from `uuid5(chunk_id)`.
+
+## copilot-orchestrator (W9)
+
+The **copilot-orchestrator** service provides the AI‑driven analysis for Step 9 of the NetSentinel demo.
+
+| Attribute | Value |
+|-----------|-------|
+| **Service name** | `copilot-orchestrator` |
+| **Framework** | FastAPI |
+| **Port** | 8005 |
+| **Compose profile** | `copilot` |
+| **Memory limit** | 128 MiB |
+| **Implementation** | Plain async Python (no LangGraph/LangChain) |
+| **Endpoints** | `POST /analyze` – request analysis<br>`GET /healthz` – health check<br>`GET /readyz` – readiness (reports LLM name) |
+| **LLM** | Local Ollama (`OLLAMA_URL`, default `http://localhost:11434`)<br>Model: `qwen2.5:1.5b` (configurable via `OLLAMA_MODEL`) |
+| **Retry policy** | Up to 3 attempts; validation errors are fed back into the next prompt. No retry if Ollama is unreachable. |
+| **Fallback** | Deterministic answer built from gathered evidence, marked `generatedBy: "fallback"` |
+| **Upstream dependencies** | `gateway` (alarms), `ml-service` (anomalies & fault type), `rag-service` (runbooks) |
+| **Error handling** | Upstream failures become `warnings` in the response; HTTP 404 for “no alarms”, 422 for bad input, 503 if the service itself is down, 502 on non‑JSON from gateway. |
+| **Testing** | Unit tests + CI e2e fibre‑cut test with mocked HTTP and a MockLLM. OpenAPI contract kept in `contracts/openapi/copilot-orchestrator.yaml`. |

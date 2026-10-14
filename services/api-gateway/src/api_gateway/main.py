@@ -47,11 +47,13 @@ CORS_ORIGINS = [
 DISABLE_KAFKA = os.getenv("DISABLE_KAFKA", "0") == "1"
 KPI_SERVICE_URL = os.getenv("KPI_SERVICE_URL", "http://localhost:8002").rstrip("/")
 ML_SERVICE_URL = os.getenv("ML_SERVICE_URL", "http://localhost:8003").rstrip("/")
+COPILOT_URL = os.getenv("COPILOT_URL", "http://localhost:8005").rstrip("/")
 RAG_SERVICE_URL = os.getenv("RAG_SERVICE_URL", "http://localhost:8004").rstrip("/")
 # Tests swap this for an httpx.MockTransport
 kpi_transport: httpx.AsyncBaseTransport | None = None
 ml_transport: httpx.AsyncBaseTransport | None = None
 rag_transport: httpx.AsyncBaseTransport | None = None
+copilot_transport: httpx.AsyncBaseTransport | None = None
 
 # Topology generation settings
 TOPOLOGY_SEED = int(os.getenv("TOPOLOGY_SEED", "42"))
@@ -485,3 +487,26 @@ async def rag_runbook_proxy(runbook_id: str) -> JSONResponse:
     if not _RUNBOOK_ID_RE.match(runbook_id):
         return JSONResponse({"detail": "Not found"}, status_code=404)
     return await _rag_call("GET", f"runbooks/{runbook_id}")
+
+
+@app.post("/api/copilot/analyze")
+async def copilot_analyze_proxy(request: Request) -> JSONResponse:
+    """Forward an analyze request to copilot-orchestrator (W9). The LLM can be slow: 90 s."""
+    body = await request.body()
+    if len(body) > 4_000:
+        return JSONResponse({"detail": "Request too large"}, status_code=413)
+    try:
+        async with httpx.AsyncClient(transport=copilot_transport, timeout=90.0) as client:
+            resp = await client.post(
+                f"{COPILOT_URL}/analyze",
+                content=body,
+                headers={"Content-Type": "application/json"},
+            )
+    except httpx.HTTPError as exc:
+        logger.warning("copilot-orchestrator unreachable: %s", exc)
+        return JSONResponse({"detail": "copilot-orchestrator unreachable"}, status_code=503)
+    try:
+        payload = resp.json()
+    except ValueError:
+        return JSONResponse({"detail": "copilot returned non-JSON"}, status_code=502)
+    return JSONResponse(payload, status_code=resp.status_code)
