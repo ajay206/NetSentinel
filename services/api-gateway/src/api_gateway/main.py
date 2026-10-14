@@ -47,9 +47,11 @@ CORS_ORIGINS = [
 DISABLE_KAFKA = os.getenv("DISABLE_KAFKA", "0") == "1"
 KPI_SERVICE_URL = os.getenv("KPI_SERVICE_URL", "http://localhost:8002").rstrip("/")
 ML_SERVICE_URL = os.getenv("ML_SERVICE_URL", "http://localhost:8003").rstrip("/")
+RAG_SERVICE_URL = os.getenv("RAG_SERVICE_URL", "http://localhost:8004").rstrip("/")
 # Tests swap this for an httpx.MockTransport
 kpi_transport: httpx.AsyncBaseTransport | None = None
 ml_transport: httpx.AsyncBaseTransport | None = None
+rag_transport: httpx.AsyncBaseTransport | None = None
 
 # Topology generation settings
 TOPOLOGY_SEED = int(os.getenv("TOPOLOGY_SEED", "42"))
@@ -444,3 +446,42 @@ async def ml_post_proxy(action: str, request: Request) -> JSONResponse:
     except ValueError:
         return JSONResponse({"detail": "ml-service returned non-JSON"}, status_code=502)
     return JSONResponse(payload, status_code=resp.status_code)
+
+
+_RUNBOOK_ID_RE = re.compile(r"^RB-[A-Z]{3}-\d{3}$")
+
+
+async def _rag_call(method: str, path: str, body: bytes | None = None) -> JSONResponse:
+    try:
+        async with httpx.AsyncClient(transport=rag_transport, timeout=15.0) as client:
+            resp = await client.request(
+                method,
+                f"{RAG_SERVICE_URL}/{path}",
+                content=body,
+                headers={"Content-Type": "application/json"} if body is not None else None,
+            )
+    except httpx.HTTPError as exc:
+        logger.warning("rag-service unreachable: %s", exc)
+        return JSONResponse({"detail": "rag-service unreachable"}, status_code=503)
+    try:
+        payload = resp.json()
+    except ValueError:
+        return JSONResponse({"detail": "rag-service returned non-JSON"}, status_code=502)
+    return JSONResponse(payload, status_code=resp.status_code)
+
+
+@app.post("/api/rag/search")
+async def rag_search_proxy(request: Request) -> JSONResponse:
+    """Forward runbook search to rag-service (W8)."""
+    body = await request.body()
+    if len(body) > 16_000:
+        return JSONResponse({"detail": "Request too large"}, status_code=413)
+    return await _rag_call("POST", "search", body)
+
+
+@app.get("/api/rag/runbooks/{runbook_id}")
+async def rag_runbook_proxy(runbook_id: str) -> JSONResponse:
+    """Fetch one runbook's markdown from rag-service (W8). IDs are validated before forwarding."""
+    if not _RUNBOOK_ID_RE.match(runbook_id):
+        return JSONResponse({"detail": "Not found"}, status_code=404)
+    return await _rag_call("GET", f"runbooks/{runbook_id}")

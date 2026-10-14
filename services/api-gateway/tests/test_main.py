@@ -354,3 +354,33 @@ def test_ml_post_proxy_predict_and_errors() -> None:
         assert client.post("/api/ml/predict", json={"alarm": {}}).status_code == 503
     finally:
         gw.ml_transport = None
+
+
+def test_rag_proxy_forwards_and_validates() -> None:
+    import api_gateway.main as gw
+    import httpx
+
+    seen: list[tuple[str, str]] = []
+
+    def handler(req: httpx.Request) -> httpx.Response:
+        seen.append((req.method, str(req.url)))
+        return httpx.Response(200, json={"results": [], "id": "RB-FIB-001"})
+
+    gw.rag_transport = httpx.MockTransport(handler)
+    try:
+        client = TestClient(app)
+        assert client.post("/api/rag/search", json={"query": "LOS"}).status_code == 200
+        assert seen[0] == ("POST", f"{gw.RAG_SERVICE_URL}/search")
+        assert client.get("/api/rag/runbooks/RB-FIB-001").status_code == 200
+        assert seen[1][1].endswith("/runbooks/RB-FIB-001")
+        assert client.get("/api/rag/runbooks/..%2Fsecret").status_code == 404
+        assert client.post("/api/rag/search", content=b"x" * 20_000).status_code == 413
+        assert len(seen) == 2
+
+        def boom(req: httpx.Request) -> httpx.Response:
+            raise httpx.ConnectError("down")
+
+        gw.rag_transport = httpx.MockTransport(boom)
+        assert client.post("/api/rag/search", json={"query": "LOS"}).status_code == 503
+    finally:
+        gw.rag_transport = None

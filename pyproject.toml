@@ -35,6 +35,7 @@ api-gateway = { workspace = true }
 alarm-ingest = { workspace = true }
 kpi-service = { workspace = true }
 ml-service = { workspace = true }
+rag-service = { workspace = true }
 
 [tool.ruff]
 line-length = 100

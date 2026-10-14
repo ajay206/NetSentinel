@@ -1,4 +1,4 @@
-.PHONY: up-core up-tools up-ui down topics test lint fmt smoke sim sim-loop sim-docker gateway console-install console console-build console-lint console-test test-all ingest up-pipeline enriched-peek ingest-stats kpi-service kpi-stats kpi-query ml ml-train anomalies topology kpis kpis-follow kpis-peek docs-check ml-train-xgb
+.PHONY: up-core up-tools up-ui down topics test lint fmt smoke sim sim-loop sim-docker gateway console-install console console-build console-lint console-test test-all ingest up-pipeline enriched-peek ingest-stats kpi-service kpi-stats kpi-query ml ml-train anomalies topology kpis kpis-follow kpis-peek docs-check ml-train-xgb up-rag rag rag-ingest rag-eval runbooks
 
 up-core:
 	docker compose --profile core up -d
@@ -100,6 +100,21 @@ ml-train:
 
 ml-train-xgb:
 	cd services/ml-service && uv run python -m ml_service.train_xgb --register
+
+up-rag:
+	docker compose --profile rag up -d --build qdrant rag-service
+
+rag:
+	uv run uvicorn rag_service.api:app --port 8004
+
+runbooks:
+	python3 scripts/gen_runbooks.py
+
+rag-ingest:
+	uv run python -m rag_service.ingest data/runbooks
+
+rag-eval:
+	uv run python -m rag_service.eval --mode all --k 3
 
 anomalies:
 	curl -s "localhost:8000/api/ml/anomalies?hours=24&limit=5"; echo

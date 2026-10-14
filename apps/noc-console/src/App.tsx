@@ -5,6 +5,9 @@ import { EnrichedAlarms } from './components/EnrichedAlarms';
 import { FaultBadge } from './components/FaultBadge';
 import { ShapDrawer } from './components/ShapDrawer';
 import { useFaultExplanation, useFaultPrediction } from './hooks/useFault';
+import { useRunbook, useRunbookSearch } from './hooks/useRunbooks';
+import { buildRunbookQuery } from './lib/runbookQuery';
+import { RunbooksPanel } from './views/RunbooksPanel';
 import type { EnrichedAlarm } from './types.enriched';
 import { useEnrichedFeed } from './hooks/useEnrichedFeed';
 import { ServiceHealth } from './components/ServiceHealth';
@@ -33,6 +36,19 @@ export const App: React.FC = () => {
   const prediction = useFaultPrediction(selected);
   const explanation = useFaultExplanation(selected);
 
+  // W8: runbooks for the selected alarm. Wait for the fault prediction so we search once,
+  // using the predicted fault type as a soft boost (search still works if ml-service is down).
+  const predictedFault = prediction.data?.faultType ?? null;
+  const runbookQuery =
+    selected && !prediction.isLoading ? buildRunbookQuery(selected, predictedFault) : null;
+  const runbookSearch = useRunbookSearch(runbookQuery, predictedFault);
+  const [runbookId, setRunbookId] = useState<string | null>(null);
+  const runbookDoc = useRunbook(runbookId);
+  const selectAlarm = (key: string | null) => {
+    setSelectedKey(key);
+    setRunbookId(null);
+  };
+
   const severityBySite = useMemo(() => worstSeverityBySite(alarms), [alarms]);
 
   return (
@@ -53,7 +69,7 @@ export const App: React.FC = () => {
             alarms={enrichedAlarms}
             status={enrichedStatus}
             selectedKey={selectedKey}
-            onSelect={(a) => setSelectedKey(a.dedup.key)}
+            onSelect={(a) => selectAlarm(a.dedup.key)}
             selectedBadge={
               <FaultBadge
                 prediction={prediction.data}
@@ -80,6 +96,17 @@ export const App: React.FC = () => {
           </section>
           <KpiChartsContainer />
           <AnomaliesContainer />
+          <RunbooksPanel
+            alarmLabel={selected ? `${selected.specificProblem} @ ${selected.siteId}` : null}
+            hits={runbookSearch.data?.results}
+            isLoading={runbookQuery !== null && runbookSearch.isLoading}
+            isError={runbookSearch.isError}
+            selectedId={runbookId}
+            onSelect={setRunbookId}
+            doc={runbookDoc.data}
+            docLoading={runbookDoc.isLoading}
+            onClosePreview={() => setRunbookId(null)}
+          />
           <PlaceholderPanel title="Copilot" week={9} />
         </div>
       </main>
@@ -89,7 +116,7 @@ export const App: React.FC = () => {
         explanation={explanation.data}
         isLoading={prediction.isLoading || explanation.isLoading}
         isError={prediction.isError || explanation.isError}
-        onClose={() => setSelectedKey(null)}
+        onClose={() => selectAlarm(null)}
       />
     </div>
   );

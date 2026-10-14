@@ -69,6 +69,7 @@ services:
       ENRICHED_TOPIC: alarms.enriched
       KPI_SERVICE_URL: http://kpi-service:8002
       ML_SERVICE_URL: http://ml-service:8003
+      RAG_SERVICE_URL: http://rag-service:8004
       TOPOLOGY_SEED: "42"
       TOPOLOGY_FULL: "0"
       TIMESCALE_HOST: timescaledb
@@ -155,6 +156,38 @@ services:
       retries: 5
     restart: unless-stopped
 
+  qdrant:
+    image: qdrant/qdrant:v1.12.4
+    profiles: ["rag"]
+    ports:
+      - "6333:6333"
+    volumes:
+      - qdrant-data:/qdrant/storage
+    mem_limit: 384m
+    restart: unless-stopped
+
+  rag-service:
+    build:
+      context: .
+      dockerfile: services/rag-service/Dockerfile
+    profiles: ["rag"]
+    ports:
+      - "8004:8004"
+    environment:
+      QDRANT_URL: http://qdrant:6333
+      RUNBOOKS_DIR: /app/data/runbooks
+      # "fastembed" = bge-small-en-v1.5: needs the embed extra and ~512m mem_limit
+      EMBEDDER: hash
+    mem_limit: 256m
+    depends_on:
+      qdrant:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request;urllib.request.urlopen('http://localhost:8004/readyz')\""]
+      interval: 10s
+      retries: 6
+    restart: unless-stopped
+
   netgen-simulator:
     build:
       context: .
@@ -184,4 +217,5 @@ services:
 
 volumes:
   kafka-data: {}
+  qdrant-data: {}
   pg-data: {}

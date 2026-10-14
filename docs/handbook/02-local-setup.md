@@ -237,3 +237,42 @@ curl -X POST "http://localhost:8000/api/ml/explain?top_k=5" \
 - The gateway enforces a 64 KB request‑body limit (returns **413 Payload Too Large** if exceeded).  
 - If `ml-service` is down, the gateway returns **503 Service Unavailable**.  
 - Non‑JSON payloads result in **502 Bad Gateway** from the gateway.
+
+## Runbook search (W8) – Local setup
+
+The W8 demo can be run entirely locally; Docker is only needed for Qdrant when you want persistence.
+
+### 1. Prepare the runbook corpus
+```bash
+make runbooks          # runs scripts/gen_runbooks.py; files are committed, so this is optional
+```
+
+### 2. Start the rag service (in‑memory Qdrant)
+```bash
+make rag               # builds and runs rag-service with an in‑memory Qdrant instance
+```
+
+### 3. Or start with Docker‑backed Qdrant
+```bash
+make up-rag            # brings up qdrant/qdrant:v1.12.4 on :6333 with volume qdrant-data
+```
+
+### 4. Ingest the runbooks
+```bash
+# If you have a remote Qdrant instance set QDRANT_URL, otherwise the in‑memory store is used
+make rag-ingest        # reads data/runbooks, chunks, embeds, and upserts into Qdrant
+```
+
+### 5. Run the evaluation
+```bash
+make rag-eval          # executes the QA evaluation and prints the result table
+```
+
+### 6. Query via the NOC gateway
+```bash
+curl -s -XPOST localhost:8000/api/rag/search \
+     -H 'content-type: application/json' \
+     -d '{"query":"LOS on aggregation ring"}'
+```
+
+The response contains the top‑3 runbook suggestions with titles, sections, snippets, scores, and predicted fault types.
