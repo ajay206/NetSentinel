@@ -1559,6 +1559,7 @@ dev = [
     { name = "pytest" },
     { name = "pytest-asyncio" },
     { name = "pytest-cov" },
+    { name = "rag-service" },
     { name = "ruff" },
 ]
 
@@ -1579,6 +1580,7 @@ dev = [
     { name = "pytest", specifier = ">=8.3.0" },
     { name = "pytest-asyncio", specifier = ">=0.24" },
     { name = "pytest-cov", specifier = ">=5.0.0" },
+    { name = "rag-service", editable = "services/rag-service" },
     { name = "ruff", specifier = ">=0.6.0" },
 ]
 
