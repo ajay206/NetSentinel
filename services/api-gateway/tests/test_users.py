@@ -23,6 +23,14 @@ def test_policy():
     assert password_problems("N3w-Synthetic-pass!") == []
     assert set(password_problems("abc")) >= {"at least 10 characters", "an uppercase letter"}
     assert "must not contain the username" in password_problems("Ajay-Rocks-123!", "ajay")
+    # bcrypt 5 raises on >72 bytes; policy must reject before hash_password
+    long_pw = "Aa1!" + "x" * 69
+    assert "at most 72 bytes" in password_problems(long_pw)
+    try:
+        hash_password(long_pw)
+        raise AssertionError("expected ValueError")
+    except ValueError:
+        pass
 
 
 def test_seed_only_on_first_run():

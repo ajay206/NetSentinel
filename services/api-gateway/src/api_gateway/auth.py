@@ -209,6 +209,24 @@ def decode_token(token: str) -> dict[str, Any]:
 _DUMMY_HASH = hash_password("timing-equaliser-not-a-real-password")
 
 
+async def _fail_password(user: User, now: float, detail: str) -> None:
+    """Count a wrong password against lockout, then raise 401 or 423."""
+    user.failed_logins += 1
+    if user.failed_logins >= settings.lockout_threshold:
+        user.locked_until = now + settings.lockout_seconds
+        user.failed_logins = 0
+        await save_user(user)
+        await store.audit(
+            "system",
+            "user.locked",
+            user.username,
+            {"afterFailures": settings.lockout_threshold},
+        )
+        raise AuthError(status.HTTP_423_LOCKED, "Account locked; try later or ask an admin")
+    await save_user(user)
+    raise AuthError(status.HTTP_401_UNAUTHORIZED, detail)
+
+
 async def authenticate(username: str, password: str, now: float | None = None) -> User:
     """Check credentials with lockout: 401 bad credentials, 403 disabled, 423 locked."""
     now = time.time() if now is None else now
@@ -219,17 +237,7 @@ async def authenticate(username: str, password: str, now: float | None = None) -
     if user.locked_until > now:
         raise AuthError(status.HTTP_423_LOCKED, "Account locked; try later or ask an admin")
     if not verify_password(password, user.password_hash):
-        user.failed_logins += 1
-        if user.failed_logins >= settings.lockout_threshold:
-            user.locked_until = now + settings.lockout_seconds
-            user.failed_logins = 0
-            await save_user(user)
-            await store.audit(
-                "system", "user.locked", username, {"afterFailures": settings.lockout_threshold}
-            )
-            raise AuthError(status.HTTP_423_LOCKED, "Account locked; try later or ask an admin")
-        await save_user(user)
-        raise AuthError(status.HTTP_401_UNAUTHORIZED, "Invalid credentials")
+        await _fail_password(user, now, "Invalid credentials")
     if user.disabled:
         raise AuthError(status.HTTP_403_FORBIDDEN, "Account disabled")
     if user.failed_logins or user.locked_until:
@@ -472,8 +480,11 @@ async def change_password(req: PasswordChange, request: Request) -> dict[str, An
     user = await get_user(actor, fresh=True)
     if user is None:
         raise AuthError(status.HTTP_401_UNAUTHORIZED, "Unknown user")
+    now = time.time()
+    if user.locked_until > now:
+        raise AuthError(status.HTTP_423_LOCKED, "Account locked; try later or ask an admin")
     if not verify_password(req.currentPassword, user.password_hash):
-        raise AuthError(status.HTTP_401_UNAUTHORIZED, "Current password is wrong")
+        await _fail_password(user, now, "Current password is wrong")
     if req.newPassword == req.currentPassword:
         raise AuthError(400, "New password must differ from the current one")
     problems = password_problems(req.newPassword, actor)

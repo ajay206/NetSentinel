@@ -144,6 +144,7 @@ def test_password_change_revokes_old_tokens(client):
         ("viewer", "short1!A", 400, "at least 10 characters"),
         ("viewer", "alllowercase123!", 400, "an uppercase letter"),
         ("viewer", "Viewer-is-me-123!", 400, "must not contain the username"),
+        ("viewer", "Aa1!" + "x" * 69, 400, "at most 72 bytes"),
     ],
 )
 def test_password_change_policy(client, current, new, status, needle):
@@ -154,6 +155,17 @@ def test_password_change_policy(client, current, new, status, needle):
     )
     assert r.status_code == status
     assert needle in r.json()["detail"]
+
+
+def test_password_change_wrong_current_locks_out(client):
+    h = bearer(client, "viewer")
+    body = {"currentPassword": "wrong", "newPassword": STRONG}
+    for _ in range(2):
+        r = client.post("/api/auth/password", json=body, headers=h)
+        assert r.status_code == 401
+    r = client.post("/api/auth/password", json=body, headers=h)
+    assert r.status_code == 423
+    assert login(client, "viewer").status_code == 423
 
 
 # --- lockout ------------------------------------------------------------------------------

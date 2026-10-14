@@ -2,7 +2,8 @@ export function passwordProblems(password: string, username = ''): string[] {
   const problems: string[] = [];
 
   if (password.length < 10) problems.push('at least 10 characters');
-  if (password.length > 128) problems.push('at most 128 characters');
+  // bcrypt 5 rejects secrets longer than 72 bytes; keep in sync with the gateway.
+  if (new TextEncoder().encode(password).length > 72) problems.push('at most 72 bytes');
   if (!/[a-z]/.test(password)) problems.push('a lowercase letter');
   if (!/[A-Z]/.test(password)) problems.push('an uppercase letter');
   if (!/[0-9]/.test(password)) problems.push('a digit');

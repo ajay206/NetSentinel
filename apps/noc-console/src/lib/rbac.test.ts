@@ -28,6 +28,7 @@ describe('password policy mirrors the gateway', () => {
     expect(passwordProblems('N3w-Synthetic-pass!')).toEqual([]);
     expect(passwordProblems('short')).toContain('at least 10 characters');
     expect(passwordProblems('Ajay-Rocks-123!', 'ajay')).toContain('must not contain the username');
+    expect(passwordProblems('Aa1!' + 'x'.repeat(69))).toContain('at most 72 bytes');
     expect(passwordStrength('')).toBe(0);
     expect(passwordStrength('N3w-Synthetic-pass!')).toBe(4);
   });

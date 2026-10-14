@@ -23,8 +23,15 @@ ROLES = ("viewer", "operator", "admin")
 USERNAME_RE = re.compile(r"^[a-z][a-z0-9._-]{2,31}$")
 
 
+# bcrypt 5 rejects secrets longer than 72 bytes (ValueError). Keep policy in lockstep.
+_MAX_PASSWORD_BYTES = 72
+
+
 def hash_password(password: str) -> str:
-    return bcrypt.hashpw(password.encode(), bcrypt.gensalt(rounds=10)).decode()
+    raw = password.encode()
+    if len(raw) > _MAX_PASSWORD_BYTES:
+        raise ValueError("password cannot be longer than 72 bytes")
+    return bcrypt.hashpw(raw, bcrypt.gensalt(rounds=10)).decode()
 
 
 def verify_password(password: str, hashed: str) -> bool:
@@ -39,8 +46,8 @@ def password_problems(password: str, username: str = "") -> list[str]:
     problems = []
     if len(password) < 10:
         problems.append("at least 10 characters")
-    if len(password) > 128:
-        problems.append("at most 128 characters")
+    if len(password.encode()) > _MAX_PASSWORD_BYTES:
+        problems.append("at most 72 bytes")
     if not re.search(r"[a-z]", password):
         problems.append("a lowercase letter")
     if not re.search(r"[A-Z]", password):
