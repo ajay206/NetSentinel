@@ -21,6 +21,7 @@ dev = [
     "kpi-service",
     "ml-service",
     "rag-service",
+    "copilot-orchestrator",
     "httpx>=0.27",
     "pytest-asyncio>=0.24",
 ]
@@ -37,6 +38,7 @@ alarm-ingest = { workspace = true }
 kpi-service = { workspace = true }
 ml-service = { workspace = true }
 rag-service = { workspace = true }
+copilot-orchestrator = { workspace = true }
 
 [tool.ruff]
 line-length = 100

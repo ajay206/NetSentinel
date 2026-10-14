@@ -1,0 +1,22 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "copilot-orchestrator"
+version = "0.1.0"
+description = "NetSentinel copilot-orchestrator: simple analyze flow with a local LLM (W9)"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+    "httpx>=0.27",
+    "pydantic>=2.7",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/copilot_orchestrator"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"

@@ -384,3 +384,30 @@ def test_rag_proxy_forwards_and_validates() -> None:
         assert client.post("/api/rag/search", json={"query": "LOS"}).status_code == 503
     finally:
         gw.rag_transport = None
+
+
+def test_copilot_proxy() -> None:
+    import api_gateway.main as gw
+    import httpx
+
+    seen: list[bytes] = []
+
+    def handler(req: httpx.Request) -> httpx.Response:
+        seen.append(req.content)
+        return httpx.Response(200, json={"generatedBy": "fallback"})
+
+    gw.copilot_transport = httpx.MockTransport(handler)
+    try:
+        client = TestClient(app)
+        resp = client.post("/api/copilot/analyze", json={"site_id": "SITE-012"})
+        assert resp.status_code == 200 and resp.json()["generatedBy"] == "fallback"
+        assert b"SITE-012" in seen[0]
+        assert client.post("/api/copilot/analyze", content=b"x" * 5_000).status_code == 413
+
+        def boom(req: httpx.Request) -> httpx.Response:
+            raise httpx.ConnectError("down")
+
+        gw.copilot_transport = httpx.MockTransport(boom)
+        assert client.post("/api/copilot/analyze", json={}).status_code == 503
+    finally:
+        gw.copilot_transport = None
