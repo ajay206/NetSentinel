@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import secrets
 import sys
 import time
 from collections.abc import Callable
@@ -51,6 +52,7 @@ class Smoke:
         self.token: str | None = None
         self.alarm: dict[str, Any] | None = None
         self.fault_type: str | None = None
+        self.admin_token: str | None = None
 
     def _run(self, name: str, fn: Callable[[], str]) -> None:
         start = self.clock()
@@ -223,6 +225,73 @@ class Smoke:
             raise RuntimeError(f"expected 401, got {resp.status_code}")
         return "401 as expected"
 
+    # --- Step 13b: server-side RBAC per role and the password-change flow ------------------
+
+    def _login_as(self, user: str, password: str) -> str:
+        resp = self.client.post("/api/auth/login", json={"username": user, "password": password})
+        if resp.status_code != 200:
+            raise RuntimeError(f"login as {user} returned {resp.status_code}")
+        return str(resp.json()["accessToken"])
+
+    @staticmethod
+    def _bearer(token: str) -> dict[str, str]:
+        return {"Authorization": f"Bearer {token}"}
+
+    def step_roles(self) -> str:
+        """Viewer cannot act on incidents, operator cannot manage users, admin can (all 403s)."""
+        viewer = self._login_as("viewer", os.environ.get("SMOKE_VIEWER_PASSWORD", "viewer"))
+        r = self.client.post(
+            "/api/incidents/INC-0000000000/actions",
+            json={"action": "ack"},
+            headers=self._bearer(viewer),
+        )
+        if r.status_code != 403:
+            raise RuntimeError(f"viewer incident action: expected 403, got {r.status_code}")
+        operator = self._login_as("operator", os.environ.get("SMOKE_OPERATOR_PASSWORD", "operator"))
+        r = self.client.get("/api/admin/users", headers=self._bearer(operator))
+        if r.status_code != 403:
+            raise RuntimeError(f"operator admin view: expected 403, got {r.status_code}")
+        self.admin_token = self._login_as("admin", os.environ.get("SMOKE_ADMIN_PASSWORD", "admin"))
+        r = self.client.get("/api/admin/users", headers=self._bearer(self.admin_token))
+        if r.status_code != 200:
+            raise RuntimeError(f"admin user list: expected 200, got {r.status_code}")
+        return "viewer 403 on actions, operator 403 on admin, admin 200"
+
+    def step_password(self) -> str:
+        """A throwaway user changes its password: the old token is revoked, then it is disabled."""
+        if not self.admin_token:
+            raise RuntimeError("no admin token (roles check failed)")
+        admin = self._bearer(self.admin_token)
+        name = f"smoke.{secrets.token_hex(3)}"
+        first, second = (f"Sm0ke-{secrets.token_urlsafe(12)}!" for _ in range(2))
+        r = self.client.post(
+            "/api/admin/users",
+            json={"username": name, "role": "viewer", "password": first},
+            headers=admin,
+        )
+        if r.status_code != 201:
+            raise RuntimeError(f"create user returned {r.status_code}")
+        try:
+            old = self._login_as(name, first)
+            r = self.client.post(
+                "/api/auth/password",
+                json={"currentPassword": first, "newPassword": second},
+                headers=self._bearer(old),
+            )
+            if r.status_code != 200:
+                raise RuntimeError(f"password change returned {r.status_code}")
+            new = str(r.json()["accessToken"])
+            if self.client.get("/api/auth/me", headers=self._bearer(old)).status_code != 401:
+                raise RuntimeError("old token still works after the change")
+            if self.client.get("/api/auth/me", headers=self._bearer(new)).status_code != 200:
+                raise RuntimeError("new token rejected")
+            r = self.client.post("/api/auth/login", json={"username": name, "password": first})
+            if r.status_code != 401:
+                raise RuntimeError(f"old password still accepted ({r.status_code})")
+        finally:
+            self.client.patch(f"/api/admin/users/{name}", json={"disabled": True}, headers=admin)
+        return "changed; old token revoked; throwaway user disabled"
+
     def step_console(self) -> str:
         """The dashboard container serves the SPA and proxies /health to the gateway."""
         page = self.client.get(f"{self.console_url}/")
@@ -265,6 +334,8 @@ class Smoke:
                     self._run("copilot", self.step_copilot)
 
         self._run("rbac", self.step_rbac)
+        self._run("roles", self.step_roles)
+        self._run("password", self.step_password)
         return all(c.ok for c in self.checks)
 
     @staticmethod

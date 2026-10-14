@@ -32,7 +32,9 @@ export const AuthGate: React.FC = () => {
   }
   if (!fetchReady) return null;
   // key: remount on user change so WebSockets reconnect with the new token
-  return <App key={session.username} session={session} onLogout={logout} />;
+  return (
+    <App key={session.username} session={session} onLogout={logout} onSessionChange={setSession} />
+  );
 };
 
 export default AuthGate;

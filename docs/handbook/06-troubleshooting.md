@@ -390,3 +390,23 @@ Then refresh the console.
 ### 60. Console sign-in bounces back to the login screen (every /api call 401, /ws 403)
 - Cause: `login()` in `apps/noc-console/src/lib/auth.ts` returned the session without saving it. The fetch wrapper therefore sent no `Authorization` header, the first 401 cleared the session, and `withToken()` added no `?token=` to the WebSocket URLs.
 - Fixed: `login()` now calls `saveSession(session)`. `src/lib/auth.login.test.ts` checks the stored session, the Bearer header and the WebSocket `?token=`.
+
+### 61. Login returns 423 "Account locked"
+- Cause: `LOGIN_MAX_FAILURES` (default 5) wrong passwords in a row lock the account for `LOCKOUT_SECONDS` (default 900 s).
+- Fix: wait, or sign in as an admin and click **Unlock** in Admin → User management (or `POST /api/admin/users/{username}/unlock`). The lockout and the unlock both appear in the audit log.
+
+### 62. Everyone is signed out after a password change, reset or role change
+- Also expected once after upgrading to 13b: tokens issued before it carry no version claim and must sign in again.
+- Expected: these actions bump the user's token version (ADR-013), so older tokens get 401 "Token revoked; sign in again". The user who changed their own password gets a new token automatically. Others sign in again.
+
+### 63. Login returns 503 "User store not ready" / gateway logs `user store not ready (attempt N)`
+- Cause: the gateway keeps users in TimescaleDB and is waiting for it, or `POSTGRES_PASSWORD` differs from the one the volume was created with.
+- Fix: `make ps` (is `timescaledb` healthy?) and `make logs S=api-gateway`. For a throwaway dev run without a database, set `USER_STORE=memory` in `.env` (users are then reset on every restart).
+
+### 64. The demo passwords (viewer/viewer etc.) stopped working
+- Cause: someone changed them. Users are seeded only on the first run and then live in the database.
+- Fix: an admin resets the password in Admin → User management. Or start over with `make reset-db`, which wipes users and the audit log and re-seeds the demo users. Synthetic data only.
+
+### 65. Operator buttons are missing / API returns 403 "Requires role operator"
+- Viewers are read-only by design (role-permission matrix in `03-services.md`). An admin can change the role in Admin → User management; the user must sign in again.
+- `make smoke` runs `roles` (viewer 403 on incident actions, operator 403 on admin, admin 200) and `password` (a throwaway user changes its password, the old token gets 401, the user is disabled). If you changed the demo passwords, set `SMOKE_VIEWER_PASSWORD`, `SMOKE_OPERATOR_PASSWORD` and `SMOKE_ADMIN_PASSWORD`.

@@ -4,7 +4,13 @@ import { KpiCharts } from './KpiCharts';
 import type { KpiCell, KpiSeries } from '../types.kpi';
 
 const cells: KpiCell[] = [
-  { cellId: 'SITE-001-N1-C1', siteId: 'SITE-001', region: 'North', lastTs: '2026-10-14T09:00:00Z', sampleCount: 4 },
+  {
+    cellId: 'SITE-001-N1-C1',
+    siteId: 'SITE-001',
+    region: 'North',
+    lastTs: '2026-10-14T09:00:00Z',
+    sampleCount: 4,
+  },
 ];
 const series: KpiSeries = {
   cellId: 'SITE-001-N1-C1',
@@ -12,8 +18,22 @@ const series: KpiSeries = {
   from: '2026-10-14T06:00:00Z',
   to: '2026-10-14T09:00:00Z',
   points: [
-    { ts: '2026-10-14T06:00:00Z', dlThroughputMbps: 100, prbUtilPct: 40, rrcSetupSuccessPct: 99, dropCallRatePct: 0.5, availabilityPct: 99.9 },
-    { ts: '2026-10-14T07:00:00Z', dlThroughputMbps: 300, prbUtilPct: 60, rrcSetupSuccessPct: 98, dropCallRatePct: 0.7, availabilityPct: 99.8 },
+    {
+      ts: '2026-10-14T06:00:00Z',
+      dlThroughputMbps: 100,
+      prbUtilPct: 40,
+      rrcSetupSuccessPct: 99,
+      dropCallRatePct: 0.5,
+      availabilityPct: 99.9,
+    },
+    {
+      ts: '2026-10-14T07:00:00Z',
+      dlThroughputMbps: 300,
+      prbUtilPct: 60,
+      rrcSetupSuccessPct: 98,
+      dropCallRatePct: 0.7,
+      availabilityPct: 99.8,
+    },
   ],
 };
 
@@ -33,7 +53,7 @@ function renderCharts(overrides: Partial<Parameters<typeof KpiCharts>[0]> = {}) 
       hours={24}
       onHoursChange={vi.fn()}
       {...overrides}
-    />
+    />,
   );
 }
 

@@ -12,7 +12,7 @@ from starlette.websockets import WebSocketDisconnect
 
 
 @pytest.fixture
-def app(monkeypatch):
+def app(monkeypatch, memory_store_factory):
     # monkeypatch settings
     monkeypatch.setattr(auth.settings, "disabled", False)
     monkeypatch.setattr(auth.settings, "secret", "test-secret-0123456789abcdef-0123456789")
@@ -23,6 +23,8 @@ def app(monkeypatch):
         "admin": ("admin", "admin"),
     }
     monkeypatch.setattr(auth.settings, "users", users)
+    # Step 13b: users live in a store (memory here, Postgres in compose), seeded from settings
+    memory_store_factory(users)
     monkeypatch.setattr(auth.settings, "rate_per_min", 1000)
     monkeypatch.setattr(auth.settings, "login_rate_per_min", 10)
     monkeypatch.setattr(auth.settings, "service_token", "svc-token")

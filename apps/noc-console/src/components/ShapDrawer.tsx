@@ -13,6 +13,8 @@ interface ShapDrawerProps {
   onClose: () => void;
   /** Suggested runbooks for this alarm, rendered at the top of the drawer. */
   runbooks?: React.ReactNode;
+  /** Step 13b: acknowledge / resolve controls (operators) or read-only state (viewers). */
+  actions?: React.ReactNode;
 }
 
 /** W7: why the model picked this fault type (XGBoost TreeSHAP, top features). */
@@ -24,6 +26,7 @@ export const ShapDrawer: React.FC<ShapDrawerProps> = ({
   isError,
   onClose,
   runbooks,
+  actions,
 }) => {
   React.useEffect(() => {
     if (!alarm) return;
@@ -74,6 +77,13 @@ export const ShapDrawer: React.FC<ShapDrawerProps> = ({
           </>
         )}
       </dl>
+
+      {actions && (
+        <section className="mb-5" aria-label="Alarm workflow">
+          <h3 className="mb-2 text-sm font-semibold">Workflow</h3>
+          {actions}
+        </section>
+      )}
 
       {runbooks && <div className="mb-5">{runbooks}</div>}
 

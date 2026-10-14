@@ -18,10 +18,19 @@ from contextlib import asynccontextmanager
 from typing import Any, Literal
 
 from aiokafka import AIOKafkaConsumer, AIOKafkaProducer
-from fastapi import FastAPI, HTTPException, Query, Response
+from fastapi import FastAPI, Header, HTTPException, Query, Response
 from netgen import build_topology
 
 from .clustering import IncidentClusterer, compression_ratio
+from .workflow import (
+    ACTOR_RE,
+    WRITE_ROLES,
+    ActionError,
+    AlarmAction,
+    IncidentAction,
+    WorkflowStore,
+    apply,
+)
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 logger = logging.getLogger("incident-service")
@@ -42,6 +51,7 @@ clusterer = IncidentClusterer(
     max_hops=MAX_HOPS,
 )
 state: dict[str, Any] = {"connected": False, "published": 0}
+workflow = WorkflowStore()
 
 
 def prune(max_keep: int = MAX_INCIDENTS) -> None:
@@ -152,7 +162,7 @@ async def list_incidents(
     limit: int = Query(50, ge=1, le=500),
 ) -> dict[str, Any]:
     items = [i for i in clusterer.snapshot() if status is None or i["status"] == status]
-    return {"items": items[:limit], "total": len(items), "stats": _stats()}
+    return {"items": [_with_wf(i) for i in items[:limit]], "total": len(items), "stats": _stats()}
 
 
 @app.get("/incidents/{incident_id}")
@@ -160,7 +170,58 @@ async def get_incident(incident_id: str) -> dict[str, Any]:
     inc = clusterer.incidents.get(incident_id)
     if inc is None:
         raise HTTPException(status_code=404, detail="Incident not found")
-    return inc.to_dict()
+    return _with_wf(inc.to_dict())
+
+
+def _with_wf(item: dict[str, Any]) -> dict[str, Any]:
+    wf = workflow.incidents.get(item["id"])
+    return {**item, "workflow": wf}
+
+
+def _actor(user: str | None, role: str | None) -> str:
+    """The gateway forwards the signed-in user; only operator/admin may write."""
+    if role not in WRITE_ROLES:
+        raise HTTPException(status_code=403, detail="Requires role operator")
+    if not user or not ACTOR_RE.match(user):
+        raise HTTPException(status_code=400, detail="Missing or invalid actor")
+    return user
+
+
+@app.post("/incidents/{incident_id}/actions")
+async def incident_action(
+    incident_id: str,
+    req: IncidentAction,
+    x_ns_user: str | None = Header(default=None),
+    x_ns_role: str | None = Header(default=None),
+) -> dict[str, Any]:
+    actor = _actor(x_ns_user, x_ns_role)
+    inc = clusterer.incidents.get(incident_id)
+    if inc is None:
+        raise HTTPException(status_code=404, detail="Incident not found")
+    try:
+        apply(workflow.incident(incident_id), req.action, actor, req.note, req.assignee)
+    except ActionError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return _with_wf(inc.to_dict())
+
+
+@app.post("/alarms/actions")
+async def alarm_action(
+    req: AlarmAction,
+    x_ns_user: str | None = Header(default=None),
+    x_ns_role: str | None = Header(default=None),
+) -> dict[str, Any]:
+    actor = _actor(x_ns_user, x_ns_role)
+    try:
+        wf = apply(workflow.alarm(req.key), req.action, actor, req.note)
+    except ActionError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return {"key": req.key, "workflow": wf}
+
+
+@app.get("/alarms/workflow")
+async def alarm_workflow() -> dict[str, Any]:
+    return {"items": workflow.alarms}
 
 
 @app.get("/stats")

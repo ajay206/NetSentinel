@@ -312,3 +312,18 @@ Introduces the topology‑aware incident clustering service, its API, and the ne
 - Clicking an enriched alarm opens a detail drawer with alarm details, suggested runbooks (clickable, markdown preview) and SHAP. Esc closes it.
 - The auth fetch wrapper is installed before App mounts, so the first API calls carry the token.
 - Tests: timeline annotation/helpers, drawer runbooks; 127 Vitest tests pass.
+
+### Step 13b — Enterprise RBAC, role-specific dashboards, change password
+- **Users:** users and `audit_log` are persisted in TimescaleDB with bcrypt hashes. Demo users are seeded on first run only. Accounts lock after N failed logins (423), with admin unlock. A token-version claim revokes old tokens on a password change, reset, role change or disable.
+- **New endpoints:** password change for every user; admin user management, audit log and settings under `/api/admin/*`; operator workflow (`POST /api/incidents/{id}/actions`, `POST /api/alarms/actions`) with notes. incident-service checks the forwarded role again.
+- **Console:**
+  - role badge and profile menu (Change password with strength meter and confirmation);
+  - viewer is read-only with no copilot;
+  - operator gets acknowledge / assign / resolve controls on incidents and alarms;
+  - admin gets an Admin tab with users, audit log and system settings;
+  - the UI hides what a role lacks, and the server returns 403 regardless.
+- **Docs:** role-permission matrix and API table in `03-services.md`, ADR-013, troubleshooting #61–65. The gateway contract is regenerated.
+- **Tests:**
+  - pytest: permission matrix per role, password change and revocation, lockout and unlock, admin guards, audit, workflow rules;
+  - Vitest: role-based dashboards, change-password form, RBAC matrix;
+  - smoke: `roles` and `password` checks (12 checks with `CONSOLE_URL`).

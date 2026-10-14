@@ -78,6 +78,21 @@ class FakeGateway:
             ],
         }
         self.timeline_response = {"total": 42, "peak": 10}
+        # Step 13b: tokens per user, password store and revocation for the roles/password checks
+        self.passwords = {"operator": "operator", "viewer": "viewer", "admin": "admin"}
+        self.roles = {"operator": "operator", "viewer": "viewer", "admin": "admin"}
+        self.tokens: dict[str, str] = {self.token: "operator"}
+        self.disabled: set[str] = set()
+        self.issued = 0
+
+    def _user(self, request: httpx.Request) -> str | None:
+        return self.tokens.get(request.headers.get("Authorization", "").removeprefix("Bearer "))
+
+    def _issue(self, user: str) -> str:
+        self.issued += 1
+        token = self.token if user == "operator" else f"tok-{user}-{self.issued}"
+        self.tokens[token] = user
+        return token
 
     def _check_auth(self, request: httpx.Request) -> bool:
         auth = request.headers.get("Authorization", "")
@@ -92,9 +107,45 @@ class FakeGateway:
 
         if path == "/api/auth/login" and method == "POST":
             body = json.loads(request.content)
-            if body.get("username") == "operator" and body.get("password") == "operator":
-                return httpx.Response(200, json={"accessToken": self.token})
+            user = body.get("username")
+            if user in self.passwords and self.passwords[user] == body.get("password"):
+                if user in self.disabled:
+                    return httpx.Response(403, json={"detail": "Account disabled"})
+                return httpx.Response(200, json={"accessToken": self._issue(user)})
             return httpx.Response(401, json={"detail": "Invalid credentials"})
+
+        if path == "/api/auth/me" and method == "GET":
+            user = self._user(request)
+            return httpx.Response(200 if user else 401, json={"username": user})
+
+        if path == "/api/auth/password" and method == "POST":
+            user = self._user(request)
+            body = json.loads(request.content)
+            if not user or self.passwords[user] != body["currentPassword"]:
+                return httpx.Response(401, json={"detail": "no"})
+            self.passwords[user] = body["newPassword"]
+            self.tokens = {t: u for t, u in self.tokens.items() if u != user}
+            return httpx.Response(200, json={"accessToken": self._issue(user)})
+
+        if path.startswith("/api/incidents/") and path.endswith("/actions"):
+            user = self._user(request)
+            if self.roles.get(user or "") not in ("operator", "admin"):
+                return httpx.Response(403, json={"detail": "Requires role operator"})
+            return httpx.Response(404, json={"detail": "Incident not found"})
+
+        if path.startswith("/api/admin/users"):
+            if self.roles.get(self._user(request) or "") != "admin":
+                return httpx.Response(403, json={"detail": "Requires role admin"})
+            if method == "GET":
+                return httpx.Response(200, json={"items": []})
+            if method == "POST":
+                body = json.loads(request.content)
+                self.passwords[body["username"]] = body["password"]
+                self.roles[body["username"]] = body["role"]
+                return httpx.Response(201, json={"username": body["username"]})
+            if method == "PATCH":
+                self.disabled.add(path.rsplit("/", 1)[-1])
+                return httpx.Response(200, json={})
 
         if path == "/api/alarms/enriched/recent" and method == "GET":
             if not self._check_auth(request):
@@ -155,7 +206,7 @@ def test_smoke_all_pass(client, monkeypatch):
     smoke = Smoke(client, user="operator", wait_s=0, poll_s=0)
     result = smoke.run()
     assert result is True
-    assert len(smoke.checks) == 9
+    assert len(smoke.checks) == 11
     assert all(c.ok for c in smoke.checks)
 
 
@@ -235,7 +286,9 @@ def test_main_json_output(monkeypatch, mock_transport, capsys):
     exit_code = main(["--base-url", "http://test", "--json", "--wait", "0"])
     assert exit_code == 0
     checks = json.loads(capsys.readouterr().out)
-    assert [c["name"] for c in checks][-1] == "rbac" and all(c["ok"] for c in checks)
+    assert [c["name"] for c in checks][-3:] == ["rbac", "roles", "password"] and all(
+        c["ok"] for c in checks
+    )
 
 
 def test_main_text_output(monkeypatch, mock_transport, capsys):
@@ -244,7 +297,7 @@ def test_main_text_output(monkeypatch, mock_transport, capsys):
     exit_code = main(["--base-url", "http://test", "--wait", "0"])
     assert exit_code == 0
     captured = capsys.readouterr()
-    assert "9/9 checks passed" in captured.out
+    assert "11/11 checks passed" in captured.out
     assert "secret-token-xyz" not in captured.out
 
 
@@ -294,7 +347,7 @@ def test_smoke_console_check(client):
     smoke = Smoke(client, user="operator", wait_s=0, poll_s=0, console_url="http://console/")
     assert smoke.run() is True
     assert [c.name for c in smoke.checks][:2] == ["health", "console"]
-    assert len(smoke.checks) == 10
+    assert len(smoke.checks) == 12
 
 
 def test_smoke_console_down(client):
@@ -302,3 +355,58 @@ def test_smoke_console_down(client):
     assert smoke.run() is False
     failed = [c for c in smoke.checks if not c.ok]
     assert [c.name for c in failed] == ["console"]
+
+
+def test_roles_and_password_checks_against_real_gateway(monkeypatch):
+    """Step 13b: the new smoke checks pass against the real gateway (memory user store)."""
+    import asyncio
+    import os
+
+    os.environ.setdefault("DISABLE_KAFKA", "1")
+    import api_gateway.main as gw
+    from api_gateway import auth
+    from api_gateway.users import MemoryUserStore, seed
+    from fastapi.testclient import TestClient
+
+    users = {r: (r, r) for r in ("viewer", "operator", "admin")}
+    store = MemoryUserStore()
+    asyncio.run(seed(store, users))
+    monkeypatch.setattr(auth.settings, "disabled", False)
+    monkeypatch.setattr(auth.settings, "secret", "test-secret-0123456789abcdef-0123456789")
+    monkeypatch.setattr(auth.settings, "login_rate_per_min", 1000)
+    monkeypatch.setattr(auth, "store", store)
+    monkeypatch.setattr(auth, "store_state", {"ready": True, "seeded": 3, "error": None})
+    monkeypatch.setattr(auth, "_cache", {})
+    monkeypatch.setattr(
+        gw,
+        "incident_transport",
+        httpx.MockTransport(lambda r: httpx.Response(404, json={"detail": "Incident not found"})),
+    )
+    smoke = Smoke(TestClient(gw.app), user="operator", wait_s=0, poll_s=0)
+    smoke._run("roles", smoke.step_roles)
+    smoke._run("password", smoke.step_password)
+    assert [c.ok for c in smoke.checks] == [True, True], smoke.checks
+    created = [u for u in asyncio.run(store.list()) if u.username.startswith("smoke.")]
+    assert len(created) == 1 and created[0].disabled
+    report = Smoke.format_report(smoke.checks)
+    assert "Sm0ke-" not in report  # generated passwords never printed
+
+
+def test_password_check_fails_if_old_token_survives(client, fake_gateway):
+    fake_gateway.handle_request  # noqa: B018 - fixture in use
+    smoke = Smoke(client, user="operator", wait_s=0, poll_s=0)
+    smoke._run("roles", smoke.step_roles)
+    original = fake_gateway.handle_request
+
+    def keep_tokens(request):
+        if request.url.path == "/api/auth/password":
+            before = dict(fake_gateway.tokens)
+            resp = original(request)
+            fake_gateway.tokens.update(before)  # simulate a gateway that forgets to revoke
+            return resp
+        return original(request)
+
+    client._transport = httpx.MockTransport(keep_tokens)
+    smoke._run("password", smoke.step_password)
+    assert smoke.checks[-1].ok is False
+    assert "old token still works" in smoke.checks[-1].detail

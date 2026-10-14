@@ -16,13 +16,24 @@ os.environ.setdefault("DISABLE_KAFKA", "1")
 from api_gateway.main import app  # noqa: E402
 
 OUT = Path(__file__).resolve().parents[1] / "contracts/openapi/api-gateway-auth.yaml"
-PATHS = ("/api/auth/login", "/api/auth/me", "/api/auth/users", "/api/alarms/timeline")
 ROLES = {
-    "/api/auth/login": "public (rate limited per IP)",
+    "/api/auth/login": "public (rate limited per IP; locks after N failures)",
     "/api/auth/me": "viewer",
+    "/api/auth/password": "viewer (any signed-in user)",
     "/api/auth/users": "admin",
     "/api/alarms/timeline": "viewer",
+    # Step 13b
+    "/api/admin/users": "admin",
+    "/api/admin/users/{username}": "admin",
+    "/api/admin/users/{username}/unlock": "admin",
+    "/api/admin/users/{username}/reset-password": "admin",
+    "/api/admin/audit": "admin",
+    "/api/admin/settings": "admin",
+    "/api/incidents/{incident_id}/actions": "operator",
+    "/api/alarms/actions": "operator",
+    "/api/alarms/workflow": "viewer",
 }
+PATHS = tuple(ROLES)
 
 
 def build() -> dict:
@@ -47,13 +58,16 @@ def build() -> dict:
     return {
         "openapi": spec["openapi"],
         "info": {
-            "title": "NetSentinel api-gateway: auth and timeline (W11)",
+            "title": "NetSentinel api-gateway: auth, RBAC admin, workflow and timeline (W11, 13b)",
             "version": spec["info"]["version"],
             "description": (
                 "JWT login (HS256), RBAC roles viewer < operator < admin, per-user rate limits. "
-                "POST /api/copilot/analyze needs operator; every other /api and /ws route needs "
-                "viewer; /health is public. WebSockets pass the token as ?token= and are closed "
-                "with 4401/4403/4429. Generated from the FastAPI app."
+                "POST /api/copilot/analyze and the incident/alarm action routes need operator; "
+                "/api/admin/* needs admin; every other /api and /ws route needs viewer; /health "
+                "is public. Tokens carry a token-version claim (tv): a password change, reset, "
+                "role change or disable revokes older tokens (401). Logins lock after "
+                "LOGIN_MAX_FAILURES failures (423). WebSockets pass the token as ?token= and are "
+                "closed with 4401/4403/4429. Generated from the FastAPI app."
             ),
         },
         "servers": [{"url": "http://localhost:8000"}],

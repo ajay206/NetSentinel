@@ -48,8 +48,24 @@ describe('AnomaliesPanel', () => {
       kpi: 'dlThroughputMbps',
       hours: 24,
       items: [
-        { cellId: 'c1', region: 'R', ts: '', value: 0, score: 5, method: 'zscore', direction: 'low' },
-        { cellId: 'c2', region: 'R', ts: '', value: 0, score: 4, method: 'cusum', direction: 'high' },
+        {
+          cellId: 'c1',
+          region: 'R',
+          ts: '',
+          value: 0,
+          score: 5,
+          method: 'zscore',
+          direction: 'low',
+        },
+        {
+          cellId: 'c2',
+          region: 'R',
+          ts: '',
+          value: 0,
+          score: 4,
+          method: 'cusum',
+          direction: 'high',
+        },
       ],
     };
     render(<AnomaliesPanel {...baseProps} data={data} isLoading={false} isError={false} />);
