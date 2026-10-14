@@ -265,3 +265,31 @@ async def test_enriched_hub_message_type() -> None:
     finally:
         enriched_hub.clients.discard(ws)
         enriched_hub.recent.clear()
+
+
+def test_kpi_proxy_forwards_and_handles_errors() -> None:
+    import api_gateway.main as gw
+    import httpx
+
+    seen: list[str] = []
+
+    def handler(req: httpx.Request) -> httpx.Response:
+        seen.append(str(req.url))
+        return httpx.Response(200, json={"cellId": "C1", "points": []})
+
+    gw.kpi_transport = httpx.MockTransport(handler)
+    try:
+        client = TestClient(app)
+        resp = client.get("/api/kpi/cells/C1", params={"agg": "1h"})
+        assert resp.status_code == 200
+        assert resp.json()["cellId"] == "C1"
+        assert seen[0].endswith("/kpis/cells/C1?agg=1h")
+        assert client.get("/api/kpi/admin").status_code == 404
+
+        def boom(req: httpx.Request) -> httpx.Response:
+            raise httpx.ConnectError("down")
+
+        gw.kpi_transport = httpx.MockTransport(boom)
+        assert client.get("/api/kpi/cells").status_code == 503
+    finally:
+        gw.kpi_transport = None

@@ -10,6 +10,7 @@ import contextlib
 import json
 import logging
 import os
+import re
 import statistics
 import time
 from collections import deque
@@ -18,8 +19,9 @@ from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from typing import Any
 
+import httpx
 from aiokafka import AIOKafkaConsumer
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
@@ -43,6 +45,9 @@ CORS_ORIGINS = [
     o.strip() for o in os.getenv("CORS_ORIGINS", "http://localhost:5173").split(",") if o.strip()
 ]
 DISABLE_KAFKA = os.getenv("DISABLE_KAFKA", "0") == "1"
+KPI_SERVICE_URL = os.getenv("KPI_SERVICE_URL", "http://localhost:8002").rstrip("/")
+# Tests swap this for an httpx.MockTransport
+kpi_transport: httpx.AsyncBaseTransport | None = None
 
 # Topology generation settings
 TOPOLOGY_SEED = int(os.getenv("TOPOLOGY_SEED", "42"))
@@ -373,3 +378,22 @@ async def websocket_kpis(websocket: WebSocket) -> None:
         pass
     except Exception as e:
         logger.exception("WebSocket KPI error: %s", e)
+
+
+@app.get("/api/kpi/{path:path}")
+async def kpi_proxy(path: str, request: Request) -> JSONResponse:
+    """Forward read-only KPI queries to kpi-service (W5): /api/kpi/cells, /api/kpi/cells/{id}."""
+    if not re.fullmatch(r"cells(/[A-Za-z0-9_.\-]+)?", path) or ".." in path:
+        return JSONResponse({"detail": "Not found"}, status_code=404)
+    url = f"{KPI_SERVICE_URL}/kpis/{path}"
+    try:
+        async with httpx.AsyncClient(transport=kpi_transport, timeout=5.0) as client:
+            resp = await client.get(url, params=request.query_params)
+    except httpx.HTTPError as exc:
+        logger.warning("kpi-service unreachable: %s", exc)
+        return JSONResponse({"detail": "kpi-service unreachable"}, status_code=503)
+    try:
+        body = resp.json()
+    except ValueError:
+        return JSONResponse({"detail": "kpi-service returned non-JSON"}, status_code=502)
+    return JSONResponse(body, status_code=resp.status_code)

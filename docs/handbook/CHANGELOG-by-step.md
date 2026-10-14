@@ -59,3 +59,23 @@
   - [x] `npm run lint && npm run typecheck && npm run build` succeed.
   - [x] Mermaid diagram in `03-services.md` (alarm-ingest data flow) renders with quoted labels; `make docs-check` passes.
   - [ ] Docker checks on Ajay's Mac (`make up-pipeline`, `make enriched-peek`, enriched panel fills during `make sim`).
+
+## Step 5: Week 5 – kpi-service and KPI charts
+
+**Date:** 2026‑10‑14  
+
+### Scope
+- Implemented `kpi-service` (FastAPI) with Kafka consumer, batch writer, and TimescaleDB persistence.  
+- Added plain‑SQL migrations and startup migration runner.  
+- Exposed health, readiness, stats, and KPI query endpoints.  
+- Updated `api-gateway` to proxy `/api/kpi/*` to the new service.  
+- Implemented the “KPI charts” panel in `noc-console` using inline SVG, 15 s auto‑refresh, and IST timestamps.  
+- Added Makefile targets, Docker‑Compose profile `pipeline`, and basic CI checks.
+
+### Verification
+- [x] `pytest` passes for kpi‑service (parsing, MemoryStore idempotency, aggregation, BatchWriter, API validation, migrations).  
+- [x] `ruff` linting passes.  
+- [x] `npm run lint`, `npm run typecheck`, `npm run test`, `npm run build` all succeed for the console.  
+- [x] Documentation generated and passes `docs‑check`.  
+- [ ] Docker checks on Ajay's Mac (image size, startup time).  
+- [ ] End‑to‑end check (full stack) deferred to the final review step.

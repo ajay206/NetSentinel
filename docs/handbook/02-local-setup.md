@@ -166,6 +166,24 @@ make enriched-peek               # print 5 enriched alarms from Kafka
 Expected: during `make sim` the panel fills within a few seconds; the LOS rows at both ends of
 the cut show **root**, the access-site rows show **↳ <root site>**, and every time ends in IST.
 
+## Week 5: kpi-service and KPI charts
+
+kpi-service stores every KPI sample from the `kpis` topic in a TimescaleDB hypertable and
+serves time-series queries; the gateway forwards `/api/kpi/*` to it and the **KPI charts**
+panel draws them.
+
+```bash
+make up-core && make topics      # Kafka + TimescaleDB (needs POSTGRES_PASSWORD in .env)
+make kpi-service                 # terminal 1, :8002 (applies SQL migrations on start)
+make gateway                     # terminal 2, :8000
+make console                     # terminal 3, http://localhost:5173
+make kpis                        # backfill 1 day of 15-min samples, then make kpis-follow
+make kpi-stats                   # received / written / invalid
+make kpi-query                   # first cells via the gateway
+```
+
+Docker route: `make up-pipeline` now starts alarm-ingest **and** kpi-service (~350 MB).
+
 ### Documentation sanity‑check
 
 After the changes, run the documentation validation target:
