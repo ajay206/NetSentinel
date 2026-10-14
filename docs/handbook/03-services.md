@@ -474,3 +474,24 @@ flowchart LR
 - **Integration**  
   - The `api-gateway` proxies `POST /api/ml/predict` and `POST /api/ml/explain` to this service.  
   - NOC console renders the fault badge and a side‑panel (`ShapDrawer`) with the top SHAP contributions as horizontal bars.
+
+## rag-service (W8)
+
+- **Framework**: FastAPI, listening on **port 8004**.  
+- **Compose profile**: `rag`.  
+- **Dependencies**:  
+  - `qdrant/qdrant:v1.12.4` container exposing **:6333**.  
+  - Volume `qdrant-data` for persistent storage.  
+- **Embedding options**:  
+  - Default: deterministic `hash-384`.  
+  - Optional: `EMBEDDER=fastembed` to use BAAI/bge‑small‑en‑v1.5 (install with `uv sync --extra embed`).  
+- **Endpoints**:  
+  - `GET /healthz` – health check.  
+  - `GET /readyz` – returns **503** until the ingest pipeline finishes successfully.  
+  - `POST /search` – body `{query:string, top_k?:int, mode?:string, faultType?:string}`. Returns a JSON payload with the query, mode, embedder used, and an array of results (`runbookId`, `title`, `section`, `snippet`, `score`, `faultType`).  
+  - `GET /runbooks/{id}` – returns the full markdown runbook and its front‑matter.  
+- **Gateway proxies** (via the NOC gateway on port 8000):  
+  - `POST /api/rag/search` – forwards to `rag-service`. Returns **413** if request body > 16 KB, **503** if `rag-service` is down, **502** for non‑JSON payloads.  
+  - `GET /api/rag/runbooks/{id}` – validates `id` against the regex `^RB-[A-Z]{3}-\d{3}$`; otherwise returns **404**.  
+
+The service ingests the synthetic runbooks (42 markdown files under `data/runbooks`) by chunking each `##` section, generating deterministic chunk IDs, and storing vectors in Qdrant with cosine distance.  Re‑ingest is idempotent because Qdrant point IDs are derived from `uuid5(chunk_id)`.

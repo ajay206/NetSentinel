@@ -1,0 +1,30 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "rag-service"
+version = "0.1.0"
+description = "NetSentinel rag-service: runbook retrieval on Qdrant (W8)"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+    "qdrant-client>=1.12",
+    "rank-bm25>=0.2.2",
+    "numpy>=1.26",
+]
+
+[project.optional-dependencies]
+embed = ["fastembed>=0.4"]
+
+[project.scripts]
+rag-ingest = "rag_service.ingest:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/rag_service"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+

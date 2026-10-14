@@ -161,3 +161,32 @@ Then refresh the console.
 **Fix:**  
 - Pre‑train and register a model (`make ml-train-xgb`) before starting the demo.  
 - Or accept the warm‑up latency as expected behaviour for the auto‑train path.
+
+### 24. rag-service unavailable (panel shows “rag-service unavailable”)
+* **Symptom**: The “Suggested runbooks” panel in the console shows a red warning and no results.
+* **Cause**: `rag-service` process is not running or cannot be reached on port 8004.
+* **Fix**:  
+  1. Verify the service is up: `curl -s http://localhost:8004/healthz`.  
+  2. If it returns an error, start it: `make rag` (or `make up-rag`). Also check the gateway has `RAG_SERVICE_URL` pointing at it (default `http://localhost:8004`).  
+  3. Check logs for port conflicts or missing environment variables.
+
+### 25. /readyz returns 503 because a runbook has bad front‑matter
+* **Symptom**: `GET http://localhost:8004/readyz` returns **503** even after ingest appears to finish.
+* **Cause**: One of the markdown files is missing the required front‑matter fields `id` or `title` (or has no front matter), so the startup ingest raises and the service stays not‑ready.
+* **Fix**:  
+  1. Look at the ingest logs – they will point to the offending file.  
+  2. Edit the file to include all required keys in the YAML front‑matter.  
+  3. Restart rag-service (it ingests on startup); `/readyz` should now return **200**.
+
+### 26. Switching EMBEDDER
+* **Symptom**: After changing `EMBEDDER`, search results look odd or ingest fails with a vector-size error.
+* **Cause**: Vectors from different embedders are not comparable. If the dimension changes, the `runbooks` collection is dropped and recreated automatically. `hash-384` and bge-small are both 384‑dim, so in that case nothing is recreated; the old vectors stay until the next ingest overwrites them.
+* **Fix**: Restart rag-service, or run `make rag-ingest` with the same `EMBEDDER`. Every ingest re-upserts all chunks under the same point ids, which replaces every vector. To start clean: `curl -XDELETE http://localhost:6333/collections/runbooks`, then restart.
+
+### 27. fastembed first run downloads ~130 MB model and needs internet
+* **Symptom**: On the first start with `EMBEDDER=fastembed`, the service hangs for several minutes and then fails with a network‑related error.
+* **Cause**: The FastEmbed library attempts to download the ONNX model for BAAI/bge‑small‑en‑v1.5.  Without internet access the download fails.
+* **Fix**:  
+  1. Ensure the host has outbound internet access for the initial download.  
+  2. Alternatively, stay on the default `hash-384` embedder for offline CI.  
+  3. After the model is cached (`~/.cache/fastembed`), subsequent runs work offline.

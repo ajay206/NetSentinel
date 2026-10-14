@@ -1,0 +1,50 @@
+{"query": "many sites lost signal on the ring, protection switched", "expected": "RB-FIB-001", "faultType": "fibre_cut"}
+{"query": "OTDR shows a break on the aggregation ring span", "expected": "RB-FIB-001", "faultType": "fibre_cut"}
+{"query": "one access site has no light on its uplink, hub fine", "expected": "RB-FIB-002", "faultType": "fibre_cut"}
+{"query": "optical amplifier low power several wavelengths gone", "expected": "RB-FIB-003", "faultType": "fibre_cut"}
+{"query": "traffic moved to microwave after the fibre went down", "expected": "RB-FIB-004", "faultType": "fibre_cut"}
+{"query": "remote radio head unreachable CPRI link down", "expected": "RB-FIB-005", "faultType": "fibre_cut"}
+{"query": "LOS right after engineer worked on the ODF", "expected": "RB-FIB-006", "faultType": "fibre_cut"}
+{"query": "site running on batteries, utility outage", "expected": "RB-PWR-001", "faultType": "power_failure"}
+{"query": "genset won't start during mains outage", "expected": "RB-PWR-002", "faultType": "power_failure"}
+{"query": "one rectifier module failed, mains ok", "expected": "RB-PWR-003", "faultType": "power_failure"}
+{"query": "site completely dark after LVD tripped", "expected": "RB-PWR-004", "faultType": "power_failure"}
+{"query": "shelter overheating, air con broken", "expected": "RB-PWR-005", "faultType": "power_failure"}
+{"query": "router power supply unit alarm, redundant one carrying load", "expected": "RB-PWR-006", "faultType": "power_failure"}
+{"query": "cell off air with radio unit alarm", "expected": "RB-CEL-001", "faultType": "cell_outage"}
+{"query": "cell shows zero traffic but no alarms at all", "expected": "RB-CEL-002", "faultType": "cell_outage"}
+{"query": "high VSWR on sector, drops increasing", "expected": "RB-CEL-003", "faultType": "cell_outage"}
+{"query": "baseband keeps rebooting, cells flapping", "expected": "RB-CEL-004", "faultType": "cell_outage"}
+{"query": "lost GPS timing, TDD cells in holdover", "expected": "RB-CEL-005", "faultType": "cell_outage"}
+{"query": "cells locked because the license expired", "expected": "RB-CEL-006", "faultType": "cell_outage"}
+{"query": "PRB usage over 90 percent in busy hour", "expected": "RB-CON-001", "faultType": "congestion"}
+{"query": "site uplink saturated, queue drops on hub router", "expected": "RB-CON-002", "faultType": "congestion"}
+{"query": "stadium concert causing admission rejections", "expected": "RB-CON-003", "faultType": "congestion"}
+{"query": "AMF overloaded by registration burst after recovery", "expected": "RB-CON-004", "faultType": "congestion"}
+{"query": "browsing slow, DNS timeouts, radio fine", "expected": "RB-CON-005", "faultType": "congestion"}
+{"query": "uplink noise floor high, external interferer", "expected": "RB-CON-006", "faultType": "congestion"}
+{"query": "KPIs got worse only on nodes we just upgraded", "expected": "RB-UPG-001", "faultType": "bad_upgrade"}
+{"query": "alarms after bulk config push, wrong parameters", "expected": "RB-UPG-002", "faultType": "bad_upgrade"}
+{"query": "line card stuck booting after firmware update", "expected": "RB-UPG-003", "faultType": "bad_upgrade"}
+{"query": "IPsec tunnels failing, certificate expired", "expected": "RB-UPG-004", "faultType": "bad_upgrade"}
+{"query": "handover success dropped after neighbour list change", "expected": "RB-UPG-005", "faultType": "bad_upgrade"}
+{"query": "CNF rollout pods crash looping", "expected": "RB-UPG-006", "faultType": "bad_upgrade"}
+{"query": "SFP rx power slowly falling, pre-FEC BER rising", "expected": "RB-HWD-001", "faultType": "hw_drift"}
+{"query": "fan tray failed and chassis getting hot", "expected": "RB-HWD-002", "faultType": "hw_drift"}
+{"query": "process memory growing for weeks", "expected": "RB-HWD-003", "faultType": "hw_drift"}
+{"query": "frequency offset drifting in holdover", "expected": "RB-HWD-004", "faultType": "hw_drift"}
+{"query": "SMART warnings on compute node disk", "expected": "RB-HWD-005", "faultType": "hw_drift"}
+{"query": "radio transmit power slowly decreasing, cell edge shrinking", "expected": "RB-HWD-006", "faultType": "hw_drift"}
+{"query": "CRC errors and loss on a core router interface", "expected": "RB-COR-001", "faultType": "core_packet_loss"}
+{"query": "BGP peer keeps flapping, routes withdrawn", "expected": "RB-COR-002", "faultType": "core_packet_loss"}
+{"query": "RSVP tunnel down, LSP not signalled", "expected": "RB-COR-003", "faultType": "core_packet_loss"}
+{"query": "GTP-U drops in user plane, sessions stall", "expected": "RB-COR-004", "faultType": "core_packet_loss"}
+{"query": "NAT session table exhausted, new connections fail", "expected": "RB-COR-005", "faultType": "core_packet_loss"}
+{"query": "intermittent drops at DC leaf during bursts", "expected": "RB-COR-006", "faultType": "core_packet_loss"}
+{"query": "LOS alarm burst across downstream sites", "expected": "RB-FIB-001", "faultType": "fibre_cut"}
+{"query": "battery voltage dropping, need generator", "expected": "RB-PWR-001", "faultType": "power_failure"}
+{"query": "sector down after radio hardware fault", "expected": "RB-CEL-001", "faultType": "cell_outage"}
+{"query": "throughput per user low at peak, no faults", "expected": "RB-CON-001", "faultType": "congestion"}
+{"query": "roll back the software release, KPIs degraded", "expected": "RB-UPG-001", "faultType": "bad_upgrade"}
+{"query": "transceiver degrading, replace before failure", "expected": "RB-HWD-001", "faultType": "hw_drift"}
+{"query": "packet loss on core link affecting many sites", "expected": "RB-COR-001", "faultType": "core_packet_loss"}

@@ -1,0 +1,102 @@
+openapi: 3.1.0
+info:
+  title: NetSentinel rag-service
+  version: 0.1.0
+  description: >
+    Runbook retrieval (W8). Synthetic markdown runbooks are chunked by section, embedded
+    (hash-384 by default, BAAI/bge-small-en-v1.5 with EMBEDDER=fastembed) into Qdrant, and
+    searched with vector, BM25 or hybrid (reciprocal rank fusion). Exposed by the gateway as
+    POST /api/rag/search and GET /api/rag/runbooks/{runbookId}.
+servers:
+  - url: http://localhost:8004
+paths:
+  /healthz:
+    get:
+      responses:
+        '200': {description: Process is up}
+  /readyz:
+    get:
+      responses:
+        '200':
+          description: Runbooks ingested and index ready
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: {type: string, enum: [ready]}
+                  chunks: {type: integer}
+                  embedder: {type: string}
+        '503': {description: Ingest failed or not finished}
+  /search:
+    post:
+      summary: Top-k runbooks for a free-text query (one hit per runbook)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/SearchRequest'}
+      responses:
+        '200':
+          description: Ranked runbooks
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/SearchResponse'}
+        '422': {description: Invalid body (empty query, top_k out of range, unknown mode)}
+        '503': {description: Not ready}
+  /runbooks/{runbookId}:
+    get:
+      summary: One runbook as markdown (front matter stripped)
+      parameters:
+        - name: runbookId
+          in: path
+          required: true
+          schema: {type: string, pattern: '^RB-[A-Z]{3}-\d{3}$'}
+      responses:
+        '200':
+          description: Runbook
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/RunbookDoc'}
+        '404': {description: Unknown or malformed id}
+components:
+  schemas:
+    SearchRequest:
+      type: object
+      required: [query]
+      properties:
+        query: {type: string, minLength: 1, maxLength: 500}
+        top_k: {type: integer, minimum: 1, maximum: 10, default: 3}
+        mode: {type: string, enum: [vector, bm25, hybrid], default: hybrid}
+        faultType:
+          type: [string, 'null']
+          description: Soft boost (x1.2) for runbooks of this fault type, e.g. the W7 prediction. Not a filter.
+    SearchResponse:
+      type: object
+      required: [query, mode, embedder, results]
+      properties:
+        query: {type: string}
+        mode: {type: string}
+        embedder: {type: string}
+        results:
+          type: array
+          items: {$ref: '#/components/schemas/RunbookHit'}
+    RunbookHit:
+      type: object
+      required: [runbookId, title, section, snippet, score, faultType]
+      properties:
+        runbookId: {type: string}
+        title: {type: string}
+        section: {type: string}
+        snippet: {type: string, description: First 240 chars of the best-matching section}
+        score: {type: number, description: Cosine (vector), BM25 score, or RRF score (hybrid)}
+        faultType: {type: string}
+    RunbookDoc:
+      type: object
+      required: [id, title, faultType, tags, markdown]
+      properties:
+        id: {type: string}
+        title: {type: string}
+        faultType: {type: string}
+        tags: {type: array, items: {type: string}}
+        markdown: {type: string}

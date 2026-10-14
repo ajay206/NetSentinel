@@ -133,7 +133,7 @@ components:
       required: [alarm]
       properties:
         alarm: {type: object, description: Enriched alarm (see alarm-enriched schema); label fields are ignored}
-        context: {type: object, nullable: true, description: Optional KPI/topology context}
+        context: {type: [object, 'null'], description: Optional KPI/topology context}
     FaultPrediction:
       type: object
       required: [faultType, confidence, probabilities, modelVersion]
