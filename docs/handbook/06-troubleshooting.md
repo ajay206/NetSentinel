@@ -386,3 +386,7 @@ Then refresh the console.
 - Cause: the dashboard used to run only through host npm (`make console`).
 - Fixed: the `noc-console` container (profile `ui`) serves it. Check `make ps` and `make logs S=noc-console`. The smoke `console` check fails if the page or the `/health` proxy is down.
 - Blank page while the API calls fail: the gateway isn't ready yet (`make logs S=api-gateway`). nginx retries resolving `api-gateway` every 10 s.
+
+### 60. Console sign-in bounces back to the login screen (every /api call 401, /ws 403)
+- Cause: `login()` in `apps/noc-console/src/lib/auth.ts` returned the session without saving it. The fetch wrapper therefore sent no `Authorization` header, the first 401 cleared the session, and `withToken()` added no `?token=` to the WebSocket URLs.
+- Fixed: `login()` now calls `saveSession(session)`. `src/lib/auth.login.test.ts` checks the stored session, the Bearer header and the WebSocket `?token=`.

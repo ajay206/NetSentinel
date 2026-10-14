@@ -68,6 +68,8 @@ export async function login(username: string, password: string): Promise<Session
     role: data.role,
     expiresAt: Date.now() + data.expiresIn * 1000,
   };
+  // Persist before returning: the fetch wrapper and the WS URLs read the token from storage.
+  saveSession(session);
   return session;
 }
 
