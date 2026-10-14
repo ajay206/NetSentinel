@@ -75,3 +75,33 @@ This log is maintained by Ajay to track learnings, insights, and key concepts en
   *Why store all timestamps in UTC in the database and Kafka payloads, and convert to IST only at the presentation layer?*  
 
 *(Leave space for answers as you work through the next sprint.)*
+
+---
+
+## Week 12: Phase 1 wrap-up and demo (Oct 2026)
+
+### Focus Areas
+- Review of all Phase 1 services and their Docker configurations.
+- Execution of `make demo` to run the end‑to‑end demo path (fibre_cut scenario).
+- Running the smoke test suite via `make smoke` and interpreting results.
+- Understanding the new demo UI strip and its step‑by‑step flow.
+- Preparing a concise 2‑minute explanation of the Phase 1 architecture.
+- Discussing key trade‑offs made in each service implementation.
+
+### Learning Prompts for Ajay
+1. **Architecture Rehearsal**  
+   - How would you describe the overall Phase 1 architecture, including the roles of Kafka, TimescaleDB, Qdrant, and each microservice, in roughly two minutes?
+
+2. **Service Trade‑offs**  
+   - **api‑gateway**: What are the implications of handling JWT/RBAC authentication in‑process versus delegating to an external proxy such as Traefik?  
+   - **alarm‑ingest**: How does the at‑least‑once delivery guarantee interact with the deduplication and enrichment pipeline?  
+   - **kpi‑service**: Why was a TimescaleDB hypertable chosen for KPI storage, and what trade‑offs does it introduce?  
+   - **ml‑service**: What are the benefits and limitations of using statistical baseline models versus deeper machine‑learning models for anomaly detection?  
+   - **rag‑service**: How does the hybrid BM25 + vector search approach affect relevance and performance compared to a pure vector‑only solution?  
+   - **copilot‑orchestrator**: What are the trade‑offs of using a small local LLM (Ollama qwen2.5:1.5b) with Pydantic‑validated JSON and a deterministic fallback versus a larger hosted model?  
+   - **mcp‑server**: In what ways does the tool‑layer abstraction add cost or benefit when exposing internal functions like `get_alarms` and `predict_fault`?
+
+3. **Smoke Test Design**  
+   - Why does the smoke test poll the gateway endpoints until they become ready instead of using a fixed sleep interval?
+
+*(Leave space for answers.)*

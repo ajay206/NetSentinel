@@ -54,6 +54,7 @@ ML_SERVICE_URL = os.getenv("ML_SERVICE_URL", "http://localhost:8003").rstrip("/"
 COPILOT_URL = os.getenv("COPILOT_URL", "http://localhost:8005").rstrip("/")
 RAG_SERVICE_URL = os.getenv("RAG_SERVICE_URL", "http://localhost:8004").rstrip("/")
 ALARM_INGEST_URL = os.getenv("ALARM_INGEST_URL", "http://localhost:8001").rstrip("/")
+MCP_SERVER_URL = os.getenv("MCP_SERVER_URL", "http://localhost:8006").rstrip("/")
 # W11: Phase 1 services probed through the gateway for the health panel
 PHASE1_SERVICES = {
     "alarm-ingest": lambda: ALARM_INGEST_URL,
@@ -61,6 +62,7 @@ PHASE1_SERVICES = {
     "ml-service": lambda: ML_SERVICE_URL,
     "rag-service": lambda: RAG_SERVICE_URL,
     "copilot-orchestrator": lambda: COPILOT_URL,
+    "mcp-server": lambda: MCP_SERVER_URL,
 }
 health_transport: httpx.AsyncBaseTransport | None = None
 # Tests swap this for an httpx.MockTransport
@@ -335,6 +337,25 @@ async def check_http_service(name: str, base_url: str) -> dict[str, Any]:
         }
     except httpx.HTTPError:
         return {"name": name, "status": "down", "detail": "unreachable", "tier": "phase1"}
+
+
+@app.get("/healthz")
+async def healthz() -> dict[str, str]:
+    """W12 liveness: the process is up (public, no dependency checks)."""
+    return {"status": "ok"}
+
+
+@app.get("/readyz")
+async def readyz() -> JSONResponse:
+    """W12 readiness: Kafka reachable (unless DISABLE_KAFKA) and topology loaded."""
+    kafka = {"status": "skipped"} if DISABLE_KAFKA else await check_kafka()
+    ready = kafka["status"] in ("up", "skipped") and bool(topology)
+    body = {
+        "status": "ready" if ready else "not_ready",
+        "kafka": kafka["status"],
+        "topology": "loaded" if topology else "missing",
+    }
+    return JSONResponse(body, status_code=200 if ready else 503)
 
 
 @app.get("/health")

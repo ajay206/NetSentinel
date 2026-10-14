@@ -78,6 +78,7 @@ services:
       CORS_ORIGINS: "http://localhost:5173"
       DISABLE_KAFKA: "0"
       ALARM_INGEST_URL: http://alarm-ingest:8001
+      MCP_SERVER_URL: http://mcp-server:8006
       # W11: JWT/RBAC. Dev-only defaults; set real values in .env (never commit them)
       JWT_SECRET: ${JWT_SECRET:-dev-only-change-me-0123456789abcdefghij}
       GATEWAY_SERVICE_TOKEN: ${GATEWAY_SERVICE_TOKEN:-dev-only-service-token}

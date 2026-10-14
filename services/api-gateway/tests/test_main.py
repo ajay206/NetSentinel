@@ -431,3 +431,12 @@ def test_copilot_proxy() -> None:
         assert client.post("/api/copilot/analyze", json={}).status_code == 503
     finally:
         gw.copilot_transport = None
+
+
+def test_healthz_and_readyz() -> None:
+    """W12: liveness/readiness probes (Kafka is disabled in tests, so readiness skips it)."""
+    with TestClient(app) as client:
+        assert client.get("/healthz").json() == {"status": "ok"}
+        resp = client.get("/readyz")
+        assert resp.status_code == 200
+        assert resp.json() == {"status": "ready", "kafka": "skipped", "topology": "loaded"}

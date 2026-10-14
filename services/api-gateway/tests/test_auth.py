@@ -281,6 +281,8 @@ def test_build_timeline_unparsable_times():
     "method,path,needed",
     [
         ("GET", "/health", None),
+        ("GET", "/healthz", None),
+        ("GET", "/readyz", None),
         ("OPTIONS", "/api/thing", None),
         ("POST", "/api/auth/login", None),
         ("GET", "/api/alarms/timeline", "viewer"),

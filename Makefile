@@ -1,4 +1,4 @@
-.PHONY: up-core up-tools up-ui down topics test lint fmt smoke sim sim-loop sim-docker gateway console-install console console-build console-lint console-test test-all ingest up-pipeline enriched-peek ingest-stats kpi-service kpi-stats kpi-query ml ml-train anomalies topology kpis kpis-follow kpis-peek docs-check ml-train-xgb up-rag rag rag-ingest rag-eval runbooks copilot up-copilot analyze ollama-pull mcp mcp-dev mcp-contract copilot-contract gateway-contract token
+.PHONY: up-core up-tools up-ui down topics test lint fmt smoke sim sim-loop sim-docker gateway console-install console console-build console-lint console-test test-all ingest up-pipeline enriched-peek ingest-stats kpi-service kpi-stats kpi-query ml ml-train anomalies topology kpis kpis-follow kpis-peek docs-check ml-train-xgb up-rag rag rag-ingest rag-eval runbooks copilot up-copilot analyze ollama-pull mcp mcp-dev mcp-contract copilot-contract gateway-contract token demo kafka-smoke
 
 up-core:
 	docker compose --profile core up -d
@@ -10,7 +10,7 @@ up-ui:
 	docker compose --profile core --profile ui up --build -d
 
 down:
-	docker compose --profile core --profile tools --profile ui --profile sim --profile pipeline down
+	docker compose --profile core --profile tools --profile ui --profile sim --profile pipeline --profile rag --profile copilot down
 
 topics:
 	bash scripts/create_topics.sh
@@ -24,7 +24,14 @@ lint:
 fmt:
 	uv run ruff format .
 
+# W12: Phase 1 end-to-end demo and smoke test (gateway must be running)
+demo:
+	bash scripts/demo.sh
+
 smoke:
+	bash scripts/smoke.sh
+
+kafka-smoke:
 	@echo '{"smoke": "test", "siteId": "SITE-001"}' | docker compose exec -T kafka /opt/kafka/bin/kafka-console-producer.sh --bootstrap-server localhost:9092 --topic alarms.raw
 	@echo "Consumed test message:"
 	docker compose exec -T kafka /opt/kafka/bin/kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic alarms.raw --from-beginning --max-messages 1 --timeout-ms 5000
@@ -148,11 +155,13 @@ ollama-pull:
 SITE ?= SITE-012
 WINDOW ?= 30m
 analyze:
+	@TOKEN=$$($(MAKE) -s token AS=operator); \
 	curl -s -XPOST localhost:8000/api/copilot/analyze -H 'content-type: application/json' \
-		-d '{"site_id":"$(SITE)","window":"$(WINDOW)"}'; echo
+		-H "Authorization: Bearer $$TOKEN" -d '{"siteId":"$(SITE)","window":"$(WINDOW)"}'; echo
 
 anomalies:
-	curl -s "localhost:8000/api/ml/anomalies?hours=24&limit=5"; echo
+	@TOKEN=$$($(MAKE) -s token AS=viewer); \
+	curl -s -H "Authorization: Bearer $$TOKEN" "localhost:8000/api/ml/anomalies?hours=24&limit=5"; echo
 
 docs-check:
 	python3 scripts/check_docs.py

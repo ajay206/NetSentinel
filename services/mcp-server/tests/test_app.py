@@ -71,3 +71,12 @@ def test_build_app_with_allow_no_token():
         client = TestClient(app)
         response = client.get("/healthz")
         assert response.status_code == 200
+
+
+def test_readyz_without_token():
+    """W12: /readyz is open and reports whether /mcp is token-protected."""
+    with patch.dict(os.environ, {"MCP_SERVICE_TOKEN": "t0k", "MCP_ALLOW_NO_TOKEN": "0"}):
+        client = TestClient(build_app())
+        response = client.get("/readyz")
+        assert response.status_code == 200
+        assert response.json() == {"status": "ready", "auth": "token"}
