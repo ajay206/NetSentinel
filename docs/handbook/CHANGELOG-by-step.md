@@ -100,3 +100,25 @@
 - [x] **make docs-check** – documentation builds without errors.  
 - [ ] **Docker checks on Ajay's Mac** – pending due to local environment differences.  
 - [ ] **End‑to‑end check** – deferred to final review (full pipeline with real KPI data).
+
+## Step 7 – W7 fault classifier + SHAP
+
+**Summary**  
+Added an XGBoost‑based fault classifier to `ml-service` with built‑in TreeSHAP explanations. Integrated the classifier into the API gateway and NOC console UI (fault badge + SHAP drawer). Synthetic training pipeline and auto‑train fallback implemented.
+
+**Changes**
+- `ml-service` now depends on `xgboost-cpu`; new endpoints `/predict` and `/explain`.  
+- Added `make ml-train-xgb` target and `ml_service/train_xgb.py`.  
+- Updated `models/registry.json` handling and `MODELS_DIR` defaults.  
+- API gateway routing and error handling for payload size, service health, and JSON validation.  
+- NOC console UI components `FaultBadge` and `ShapDrawer` with bar visualisation of top SHAP contributions.  
+- Documentation files (ADR‑007, model card, handbook sections, troubleshooting, changelog).  
+
+**Verification checklist**
+- [x] Unit tests (`pytest`) for predictor, explainer, leakage guard.  
+- [x] Code style (`ruff`) passes.  
+- [x] Front‑end lint/typecheck (`vitest`, `eslint`, `tsc`) passes.  
+- [x] Build succeeds (`docker compose build`).  
+- [x] Docs build/check (`mkdocs build`) passes.  
+- [x] Docker image size < 256 MiB (verified on Ajay’s Mac).  
+- [ ] End‑to‑end integration test (manual verification of UI badge & SHAP drawer).

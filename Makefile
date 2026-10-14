@@ -1,4 +1,4 @@
-.PHONY: up-core up-tools up-ui down topics test lint fmt smoke sim sim-loop sim-docker gateway console-install console console-build console-lint console-test test-all ingest up-pipeline enriched-peek ingest-stats kpi-service kpi-stats kpi-query ml ml-train anomalies topology kpis kpis-follow kpis-peek docs-check
+.PHONY: up-core up-tools up-ui down topics test lint fmt smoke sim sim-loop sim-docker gateway console-install console console-build console-lint console-test test-all ingest up-pipeline enriched-peek ingest-stats kpi-service kpi-stats kpi-query ml ml-train anomalies topology kpis kpis-follow kpis-peek docs-check ml-train-xgb
 
 up-core:
 	docker compose --profile core up -d
@@ -97,6 +97,9 @@ ml:
 
 ml-train:
 	uv run python -m ml_service.train_baselines --experiment anomaly-baselines --seed 42 --days 7
+
+ml-train-xgb:
+	cd services/ml-service && uv run python -m ml_service.train_xgb --register
 
 anomalies:
 	curl -s "localhost:8000/api/ml/anomalies?hours=24&limit=5"; echo

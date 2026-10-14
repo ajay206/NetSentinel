@@ -1,5 +1,5 @@
-import { render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { fireEvent, render, screen } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
 import { EnrichedAlarms } from './EnrichedAlarms';
 import { makeEnriched } from '../test/enrichedFixture';
 
@@ -33,5 +33,22 @@ describe('EnrichedAlarms', () => {
     expect(summary).toHaveTextContent('Alarms 2');
     expect(summary).toHaveTextContent('Deduped 2');
     expect(summary).toHaveTextContent('Groups 1');
+  });
+
+  it('selects a row on click and shows the fault badge slot (W7)', () => {
+    const alarm = makeEnriched({ id: 'sel', dedup: { key: 'k-sel', count: 1, firstSeen: '2026-10-14T10:00:00Z', isDuplicate: false } });
+    const onSelect = vi.fn();
+    const { rerender } = render(<EnrichedAlarms alarms={[alarm]} onSelect={onSelect} />);
+    fireEvent.click(screen.getByText('LOS'));
+    expect(onSelect).toHaveBeenCalledWith(alarm);
+    rerender(
+      <EnrichedAlarms
+        alarms={[alarm]}
+        onSelect={onSelect}
+        selectedKey="k-sel"
+        selectedBadge={<span data-testid="fault-badge">Fibre cut 91%</span>}
+      />
+    );
+    expect(screen.getByTestId('fault-badge')).toHaveTextContent('Fibre cut 91%');
   });
 });

@@ -322,3 +322,35 @@ def test_ml_proxy_forwards_and_handles_errors() -> None:
         assert client.get("/api/ml/anomalies").status_code == 503
     finally:
         gw.ml_transport = None
+
+
+def test_ml_post_proxy_predict_and_errors() -> None:
+    import api_gateway.main as gw
+    import httpx
+
+    seen: list[tuple[str, bytes]] = []
+
+    def handler(req: httpx.Request) -> httpx.Response:
+        seen.append((str(req.url), req.content))
+        return httpx.Response(200, json={"faultType": "fibre_cut", "confidence": 0.9})
+
+    gw.ml_transport = httpx.MockTransport(handler)
+    try:
+        client = TestClient(app)
+        resp = client.post("/api/ml/predict", json={"alarm": {"id": "a"}})
+        assert resp.status_code == 200
+        assert resp.json()["faultType"] == "fibre_cut"
+        assert seen[0][0].endswith("/predict")
+        assert b'"alarm"' in seen[0][1]
+        assert client.post("/api/ml/explain?top_k=3", json={"alarm": {}}).status_code == 200
+        assert seen[1][0].endswith("/explain?top_k=3")
+        assert client.post("/api/ml/train", json={}).status_code == 404
+        assert client.post("/api/ml/predict", content=b"x" * 70_000).status_code == 413
+
+        def boom(req: httpx.Request) -> httpx.Response:
+            raise httpx.ConnectError("down")
+
+        gw.ml_transport = httpx.MockTransport(boom)
+        assert client.post("/api/ml/predict", json={"alarm": {}}).status_code == 503
+    finally:
+        gw.ml_transport = None

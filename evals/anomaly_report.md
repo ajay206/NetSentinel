@@ -42,3 +42,6 @@ Without `MLFLOW_TRACKING_URI`, the run is written to `evals/runs/anomaly-baselin
 
 - Tune `ANOMALY_Z`, `k` and `h` per KPI, and add a short cool-down after each CUSUM alarm.
 - Compare against the ML detector in W7 on the same seeds and ground truth.
+
+## Note (Step 7): fault classifier
+The W7 XGBoost fault classifier is evaluated separately: on synthetic labelled faults (n=3000, seed 42, 70/30 time-based split) it reaches accuracy ≈ 0.84 and macro-F1 ≈ 0.84. See `docs/model_card_fault_classifier.md` and ADR-007. Synthetic data only.
