@@ -92,3 +92,59 @@ The UI is still served by Vite on your host, but all backend services run in Doc
 * **React dev server:** ~150 MiB (Node 22).  
 
 If you hit memory pressure, stop the UI (`Ctrl‑C` in the Vite terminal) or the simulator, and keep only the core services running.
+
+---
+
+## Week 3: Map and KPI Stack
+
+The Week 3 sprint adds the SVG network map, KPI generation, and new API endpoints.
+
+### Run the Full Stack (native)
+
+```bash
+# 1️⃣ Generate topology (once) – deterministic seed 42
+uv run netgen topology --seed 42 --out data/topology.json   # small (default) set
+#   or add --full for the large topology
+
+# 2️⃣ Back‑fill a week of KPI data
+uv run netgen-sim kpis --seed 42 --days 7 --out - | \
+  uv run kafka-console-producer --broker-list localhost:9092 --topic kpis
+
+# 3️⃣ Start core services (Kafka + TimescaleDB)
+make up-core
+
+# 4️⃣ Create required topics (kpis + alarms)
+make topics   # now creates `alarms.raw` and `kpis`
+
+# 5️⃣ Launch the FastAPI gateway
+make gateway
+
+# 6️⃣ Start the React console
+make console-install && make console
+
+# 7️⃣ Run the live KPI publisher (follow mode)
+make kpis-follow   # publishes one sample per cell every 5 s (default)
+```
+
+### Run the Full Stack (Docker‑compose profile)
+
+```bash
+# Build and start core + simulator + API gateway containers
+make up-ui && docker compose --profile core --profile sim up -d --build
+# Then start the UI (Vite) natively
+make console
+# Follow live KPI stream
+make kpis-follow
+```
+
+**Memory note:** The KPI simulator adds roughly another 100 MiB when running in follow mode. Keep an eye on Docker memory; you may need to raise the allocation to **5 GB** if you run the full (`--full`) topology.
+
+### Documentation sanity‑check
+
+After the changes, run the documentation validation target:
+
+```bash
+make docs-check
+```
+
+It runs `@mermaid-js/mermaid-cli` on all mermaid blocks and verifies relative markdown links and images.

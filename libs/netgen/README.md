@@ -1,34 +1,45 @@
-# netgen
+# NetSentinel Netgen Library
 
-Synthetic telecom topology and alarm generator library.
+Shared library for deterministic synthetic telecom topology generation.
 
-## Purpose
+## Usage
 
-Generates deterministic network topologies and alarm scenarios for testing and development.
+```python
+from netgen import generate_topology
 
-## Inputs
-
-- `seed`: Integer seed for reproducible generation
-- `n_sites`: Number of sites in topology (default 12)
-
-## Outputs
-
-- `Topology` with `Site` and `Link` dataclasses
-- Alarm sequences following TMF642/X.733 format
-
-## Run
-
-```bash
-# From repo root
-uv run --package netgen python -c "from netgen import build_topology; print(build_topology(42))"
+topology = generate_topology(seed=42, full=False)
+topology_dict = topology.to_dict()
 ```
 
-## Test
+## Topology Structure
+
+The generated topology includes:
+- **Sites**: Physical locations with latitude/longitude.
+- **Cells**: Radio cells attached to sites (technology, band, azimuth, etc.).
+- **Links**: Transport links between sites.
+
+## Configuration
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `seed` | `int` | `42` | Random seed for reproducibility. |
+| `full` | `bool` | `False` | If `True`, generates a larger topology (more sites/cells). |
+
+## Output
+
+`to_dict()` returns a dictionary with keys: `sites`, `cells`, `links`, `counts`.
+
+## Development
 
 ```bash
-uv run --package netgen pytest libs/netgen/tests -v
+uv run pytest libs/netgen/tests -v
+uv run ruff check libs/netgen
 ```
 
-## Environment Variables
+## Integration
 
-None required.
+Used by:
+- `api-gateway` (topology endpoint)
+- `netgen-simulator` (event generation context)
+
+Both services share the same `TOPOLOGY_SEED` and `TOPOLOGY_FULL` environment variables for consistency.

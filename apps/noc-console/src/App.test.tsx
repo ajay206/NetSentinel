@@ -1,7 +1,8 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import App from './App';
+import type { Topology } from './types';
 
 class FakeWebSocket {
   static CONNECTING = 0;
@@ -31,39 +32,81 @@ class FakeWebSocket {
 }
 
 describe('App', () => {
-  beforeEach(() => {
-    globalThis.fetch = vi.fn(() =>
-      Promise.resolve({
-        ok: true,
-        json: () =>
-          Promise.resolve({
-            status: 'ok',
-            services: [
-              { name: 'Core Router', status: 'up', detail: 'Primary' },
-              { name: 'Edge Switch', status: 'down', detail: 'Link down' },
-            ],
-            checkedAt: new Date().toISOString(),
-          }),
-      })
-    ) as unknown as typeof fetch;
+  const queryClient = new QueryClient();
 
+  beforeEach(() => {
+    // mock health endpoint
+    globalThis.fetch = vi.fn((input: RequestInfo) => {
+      const url = typeof input === 'string' ? input : input.url;
+      if (url.endsWith('/health')) {
+        return Promise.resolve({
+          ok: true,
+          json: () =>
+            Promise.resolve({
+              status: 'ok',
+              services: [],
+              checkedAt: new Date().toISOString(),
+            }),
+        });
+      }
+      if (url.endsWith('/api/topology')) {
+        const topology: Topology = {
+          seed: 1,
+          small: true,
+          regions: ['North'],
+          sites: [
+            {
+              siteId: 'SITE-001',
+              name: 'Core-1',
+              region: 'North',
+              kind: 'core',
+              lat: 41.0082,
+              lon: 28.9784,
+              nodes: [],
+            },
+          ],
+          links: [],
+          counts: {
+            regions: 1,
+            sites: 1,
+            nodes: 0,
+            cells: 0,
+            links: 0,
+          },
+        };
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve(topology),
+        });
+      }
+      // default fallback
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
+    }) as unknown as typeof fetch;
+
+    // mock WebSocket
     (globalThis as unknown as { WebSocket: unknown }).WebSocket = FakeWebSocket;
   });
 
-  it('renders heading and placeholders', async () => {
-    const queryClient = new QueryClient();
+  it('renders headings, map and KPI activity with site label', async () => {
     render(
       <QueryClientProvider client={queryClient}>
         <App />
       </QueryClientProvider>
     );
 
+    // static headings
     expect(screen.getByText('NetSentinel')).toBeInTheDocument();
     expect(screen.getByText('NOC Console')).toBeInTheDocument();
-    expect(screen.getByText(/LOCAL · SYNTHETIC DATA/)).toBeInTheDocument();
-    expect(screen.getByText('Network map')).toBeInTheDocument();
-    expect(screen.getByText('KPI charts')).toBeInTheDocument();
-    expect(screen.getByText('Anomalies')).toBeInTheDocument();
-    expect(screen.getByText('Copilot')).toBeInTheDocument();
+
+    // wait for network map heading
+    expect(await screen.findByRole('heading', { name: /Network map/i })).toBeInTheDocument();
+
+    // KPI activity heading
+    expect(screen.getByRole('heading', { name: /KPI activity/i })).toBeInTheDocument();
+
+    // Header clock and other timestamps carry the IST label
+    await waitFor(() => expect(screen.getAllByText(/IST/).length).toBeGreaterThan(0));
+    // Network map renders the fixture site
+    expect(document.querySelector('[data-site-id="SITE-001"]')).toBeInTheDocument();
   });
 });

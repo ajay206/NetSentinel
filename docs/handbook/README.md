@@ -1,4 +1,4 @@
-# NetSentinel Developer Handover Guide
+# NetSentinel Junior Developer Handover Guide
 
 Welcome to the NetSentinel engineering team! This handover guide provides a complete walkthrough of the architecture, local environment setup, service inventory, data flows, testing standards, and troubleshooting procedures.
 

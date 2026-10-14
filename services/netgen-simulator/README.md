@@ -1,39 +1,32 @@
-# netgen-simulator
+# NetSentinel Netgen Simulator
 
-Kafka alarm simulator that streams synthetic telecom alarms.
+Simulator service that generates synthetic telecom alarms and KPIs, publishing to Kafka.
 
-## Purpose
+## Commands
 
-Continuously generates alarm scenarios and publishes them to Kafka for downstream consumers.
+- `uv run netgen-simulator` — Start the simulator (publishes to `alarms.raw` and `kpis` topics).
+- `uv run netgen-simulator --help` — Show all options.
 
-## Inputs
+## Configuration (Environment Variables)
 
-- `--seed`: Random seed (default 42)
-- `--scenario`: Scenario type (currently only `fibre_cut`)
-- `--speed`: Simulation speed multiplier (e.g., `60x`)
-- `--bootstrap`: Kafka bootstrap servers (default `localhost:9092` or `KAFKA_BOOTSTRAP` env)
-- `--topic`: Kafka topic (default `alarms.raw`)
-- `--dry-run`: Print JSON lines to stdout instead of Kafka
-- `--loop`: Repeat scenario forever with incrementing seed
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `KAFKA_BOOTSTRAP` | `localhost:9092` | Kafka bootstrap servers. |
+| `ALARM_TOPIC` | `alarms.raw` | Topic for alarm events. |
+| `KPI_TOPIC` | `kpis` | Topic for KPI samples. |
+| `TOPOLOGY_SEED` | `42` | Seed for topology generation (must match API gateway). |
+| `TOPOLOGY_FULL` | `0` | Generate full topology if `1`. |
+| `SIMULATION_SPEED` | `1.0` | Speed multiplier for event generation. |
 
-## Outputs
+## New in Week 3
 
-- Alarm messages to Kafka topic `alarms.raw` with key = `siteId`
-- JSON lines to stdout in `--dry-run` mode
+- Publishes KPI samples to `kpis` topic (configurable via `KPI_TOPIC`).
+- Uses shared `netgen` library for topology generation.
+- Aligns topology seed with API gateway via `TOPOLOGY_SEED`.
 
-## Run
-
-```bash
-# From repo root
-uv run --package netgen-simulator netgen-sim run --seed 42 --scenario fibre_cut --speed 60x --dry-run
-```
-
-## Test
+## Development
 
 ```bash
-uv run --package netgen-simulator pytest services/netgen-simulator/tests -v
+uv run pytest services/netgen-simulator/tests -v
+uv run ruff check services/netgen-simulator
 ```
-
-## Environment Variables
-
-- `KAFKA_BOOTSTRAP`: Kafka bootstrap servers (default `localhost:9092`)

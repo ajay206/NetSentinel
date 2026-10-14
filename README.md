@@ -1,13 +1,19 @@
 # NetSentinel
 
-NetSentinel is an AI‑assisted Network Operations Center (NOC) copilot for telecom networks built on **synthetic data only**. It features event‑driven microservices communicating via Apache Kafka, time‑series metrics storage in TimescaleDB, topological root‑cause analysis via Neo4j, vector RAG via Qdrant, and an internal Model Context Protocol (MCP) server for AI tool execution.
+NetSentinel is an AI‑assisted Network Operations Center (NOC) copilot for telecom networks built on **synthetic data only**. It consists of event‑driven micro‑services communicating via Apache Kafka, time‑series storage in TimescaleDB, graph analysis in Neo4j, vector search in Qdrant, and a Model Context Protocol (MCP) server for AI tool execution.
 
 > **Note:** All network telemetry, alarms, KPIs, and customer data generated and processed by NetSentinel are entirely synthetic.
 
 ## Status
-* **Current Phase:** Week 2 – Core services built, API gateway thin FastAPI layer, and live NOC dashboard.
-* **Built Components:** Monorepo workspace (`uv`), shared library (`ns-common`), Kafka KRaft, TimescaleDB, Kafka UI, `netgen-simulator` (topology & fibre‑cut scenario), `api‑gateway` (FastAPI thin gateway), `noc-console` (React/Vite dashboard), CI pipeline, pre‑commit hooks, and architecture handbook.
-* **Planned Services:** Remaining services (`alarm-ingest`, `kpi-service`, `incident-service`, `copilot-orchestrator`, `mcp-server`, `ml-service`, `topology‑service`, `rag‑service`, `ticket‑service`, `llm‑gateway`) will be added in later weeks.
+* **Current Phase:** **Week 3** – KPI generation, topology endpoint, and enhanced console panels.
+* **Built Components:**  
+  * `libs/netgen` – deterministic topology & fibre‑cut scenario (`seed=42`).  
+  * `services/netgen-simulator` – KPI back‑fill & live stream (`kpis` topic) plus unchanged alarm generator.  
+  * `services/api-gateway` – FastAPI gateway exposing `/api/topology`, `/api/kpis/activity` and WebSocket `/ws/kpis`.  
+  * `apps/noc-console` – New Network‑Map panel (SVG topology) and KPI‑Activity panel; timestamps shown in IST.  
+  * Core infra (Kafka KRaft, TimescaleDB, Neo4j, Qdrant), CI pipeline, pre‑commit hooks, and architecture handbook.  
+
+* **Planned Services:** Remaining micro‑services (`alarm-ingest`, `kpi-service`, `incident-service`, `copilot-orchestrator`, `mcp-server`, `ml-service`, `topology‑service`, `rag‑service`, `ticket‑service`, `llm‑gateway`) will be added in later weeks.
 
 ## Quick Start
 
@@ -20,16 +26,14 @@ uv sync --all-extras --dev    # install Python deps
 ### 2. Core infrastructure (Docker)
 ```bash
 make up-core      # starts Kafka and TimescaleDB
-make topics       # create required Kafka topics (alarms.raw, …)
+make topics       # create required Kafka topics (alarms.raw, kpis, …)
 ```
 
-### 3. Run the dashboard (Week 2)
+### 3. Run the dashboard (Week 3)
 
-You have two equivalent ways to get the UI up and see live alarms.
-
-#### A) All native processes (recommended on low‑memory Mac)
+#### Native processes (recommended on low‑memory Mac)
 ```bash
-# start the gateway (native uvicorn)
+# start the FastAPI gateway (uvicorn)
 make gateway
 
 # install & start the React UI
@@ -37,33 +41,33 @@ make console-install
 make console          # Vite dev server → http://localhost:5173
 ```
 
-#### B) Containerised UI (api‑gateway runs in Docker)
+#### Containerised UI (api‑gateway runs in Docker)
 ```bash
 make up-ui            # core + api‑gateway container (profile ui)
 make topics
 make console          # UI runs natively, talks to gateway container via proxy
 ```
 
-In both cases, start the simulator to generate alarms:
-
+### 4. Start the simulators
 ```bash
-# native simulator (single run)
+# Alarm generator (unchanged)
 make sim
 
-# or run continuously in a container
-make sim-docker
+# KPI generator – back‑fill 7 days then follow live samples every 5 s
+make kpis-follow      # runs: uv run netgen-sim kpis --seed 42 --days 7 --follow --interval 5
 ```
 
-Open **http://localhost:5173** in a browser. You should see:
+### 5. Verify the UI
+Open **http://localhost:5173**. You should see:
 
-* A table of recent alarms (colour‑coded by severity).  
-* Service‑health tiles for the gateway, Kafka, and TimescaleDB.  
-* Live updates via WebSocket as the `netgen‑simulator` publishes to `alarms.raw`.
+* **Network Map** – SVG topology with sites coloured by the worst active alarm severity (critical sites pulse).  
+* **KPI Activity** – live sample rate, total samples, per‑cell reporting, and network‑wide averages (updated every 2 s).  
+* Alarm table, service‑health tiles, and timestamps displayed in **IST (Asia/Kolkata)**.
 
-### 4. Verify everything works
+### 6. Run checks
 ```bash
-make test          # pytest + ruff
-make lint          # ruff + black
+make test          # pytest + vitest
+make lint          # ruff + eslint
 make fmt           # auto‑format code
 make smoke         # simple Kafka produce/consume sanity check
 ```
@@ -73,25 +77,23 @@ make smoke         # simple Kafka produce/consume sanity check
 ```
 netsentinel/
 ├── apps/
-│   └── noc-console/        # React/Vite dashboard (Week 2)
+│   └── noc-console/        # React/Vite dashboard (Week 3)
 ├── libs/
 │   ├── ns-common/          # Shared models, topic definitions, utils
-│   └── netgen/             # Topology library + fibre_cut scenario (Week 2)
+│   └── netgen/             # Topology library + fibre_cut scenario
 ├── services/
-│   ├── netgen-simulator/   # CLI that emits TMF642‑like alarm JSON to Kafka
-│   └── api-gateway/        # FastAPI thin gateway (health, alarm endpoints, WS)
+│   ├── netgen-simulator/   # CLI that emits alarms & KPI samples to Kafka
+│   └── api-gateway/        # FastAPI thin gateway (health, topology, KPI endpoints, WS)
 ├── contracts/
 │   └── asyncapi/
 │       └── netsentinel.asyncapi.yaml
-├── scripts/
-│   └── create_topics.sh    # Idempotent Kafka topic creation script
 ├── docs/
-│   ├── adr/                # Architecture Decision Records
-│   └── handbook/           # Junior developer hand‑over guide
+│   ├── adr/
+│   └── handbook/
 ├── compose.yaml            # Docker Compose with profiles (core, tools, ui, sim)
-├── Makefile                # Automation targets (up‑core, up‑ui, sim, etc.)
+├── Makefile                # Automation targets (up‑core, up‑ui, sim, kpis-follow, …)
 ├── pyproject.toml          # uv workspace root
-└── LEARNING_LOG.md         # Learning and reflection log
+└── LEARNING_LOG.md
 ```
 
 * `apps/` – Front‑end applications.  

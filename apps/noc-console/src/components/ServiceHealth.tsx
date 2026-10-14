@@ -1,5 +1,6 @@
 import React from 'react';
 import type { HealthResponse } from '../types';
+import { formatIST } from '../lib/time';
 
 interface ServiceHealthProps {
   health: HealthResponse | undefined;
@@ -54,7 +55,7 @@ export const ServiceHealth: React.FC<ServiceHealthProps> = ({ health, isError })
         ))}
       </div>
       <p className="text-xs text-slate-600 mt-3">
-        Last checked: {new Date(health.checkedAt).toISOString().replace('T', ' ').slice(0, 19)} UTC
+        Last checked: {formatIST(health.checkedAt)}
       </p>
     </div>
   );

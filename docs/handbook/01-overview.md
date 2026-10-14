@@ -12,37 +12,37 @@ Telecom networks produce continuous, high-volume streams of events (alarms, link
 
 ```mermaid
 graph TD
-    subgraph Simulation
-        NS[netgen-simulator] -->|alarms.raw, kpis| K[Kafka Event Bus]
+    subgraph SIM["Simulation"]
+        NS["netgen-simulator"] -->|"alarms.raw, kpis"| K["Kafka Event Bus"]
     end
 
-    subgraph Core Stream Processing
-        K --> AI[alarm-ingest]
-        K --> KS[kpi-service]
-        AI -->|alarms.enriched| K
-        KS --> TS[(TimescaleDB)]
+    subgraph STREAM["Core Stream Processing"]
+        K --> AI["alarm-ingest"]
+        K --> KS["kpi-service"]
+        AI -->|"alarms.enriched"| K
+        KS --> TS[("TimescaleDB")]
     end
 
-    subgraph Intelligence & Storage
-        TS --> IS[incident-service]
-        IS -->|incidents| K
-        NEO[(Neo4j Topology)] <--> TSVC[topology-service]
-        QD[(Qdrant Vector DB)] <--> RS[rag-service]
-        ML[ml-service] -->|anomaly inference| K
+    subgraph INTEL["Intelligence & Storage"]
+        TS --> IS["incident-service"]
+        IS -->|"incidents"| K
+        NEO[("Neo4j Topology")] <--> TSVC["topology-service"]
+        QD[("Qdrant Vector DB")] <--> RS["rag-service"]
+        ML["ml-service"] -->|"anomaly inference"| K
     end
 
-    subgraph AI Copilot Layer
-        CO[copilot-orchestrator] --> MCP[internal mcp-server]
+    subgraph COPILOT["AI Copilot Layer"]
+        CO["copilot-orchestrator"] --> MCP["internal mcp-server"]
         MCP -.-> TSVC
         MCP -.-> RS
         MCP -.-> IS
-        LLG[llm-gateway] --> OL[(Ollama Local LLM)]
+        LLG["llm-gateway"] --> OL[("Ollama Local LLM")]
         CO --> LLG
     end
 
-    subgraph Gateway & Frontend
-        AG[api-gateway / Traefik] --> CO
-        AG --> UI[noc-console (React)]
+    subgraph EDGE["Gateway & Frontend"]
+        AG["api-gateway (FastAPI now; Traefik in W11)"] --> CO
+        AG --> UI["noc-console (React)"]
     end
 ```
 

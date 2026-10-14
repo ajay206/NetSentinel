@@ -10,8 +10,10 @@ import contextlib
 import json
 import logging
 import os
+import statistics
+import time
 from collections import deque
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from typing import Any
@@ -20,6 +22,9 @@ from aiokafka import AIOKafkaConsumer
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+
+# netgen is a workspace dependency
+from netgen import build_topology
 
 logging.basicConfig(
     level=logging.INFO,
@@ -30,12 +35,20 @@ logger = logging.getLogger("api-gateway")
 # Settings from environment
 KAFKA_BOOTSTRAP = os.getenv("KAFKA_BOOTSTRAP", "localhost:9092")
 ALARM_TOPIC = os.getenv("ALARM_TOPIC", "alarms.raw")
+KPI_TOPIC = os.getenv("KPI_TOPIC", "kpis")
 TIMESCALE_HOST = os.getenv("TIMESCALE_HOST", "localhost")
 TIMESCALE_PORT = int(os.getenv("TIMESCALE_PORT", "5432"))
 CORS_ORIGINS = [
     o.strip() for o in os.getenv("CORS_ORIGINS", "http://localhost:5173").split(",") if o.strip()
 ]
 DISABLE_KAFKA = os.getenv("DISABLE_KAFKA", "0") == "1"
+
+# Topology generation settings
+TOPOLOGY_SEED = int(os.getenv("TOPOLOGY_SEED", "42"))
+TOPOLOGY_FULL = os.getenv("TOPOLOGY_FULL", "0") == "1"
+
+# Build topology once at import
+topology = build_topology(seed=TOPOLOGY_SEED, small=not TOPOLOGY_FULL)
 
 
 class AlarmHub:
@@ -73,6 +86,79 @@ class AlarmHub:
 
 
 hub = AlarmHub()
+
+
+class KpiActivity:
+    """Tracks KPI samples and computes rolling statistics."""
+
+    def __init__(self, window_seconds: int = 60, rolling_maxlen: int = 500) -> None:
+        self.total_samples = 0
+        self._arrival_times: deque[float] = deque()  # monotonic timestamps
+        self._window_seconds = window_seconds
+        self._last_sample: dict[str, Any] | None = None
+        self._last_timestamp: str | None = None
+        # per-KPI rolling window of values for average computation
+        self._kpi_values: dict[str, deque[float]] = {}
+        self._rolling_maxlen = rolling_maxlen
+        # track cellIds in rolling window
+        self._cell_ids: deque[str] = deque(maxlen=rolling_maxlen)
+
+    def record(self, sample: dict[str, Any]) -> None:
+        """Record a KPI sample. Expected keys: cellId, kpis (dict), timestamp."""
+        now = time.monotonic()
+        self.total_samples += 1
+        self._arrival_times.append(now)
+        self._last_sample = sample
+        self._last_timestamp = sample.get("timestamp") or datetime.now(UTC).isoformat(
+            timespec="seconds"
+        ).replace("+00:00", "Z")
+
+        # Extract cellId for distinct count
+        cell_id = sample.get("cellId")
+        if cell_id is not None:
+            self._cell_ids.append(str(cell_id))
+
+        # Extract KPI name and value
+        kpis = sample.get("kpis", {})
+        if isinstance(kpis, dict):
+            for kpi_name, value in kpis.items():
+                if isinstance(value, (int, float)):
+                    if kpi_name not in self._kpi_values:
+                        self._kpi_values[kpi_name] = deque(maxlen=self._rolling_maxlen)
+                    self._kpi_values[kpi_name].append(float(value))
+
+        # Prune arrival times older than window
+        cutoff = now - self._window_seconds
+        while self._arrival_times and self._arrival_times[0] < cutoff:
+            self._arrival_times.popleft()
+
+    def snapshot(self) -> dict[str, Any]:
+        """Return current activity snapshot."""
+        rate_per_min = (
+            len(self._arrival_times) * 60.0 / self._window_seconds
+            if self._window_seconds > 0
+            else 0.0
+        )
+
+        averages: dict[str, float] = {}
+        for kpi, values in self._kpi_values.items():
+            if values:
+                averages[kpi] = round(statistics.mean(values), 3)
+
+        cells_reporting = len(set(self._cell_ids))
+
+        return {
+            "totalSamples": self.total_samples,
+            "ratePerMin": round(rate_per_min, 2),
+            "lastSampleTime": self._last_timestamp
+            or datetime.now(UTC).isoformat(timespec="seconds").replace("+00:00", "Z"),
+            "lastSample": self._last_sample,
+            "averages": averages,
+            "cellsReporting": cells_reporting,
+        }
+
+
+kpi_activity = KpiActivity()
 
 
 async def tcp_check(host: str, port: int, timeout: float = 1.5) -> bool:
@@ -113,32 +199,32 @@ async def check_timescaledb() -> dict[str, Any]:
     }
 
 
-async def kafka_consumer_task() -> None:
-    """Background task consuming alarms from Kafka and publishing to hub."""
+async def consume_topic(topic: str, handler: Callable[[dict[str, Any]], Awaitable[None]]) -> None:
+    """Generic Kafka consumer with retry logic."""
     while True:
         consumer: AIOKafkaConsumer | None = None
         try:
             consumer = AIOKafkaConsumer(
-                ALARM_TOPIC,
+                topic,
                 bootstrap_servers=KAFKA_BOOTSTRAP,
                 group_id=None,
                 auto_offset_reset="latest",
             )
             await consumer.start()
-            logger.info("Kafka consumer started on topic %s", ALARM_TOPIC)
+            logger.info("Kafka consumer started on topic %s", topic)
             async for msg in consumer:
                 try:
-                    alarm = json.loads(msg.value)
-                    if isinstance(alarm, dict):
-                        await hub.publish(alarm)
+                    data = json.loads(msg.value)
+                    if isinstance(data, dict):
+                        await handler(data)
                     else:
-                        logger.warning("Skipping non-dict message: %s", type(alarm))
+                        logger.warning("Skipping non-dict message on %s: %s", topic, type(data))
                 except (json.JSONDecodeError, UnicodeDecodeError):
-                    logger.warning("Skipping invalid JSON message")
+                    logger.warning("Skipping invalid JSON message on %s", topic)
                 except Exception as e:
-                    logger.exception("Error processing message: %s", e)
+                    logger.exception("Error processing message on %s: %s", topic, e)
         except Exception as e:
-            logger.warning("Kafka consumer error: %s. Retrying in 3s...", e)
+            logger.warning("Kafka consumer error on %s: %s. Retrying in 3s...", topic, e)
             await asyncio.sleep(3)
         finally:
             if consumer is not None:
@@ -146,20 +232,29 @@ async def kafka_consumer_task() -> None:
                     await consumer.stop()
 
 
+async def alarm_handler(alarm: dict[str, Any]) -> None:
+    await hub.publish(alarm)
+
+
+async def kpi_handler(sample: dict[str, Any]) -> None:
+    kpi_activity.record(sample)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """Application lifespan manager."""
-    consumer_task: asyncio.Task | None = None
+    consumer_tasks: list[asyncio.Task] = []
     if not DISABLE_KAFKA:
-        consumer_task = asyncio.create_task(kafka_consumer_task())
-        logger.info("Kafka consumer task started")
+        consumer_tasks.append(asyncio.create_task(consume_topic(ALARM_TOPIC, alarm_handler)))
+        consumer_tasks.append(asyncio.create_task(consume_topic(KPI_TOPIC, kpi_handler)))
+        logger.info("Kafka consumer tasks started for topics: %s, %s", ALARM_TOPIC, KPI_TOPIC)
     else:
         logger.info("Kafka disabled via DISABLE_KAFKA=1")
     yield
-    if consumer_task:
-        consumer_task.cancel()
+    for task in consumer_tasks:
+        task.cancel()
         try:
-            await consumer_task
+            await task
         except asyncio.CancelledError:
             pass
     logger.info("Application shutdown complete")
@@ -167,7 +262,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 app = FastAPI(
     title="NetSentinel API Gateway",
-    description="Real-time alarm streaming and query API",
+    description="Real-time alarm streaming, KPI activity, and topology query API",
     version="0.1.0",
     lifespan=lifespan,
 )
@@ -226,3 +321,31 @@ async def websocket_alarms(websocket: WebSocket) -> None:
         logger.exception("WebSocket error: %s", e)
     finally:
         hub.disconnect(websocket)
+
+
+@app.get("/api/topology")
+async def get_topology() -> JSONResponse:
+    """Return the generated network topology."""
+    return JSONResponse(topology.to_dict())
+
+
+@app.get("/api/kpis/activity")
+async def kpis_activity() -> JSONResponse:
+    """Return KPI activity snapshot."""
+    return JSONResponse(kpi_activity.snapshot())
+
+
+@app.websocket("/ws/kpis")
+async def websocket_kpis(websocket: WebSocket) -> None:
+    """WebSocket endpoint for real-time KPI activity streaming."""
+    await websocket.accept()
+    try:
+        while True:
+            snapshot = kpi_activity.snapshot()
+            message = json.dumps({"type": "kpiActivity", **snapshot}, default=str)
+            await websocket.send_text(message)
+            await asyncio.sleep(2)
+    except WebSocketDisconnect:
+        pass
+    except Exception as e:
+        logger.exception("WebSocket KPI error: %s", e)
