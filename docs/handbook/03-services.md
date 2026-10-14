@@ -1,7 +1,7 @@
 # 03 - Services Inventory
 
-This document catalogs all services in the NetSentinel ecosystem, detailing their purpose, data flows, Kafka topics, databases, and implementation status.  
-The **Week 2** additions are highlighted as **BUILT** and include short hand‑over notes for junior developers.
+This document catalogs all services in the NetSentinel ecosystem, detailing their purpose, data flows, Kafka topics, environment variables and user‑facing interfaces.  
+The **Week 3** additions are highlighted as **BUILT** and include short hand‑over notes for junior developers.
 
 ---
 
@@ -15,7 +15,7 @@ The **Week 2** additions are highlighted as **BUILT** and include short hand�
 
 ### 2. TimescaleDB
 * **Status:** **BUILT**
-* **Purpose:** Time‑series storage for KPIs and metric telemetry.
+* **Purpose:** Time‑series storage for KPI telemetry and metric history.
 * **Database:** PostgreSQL + TimescaleDB extension
 
 ---
@@ -24,12 +24,15 @@ The **Week 2** additions are highlighted as **BUILT** and include short hand�
 
 ### libs/netgen
 * **Status:** **BUILT**
-* **Purpose:** Provides a small Python library that models a synthetic telecom topology (sites, cells, fiber links) and a “fibre_cut” scenario generator.
-* **Key Modules:**
-  * `netgen.topology` – data classes for `Site`, `Cell`, `FiberLink` and helper to build a static graph.
-  * `netgen.scenarios.fibre_cut` – function `run(seed: int, speed: float, loop: bool, dry_run: bool)` that yields alarm dictionaries matching the TMF642 shape.
-* **Inputs:** None (hard‑coded demo topology). Parameters are passed via the CLI of the simulator.
-* **Outputs:** Python objects that the simulator serialises to JSON and publishes to Kafka (`alarms.raw`).
+* **Purpose:** Small pure‑Python library that models a synthetic telecom topology (sites, cells, fiber/microwave links) and provides a “fibre_cut” scenario generator.
+* **Key Modules**
+  * `netgen.topology` – data classes for `Site`, `Cell`, `FiberLink` and a helper to build a static graph.
+  * `netgen.scenarios.fibre_cut` – `run(seed: int, speed: float, loop: bool, dry_run: bool)` yields alarm dictionaries matching the TMF642 shape.
+* **CLI helpers** (exposed via the simulator):
+  * `uv run netgen topology --seed 42 [--full] --out data/topology.json`
+  * `uv run netgen kpis --seed 42 --days 1 [--full] --out -` (JSON‑lines)
+* **Determinism:** Same seed → byte‑identical JSON output (checked with SHA‑256).  
+* **Outputs:** Python objects that the simulator serialises to JSON and publishes to Kafka (`alarms.raw` for scenarios, `kpis` for telemetry).
 
 ---
 
@@ -37,75 +40,113 @@ The **Week 2** additions are highlighted as **BUILT** and include short hand�
 
 ### 3. netgen‑simulator
 * **Status:** **BUILT**
-* **Purpose:** CLI tool that drives the `libs/netgen` scenario engine and streams synthetic alarms to Kafka. Acts as the “source of truth” for the demo.
-* **Command line:**  
-
+* **Purpose:** CLI tool that drives the `libs/netgen` scenario engine and streams synthetic **alarms** *and* **KPIs** to Kafka. Acts as the “source of truth” for the demo.
+* **Sub‑commands**
   ```bash
-  netgen-sim run \
+  # 1️⃣ Generate static topology JSON
+  uv run netgen-sim topology \
+      --seed 42 [--full] \
+      --out data/topology.json
+
+  # 2️⃣ Back‑fill KPI data (deterministic)
+  uv run netgen-sim kpis \
+      --seed 42 --days 7 [--full] \
+      --out -          # writes JSON‑lines to stdout
+
+  # 3️⃣ Live KPI feed (optional)
+  uv run netgen-sim kpis \
+      --seed 42 --days 7 [--full] \
+      --follow --interval 5 \
+      [--dry-run]      # prints to stdout instead of Kafka
+
+  # 4️⃣ Alarm scenario (unchanged)
+  uv run netgen-sim run \
       --seed 42 \
       --scenario fibre_cut \
       --speed 60x \
-      [--loop] \
-      [--dry-run]
+      [--loop] [--dry-run]
   ```
-
-* **Inputs:** Command‑line arguments (`seed`, `scenario`, `speed`, optional `--loop`, `--dry-run`).
-* **Outputs:** Publishes JSON alarm messages to the Kafka topic **`alarms.raw`**, keyed by `siteId`. When `--loop` is used the simulator repeats the scenario until the process is stopped.
-* **Environment Variables:**  
-  * `KAFKA_BOOTSTRAP` – e.g. `kafka:29092` (or host:port when running natively).  
-  * `ALARM_TOPIC` – defaults to `alarms.raw`.  
-  * `DISABLE_KAFKA` – set to any non‑empty value to run in dry‑run mode (no Kafka connection).  
-
+* **Inputs**
+  * `--seed` – deterministic RNG seed (default 42).
+  * `--days` – number of days to generate KPI samples.
+  * `--full` – generate the full‑size topology (60 sites) instead of the small demo (12 sites).
+  * `--follow` – after the back‑fill, keep publishing one sample per cell every `--interval` seconds (timestamp = now).
+  * `--dry-run` – write JSON to stdout, do **not** connect to Kafka (useful for debugging).
+* **Outputs**
+  * **Alarms** → Kafka topic `alarms.raw`, key = `siteId`.
+  * **KPIs** → Kafka topic `kpis`, key = `cellId`.
+* **Environment Variables**
+  * `KAFKA_BOOTSTRAP` – e.g. `kafka:29092`.
+  * `ALARM_TOPIC` – defaults to `alarms.raw`.
+  * `KPI_TOPIC` – defaults to `kpis`.
+  * `DISABLE_KAFKA` – any non‑empty value disables Kafka connections (dry‑run mode).
 * **How to run locally:** `make sim` (native) or `make sim-docker` (container).  
-* **How to test:** See `make test` target in the repo root; the simulator has a pytest suite that validates the JSON schema and key handling.
+* **How to test:** `make test` runs the pytest suite that validates JSON schema, deterministic output and correct key handling.
 
 ### 4. api‑gateway
 * **Status:** **BUILT**
-* **Purpose:** Thin FastAPI façade that aggregates health information, exposes a small public API for the UI, and forwards raw alarm events from Kafka to WebSocket clients.  
-  *Future:* Will be replaced by a full Traefik reverse‑proxy in later weeks (see ADR‑003).*
-* **Key Endpoints:**
-  * `GET /health` – Returns a JSON payload with overall status (`ok`|`degraded`) and per‑service health (`api‑gateway`, `kafka`, `timescaledb`). Example:
-
+* **Purpose:** Thin FastAPI façade that aggregates health information, exposes a small public API for the UI, and forwards raw alarm & KPI events from Kafka to WebSocket clients.
+* **Key Endpoints**
+  * `GET /health` – overall health JSON (same as Week 2).
+  * `GET /api/topology` – Returns the topology JSON generated by `netgen-sim topology`.  
+    *Environment:* `TOPOLOGY_SEED` (default 42) and `TOPOLOGY_FULL` (`0` = small, `1` = full).  
+    *Behaviour:* Reads `data/topology.json` if present, otherwise generates on‑the‑fly using the same seed.
+  * `GET /api/kpis/activity` – Returns a short snapshot of KPI activity:
     ```json
     {
-      "status": "ok",
-      "services": [
-        {"name": "api-gateway", "status": "up", "detail": ""},
-        {"name": "kafka", "status": "up", "detail": ""},
-        {"name": "timescaledb", "status": "up", "detail": ""}
-      ],
-      "checkedAt": "2026-10-14T09:12:34Z"
+      "totalSamples": 123456,
+      "samplesPerMinute": 342,
+      "lastSampleTime": "2026-10-14T09:15:00Z",
+      "cellsReporting": 87
     }
     ```
-
-  * `GET /api/alarms/recent` – Returns the most recent 100 alarms from the `alarms.raw` topic (cached in‑memory for fast UI refresh).
-  * `WebSocket /ws/alarms` – Sends an initial **snapshot** message (`type: "snapshot", alarms: [...]`) followed by incremental **alarm** messages (`type: "alarm", alarm: {...}`) as they arrive from Kafka.
-
-* **Environment Variables:**  
-  * `KAFKA_BOOTSTRAP` – Kafka broker address.  
-  * `ALARM_TOPIC` – Topic to consume (`alarms.raw`).  
-  * `TIMESCALE_HOST` / `TIMESCALE_PORT` – Used by health‑check only.  
-  * `CORS_ORIGINS` – Comma‑separated list for FastAPI CORS middleware.  
-  * `DISABLE_KAFKA` – If set, the gateway runs in “offline” mode (no Kafka consumer).  
-
-* **How to run locally:** `make gateway` (starts uvicorn on `0.0.0.0:8000`).  
-* **How to test:** `make test` runs FastAPI test client checks for health, recent alarms, and WebSocket handshake.
+  * `WebSocket /ws/alarms` – Same envelope as Week 2 (snapshot + incremental alarm messages).
+  * `WebSocket /ws/kpis` – Sends a KPI activity message **every 2 seconds**:
+    ```json
+    {
+      "type": "kpiActivity",
+      "totalSamples": 123456,
+      "ratePerMin": 342,
+      "lastSampleTime": "2026-10-14T09:15:00Z",
+      "lastSample": { …single KpiSample object… },
+      "averages": {
+        "dlThroughputMbps": 312.4,
+        "prbUtilPct": 45.1,
+        "rrcSetupSuccessPct": 98.2,
+        "dropCallRatePct": 0.7,
+        "availabilityPct": 99.5
+      },
+      "cellsReporting": 87
+    }
+    ```
+* **Environment Variables**
+  * `KAFKA_BOOTSTRAP`
+  * `ALARM_TOPIC` (default `alarms.raw`)
+  * `KPI_TOPIC` (default `kpis`)
+  * `TOPOLOGY_SEED` – integer seed for deterministic topology generation.
+  * `TOPOLOGY_FULL` – `0` (small) or `1` (full) size flag.
+  * `DISABLE_KAFKA` – disables all Kafka consumers (useful for UI‑only demos).
+* **How to run locally:** `make gateway` (starts `uvicorn` on `0.0.0.0:8000`).  
+* **How to test:** `make test` runs FastAPI test client checks for health, topology, KPI activity and WebSocket handshakes.
 
 ### 5. noc‑console
 * **Status:** **BUILT**
-* **Purpose:** Front‑end dashboard (Vite + React + TypeScript + Tailwind) that visualises live alarms, service health tiles, and placeholder panels for future features.  
-* **Running:** `npm run dev` serves the UI on `http://localhost:5173`. Vite proxy forwards `/api/*`, `/health`, and `/ws/*` to the locally running `api‑gateway` (`http://localhost:8000`).  
-* **Key UI Elements (Week 2):**
-  * **Alarm Table** – colour‑coded rows based on `perceivedSeverity` (critical = red, major = orange, …, cleared = gray). Updates in real‑time via the WebSocket stream.
-  * **Service‑Health Tiles** – small cards showing the health status of `api‑gateway`, `kafka`, and `timescaledb`. Tiles turn red within ~5 s of a service becoming unavailable.
-  * **Placeholder Panels** – empty cards labelled “Topology”, “Incidents”, “Copilot Chat” for later weeks.
-* **How to add a new panel:** Create a new React component under `src/components/`, import it in `src/App.tsx`, and add a `<Panel>` wrapper with a title. No code changes are required in the backend for static panels.
+* **Purpose:** Front‑end dashboard (Vite + React + TypeScript + Tailwind) that visualises live alarms, KPI activity and a synthetic network map.
+* **Running:** `npm run dev` serves UI on `http://localhost:5173`. Vite proxy forwards `/api/*`, `/health`, `/ws/*` to the locally running `api‑gateway` (`http://localhost:8000`).
+* **Key UI Panels (Week 3)**
+  * **Network Map** – SVG generated from `/api/topology`.  
+    * Symbols:* core = square, hub = diamond, access = circle.  
+    * Colour:* worst **ACTIVE** alarm severity per site (green = no active alarm, red = critical, orange = major, yellow = minor, blue = warning). Cleared alarms revert the site to green. Critical sites pulse. Hover tooltip shows site name, region and current alarm list.
+  * **KPI Activity Panel** – Shows samples/min, total samples, cells reporting, last sample timestamp (badge turns **stale** after 60 s of no new data), and network‑wide averages displayed as horizontal bars.
+  * **Clock & Timezone** – All timestamps are rendered in **IST (Asia/Kolkata)** with an “IST” label in the header clock, alarm table column header “Time (IST)” and KPI health badge “Last checked (IST)”.
+* **How to add a new panel:** Create a React component under `src/components/`, import it in `src/App.tsx`, and wrap it with `<Panel title="…">`. No backend changes are required for static panels.
+* **How to debug live data:** Open the browser dev‑tools → Network tab, filter for `ws/alarms` and `ws/kpis`. You’ll see the JSON envelopes described above.
 
 ---
 
 ## Planned Micro‑services (Phase 1 & 2 – PLANNED)
 
-*(The entries below remain unchanged from Week 1; they are kept for roadmap visibility.)*
+*(Unchanged from previous weeks; retained for roadmap visibility.)*
 
 ### 6. alarm‑ingest
 * **Status:** PLANNED
@@ -147,7 +188,7 @@ The **Week 2** additions are highlighted as **BUILT** and include short hand�
 * **Status:** PLANNED
 * **Purpose:** Mock integration with external ticketing systems.
 
-### 16. api‑gateway – Traefik edge (planned, Week 11)
+### 16. api‑gateway – Traefik edge (planned, Week 11)
 * **Status:** PLANNED
 * **Purpose:** Full‑featured reverse‑proxy for HTTP/WebSocket traffic (will replace the thin FastAPI gateway).
 
@@ -157,4 +198,4 @@ The **Week 2** additions are highlighted as **BUILT** and include short hand�
 
 --- 
 
-*All Week 2 items are marked **BUILT** and ready for junior developers to explore, run, and extend.*
+*All Week 3 items are marked **BUILT** and ready for junior developers to explore, run, and extend.*

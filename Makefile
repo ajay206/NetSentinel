@@ -1,4 +1,4 @@
-.PHONY: up-core up-tools up-ui down topics test lint fmt smoke sim sim-loop sim-docker gateway console-install console console-build console-lint console-test test-all
+.PHONY: up-core up-tools up-ui down topics test lint fmt smoke sim sim-loop sim-docker gateway console-install console console-build console-lint console-test test-all topology kpis kpis-follow kpis-peek docs-check
 
 up-core:
 	docker compose --profile core up -d
@@ -58,3 +58,18 @@ console-test:
 	npm --prefix apps/noc-console run test
 
 test-all: test console-test
+
+topology:
+	uv run netgen topology --seed 42 --out data/topology.json
+
+kpis:
+	uv run netgen-sim kpis --seed 42 --days 1
+
+kpis-follow:
+	uv run netgen-sim kpis --seed 42 --days 1 --follow
+
+kpis-peek:
+	kcat -C -b localhost:9092 -t kpis -c 5 -e
+
+docs-check:
+	python3 scripts/check_docs.py

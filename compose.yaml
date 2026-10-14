@@ -1,5 +1,5 @@
 # Profiles and memory budget:
-# core services (~1.5 GB total), UI profile adds ~192 MB, Sim profile adds ~128 MB.
+# core services (~1.5 GB total), UI profile adds ~192 MB, Sim profile adds ~256 MB now.
 # The console runs natively on the host and is not containerized.
 services:
   kafka:
@@ -64,6 +64,9 @@ services:
     environment:
       KAFKA_BOOTSTRAP: kafka:29092
       ALARM_TOPIC: alarms.raw
+      KPI_TOPIC: kpis
+      TOPOLOGY_SEED: "42"
+      TOPOLOGY_FULL: "0"
       TIMESCALE_HOST: timescaledb
       TIMESCALE_PORT: "5432"
       CORS_ORIGINS: "http://localhost:5173"
@@ -74,7 +77,6 @@ services:
         condition: service_healthy
         required: false
       timescaledb:
-        condition: service_healthy
         required: false
     restart: unless-stopped
 
@@ -83,6 +85,20 @@ services:
       context: .
       dockerfile: services/netgen-simulator/Dockerfile
     profiles: ["sim"]
+    environment:
+      KAFKA_BOOTSTRAP: kafka:29092
+    mem_limit: 128m
+    depends_on:
+      kafka:
+        condition: service_healthy
+    restart: "no"
+
+  netgen-kpis:
+    build:
+      context: .
+      dockerfile: services/netgen-simulator/Dockerfile
+    profiles: ["sim"]
+    command: ["kpis","--seed","42","--days","1","--follow","--interval","5"]
     environment:
       KAFKA_BOOTSTRAP: kafka:29092
     mem_limit: 128m

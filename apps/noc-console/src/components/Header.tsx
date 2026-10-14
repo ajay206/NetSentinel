@@ -1,16 +1,17 @@
 import React, { useEffect, useState } from 'react';
 import type { ConnectionStatus } from '../hooks/useAlarmFeed';
+import { formatIST } from '../lib/time';
 
 interface HeaderProps {
   wsStatus: ConnectionStatus;
 }
 
 export const Header: React.FC<HeaderProps> = ({ wsStatus }) => {
-  const [utcTime, setUtcTime] = useState(() => new Date().toISOString());
+  const [istTime, setIstTime] = useState(() => formatIST(new Date()));
 
   useEffect(() => {
     const timer = setInterval(() => {
-      setUtcTime(new Date().toISOString());
+      setIstTime(formatIST(new Date()));
     }, 1000);
     return () => clearInterval(timer);
   }, []);
@@ -35,9 +36,7 @@ export const Header: React.FC<HeaderProps> = ({ wsStatus }) => {
           <span className={`w-2 h-2 rounded-full ${statusColor} animate-pulse`}></span>
           <span className="text-slate-400 font-mono">WS: {wsStatus}</span>
         </div>
-        <span className="text-slate-400 font-mono">
-          UTC: {new Date(utcTime).toISOString().replace('T', ' ').slice(0, 19)}
-        </span>
+        <span className="text-slate-400 font-mono">IST: {istTime}</span>
       </div>
     </header>
   );

@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import type { Alarm, PerceivedSeverity } from '../types';
 import { getSeverityStyles, severityRank } from '../lib/severity';
+import { formatIST } from '../lib/time';
 
 interface LiveAlarmsProps {
   alarms: Alarm[];
@@ -81,7 +82,7 @@ export const LiveAlarms: React.FC<LiveAlarmsProps> = ({ alarms }) => {
           <table className="w-full text-xs">
             <thead>
               <tr className="text-slate-500 border-b border-slate-700">
-                <th className="text-left py-1.5">Time</th>
+                <th className="text-left py-1.5">Time (IST)</th>
                 <th className="text-left py-1.5">Severity</th>
                 <th className="text-left py-1.5">Site</th>
                 <th className="text-left py-1.5">Alarm Type</th>
@@ -98,12 +99,10 @@ export const LiveAlarms: React.FC<LiveAlarmsProps> = ({ alarms }) => {
                     className={`border-b border-slate-800 ${styles.rowBorder} hover:bg-slate-800/50`}
                   >
                     <td className="py-1.5 text-slate-400 font-mono">
-                      {new Date(alarm.alarmRaisedTime).toISOString().replace('T', ' ').slice(0, 19)}
+                      {formatIST(alarm.alarmRaisedTime)}
                     </td>
                     <td className="py-1.5">
-                      <span
-                        className={`inline-flex px-1.5 py-0.25 rounded text-xs ${styles.badge}`}
-                      >
+                      <span className={`inline-flex px-1.5 py-0.25 rounded text-xs ${styles.badge}`}>
                         {alarm.perceivedSeverity}
                       </span>
                     </td>

@@ -12,6 +12,7 @@ dependencies = [
     "fastapi>=0.115",
     "uvicorn[standard]>=0.30",
     "aiokafka>=0.11",
+    "netgen",
 ]
 
 [project.optional-dependencies]
@@ -22,3 +23,6 @@ packages = ["src/api_gateway"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+
+[tool.uv.sources]
+netgen = { workspace = true }

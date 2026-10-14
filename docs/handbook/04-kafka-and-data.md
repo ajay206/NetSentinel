@@ -1,77 +1,78 @@
 # 04 - Kafka Topics & Data Models
 
-## Kafka Topics Inventory (Week 2)
+## Kafka Topics Inventory (Week 3)
 
-| Topic        | Partitioner Key | Replication Factor | Retention | Description |
-|--------------|-----------------|--------------------|-----------|-------------|
-| `alarms.raw` | `siteId`        | 1                  | 7 days    | Synthetic fault alarms emitted by **netgen‑simulator**. |
-| `alarms.enriched` | `siteId`   | 1                  | 7 days    | Alarms after enrichment (future service). |
-| `kpis`       | `siteId`        | 1                  | 7 days    | KPI telemetry (future service). |
-| `incidents`  | `incidentId`    | 1                  | 7 days    | Correlated incidents (future service). |
+| Topic        | Partitioner Key | Retention | Description |
+|--------------|-----------------|-----------|-------------|
+| `alarms.raw` | `siteId`        | 7 days    | Synthetic fault alarms (netgen-simulator). |
+| `kpis`       | `cellId`        | 7 days    | 15-min cell telemetry (netgen-simulator). |
+| `incidents`  | `incidentId`    | 7 days    | Correlated incidents (TBD). |
 
-### `alarms.raw` Schema (TMF642‑like)
+---
 
-| Field                | Type    | Description |
-|----------------------|---------|-------------|
-| `id`                 | `string` (UUID) | Unique alarm identifier. |
-| `href`               | `string` | REST link to the alarm resource (`/alarm/{id}`). |
-| `alarmType`          | `string` | E.g. `communicationsAlarm`. |
-| `perceivedSeverity` | `string` (enum) | `critical`, `major`, `minor`, `warning`, `cleared` (X.733). |
-| `probableCause`      | `string` | High‑level cause category (e.g. `lossOfSignal`). |
-| `specificProblem`   | `string` | Human‑readable description (e.g. `LOS`). |
-| `alarmedObject`      | `object` | `{ "id": "<siteId>", "@referredType": "Site" }`. |
-| `siteId`             | `string` | Redundant key for partitioning; matches `alarmedObject.id`. |
-| `alarmRaisedTime`   | `string` (ISO‑8601) | Timestamp when alarm was raised. |
-| `state`              | `string` (enum) | `raised` or `cleared`. |
-| `sourceSystemId`    | `string` | Identifier of the producer (`netgen-simulator`). |
-| `@type`              | `string` | Fixed value `"Alarm"` for JSON‑LD style. |
+## `alarms.raw` Schema (TMF642-like)
 
-**Example JSON alarm (fibre_cut scenario):**
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `id` | UUID | Unique alarm identifier. |
+| `perceivedSeverity` | Enum | `critical`, `major`, `minor`, `warning`, `cleared`. |
+| `alarmedObject` | Object | `{ "id": "<siteId>", "@referredType": "Site" }`. |
+| `alarmRaisedTime` | ISO-8601 | Timestamp (UTC). |
+| `state` | Enum | `raised` or `cleared`. |
 
+*Key:* `siteId` ensures all alarms for a site are processed in order.
+
+---
+
+## `kpis` Topic Schema
+
+Published by `netgen-simulator`. Keyed by `cellId` to ensure time-series ordering per cell.
+
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `sampleId` | UUID | Deterministic ID. |
+| `siteId` / `cellId` | String | Hierarchy identifiers. |
+| `timestamp` | ISO-8601 | UTC timestamp. |
+| `kpis` | Object | Contains: `dlThroughputMbps` (0-1000), `prbUtilPct` (0-100), `rrcSetupSuccessPct` (0-100), `dropCallRatePct` (0-100), `availabilityPct` (0-100). |
+
+**Seasonality Logic:**
+*   **Daily:** Peak load at 20:00 IST, trough at 04:00 IST.
+*   **Weekly:** Weekends show -15% load compared to weekdays.
+*   **Correlations:** `dropCallRatePct` increases as load (`prbUtilPct`) increases. `rrcSetupSuccessPct` and `availabilityPct` are Gaussian noise only.
+
+**Example JSON:**
 ```json
 {
-  "id": "c1b2d3e4-5678-90ab-cdef-1234567890ab",
-  "href": "/alarm/c1b2d3e4-5678-90ab-cdef-1234567890ab",
-  "alarmType": "communicationsAlarm",
-  "perceivedSeverity": "critical",
-  "probableCause": "lossOfSignal",
-  "specificProblem": "LOS",
-  "alarmedObject": {
-    "id": "SITE-003",
-    "@referredType": "Site"
-  },
-  "siteId": "SITE-003",
-  "alarmRaisedTime": "2026-10-14T08:45:11Z",
-  "state": "raised",
-  "sourceSystemId": "netgen-simulator",
-  "@type": "Alarm"
+  "@type": "KpiSample",
+  "sampleId": "550e8400-e29b-41d4-a716-446655440000",
+  "siteId": "SITE-001",
+  "cellId": "SITE-001-N1-C1",
+  "timestamp": "2026-10-14T09:15:00Z",
+  "kpis": { "dlThroughputMbps": 314.9, "prbUtilPct": 44.6, "dropCallRatePct": 0.6 }
 }
 ```
 
-*Key:* `siteId` – ensures all alarms for the same site land in the same partition, enabling ordered processing per site.
+---
 
-### Producer & Consumer Details
+## API & WebSocket Data
 
-* **Producer (netgen‑simulator)** – Uses `aiokafka.AIOKafkaProducer`. The key is the UTF‑8 encoded `siteId`. JSON payload is `json.dumps(alarm).encode('utf‑8')`.
-* **Consumer (api‑gateway)** – `aiokafka.AIOKafkaConsumer` with `group_id="gateway-alarms"` and `auto_offset_reset="latest"`. Consumes messages, stores the latest 100 in an in‑memory list, and pushes each new alarm to connected WebSocket clients.
-* **WebSocket Envelope** – Every message sent over `/ws/alarms` is wrapped:
+### Topology JSON Shape
+Generated by `netgen topology`. Used by the NOC map to render the network.
+*   **Structure:** Contains `sites` (list of objects with `id`, `type` [core/hub/access], `lat`, `lon`), and `links` (list of objects with `source`, `target`, `type` [fibre/microwave]).
 
-  ```json
-  // Snapshot (sent once on connect)
-  {
-    "type": "snapshot",
-    "alarms": [ /* array of latest alarm objects */ ]
-  }
+### WebSocket `/ws/kpis`
+The gateway pushes a summary every 2 seconds to the frontend:
 
-  // Incremental alarm
-  {
-    "type": "alarm",
-    "alarm": { /* single alarm object as defined above */ }
-  }
-  ```
+```json
+{
+  "type": "kpiActivity",
+  "totalSamples": 1250,
+  "ratePerMin": 45.2,
+  "lastSampleTime": "2026-10-14T09:15:00Z",
+  "lastSample": { /* Full KpiSample object */ },
+  "averages": { "dlThroughputMbps": 280.5, "prbUtilPct": 42.1 },
+  "cellsReporting": 51
+}
+```
 
-Other topics (`alarms.enriched`, `kpis`, `incidents`) are defined but their schemas are **TBD** and will be added in later weeks.
-
---- 
-
-*The schema and envelope definitions are now part of the official documentation so that any new consumer can be built with confidence.*
+*Note: All timestamps in the UI must be converted to IST (Asia/Kolkata) with an "IST" label.*

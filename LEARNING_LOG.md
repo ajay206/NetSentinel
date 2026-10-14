@@ -46,3 +46,32 @@ This log is maintained by Ajay to track learnings, insights, and key concepts en
   *Explain the trade‑off between a thin FastAPI façade and a richer microservice. How does this decision simplify testing and deployment in Week 2?*  
 
 *(Leave space for answers as you work through the next sprint.)*
+
+---
+
+## Week 3: Synthetic KPI Engine, Kafka Publishing, Time‑zone Handling & SVG Map (Oct 14–20, 2026)
+
+### Focus Areas
+- **Synthetic KPI generation** (`libs/netgen`): deterministic seeding, small vs full topology, 15‑minute samples per cell, daily load seasonality (peak ~20:00 IST, trough ~04:00 IST), weekend‑offset, Gaussian noise, load‑dependent drop‑call rate.
+- **Kafka publishing** (`services/netgen-simulator`): `netgen-sim kpis` sub‑command, back‑fill of historic samples, live follow mode (`--follow --interval 5`), deterministic `sampleId` UUIDs, key = `cellId` for partition ordering.
+- **FastAPI gateway enhancements**: new `/api/topology` endpoint (seed & full flags via `TOPOLOGY_SEED` / `TOPOLOGY_FULL`), KPI activity endpoint `/api/kpis/activity`, WebSocket `/ws/kpis` emitting activity snapshots every 2 s.
+- **NOC console UI updates**: SVG map rendering (core = square, hub = diamond, access = circle), colour‑coding by worst active alarm severity, pulsing for critical sites, hover tooltip with site details, IST timestamp display throughout UI, “stale” badge when no sample received for >60 s.
+- **Documentation hygiene**: mermaid diagram label quoting, validation with `@mermaid-js/mermaid-cli`, link/image path checks.
+
+### Learning Prompts for Ajay
+- **Seasonality and noise modeling:**  
+  *Explain how the sinusoidal load curve and weekend scaling are combined with Gaussian noise. Why avoid external libraries like NumPy?*  
+
+- **Deterministic seeding & hash tests:**  
+  *Describe the process that guarantees byte‑identical topology/KPI output for a given seed (e.g., SHA‑256 checksum verification).*  
+
+- **Kafka keys (cellId) and partition ordering:**  
+  *How does using `cellId` as the message key affect ordering guarantees and load balancing across partitions?*  
+
+- **SVG map drawing logic:**  
+  *Outline how the gateway translates topology JSON into SVG primitives (square, diamond, circle) and applies severity‑based fill colours.*  
+
+- **Time‑zone handling (store UTC, display IST):**  
+  *Why store all timestamps in UTC in the database and Kafka payloads, and convert to IST only at the presentation layer?*  
+
+*(Leave space for answers as you work through the next sprint.)*

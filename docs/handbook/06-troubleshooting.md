@@ -18,6 +18,18 @@
 * **Cause:** Code formatting or linting rules violated.
 * **Solution:** Run `make fmt` (`uv run ruff format .`) and `make lint` (`uv run ruff check .`) to automatically fix and check issues.
 
-### 5. Vite `ws proxy socket error: write EPIPE`
-* **Cause:** The Vite dev server's WebSocket HTTP proxy writes to a socket the browser already closed (React Strict Mode remount, HMR, reconnect).
-* **Solution:** The console opens `ws://127.0.0.1:8000/ws/alarms` directly in `npm run dev`. Restart `make console` after pulling. `/api` and `/health` still go through the Vite proxy. Override with `VITE_WS_URL` or `VITE_GATEWAY_URL` if the gateway is not on port 8000.
+### 5. Map panel shows empty (no SVG)  
+* **Cause:** The FastAPI gateway is down or `/api/topology` endpoint is unreachable.  
+* **Solution:** Verify the gateway container is running (`docker ps`), check logs for errors, and ensure the environment variables `TOPOLOGY_SEED` and `TOPOLOGY_FULL` are set correctly. Restart the gateway if needed.
+
+### 6. KPI activity panel shows “no data”  
+* **Cause:** KPI simulator not publishing samples or the consumer has not received any messages yet.  
+* **Solution:** Run the back‑fill/follow command: `make kpis-follow` (which executes `uv run netgen-sim kpis --seed 42 --days 7 --follow`). You can also peek at the latest samples with `make kpis-peek` to confirm messages are on the `kpis` topic.
+
+### 7. “Stale” badge appears on KPI panel  
+* **Cause:** No live KPI samples have been received for more than 60 seconds, indicating a break in the simulator or consumer.  
+* **Solution:** Check that `netgen-sim kpis` is running in follow mode, verify the Kafka consumer group health, and ensure the system clock is synchronized (UTC). Restart the simulator if necessary.
+
+### 8. Mermaid diagram fails to render on GitHub  
+* **Cause:** Labels containing parentheses or other special characters are not quoted, causing the Mermaid parser to error.  
+* **Solution:** Quote any label with special characters, e.g., `UI["noc-console (React)"]`. After fixing, run `make docs-check` which invokes `@mermaid-js/mermaid-cli` to validate all Mermaid blocks. Ensure all relative markdown links and images resolve correctly.

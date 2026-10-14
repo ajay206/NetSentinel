@@ -1,7 +1,7 @@
 asyncapi: '3.0.0'
 info:
   title: NetSentinel Alarm Stream
-  version: '1.0.0'
+  version: '0.2.0'
   description: AsyncAPI contract for alarm messages produced by netgen-simulator and consumed by the API gateway.
 servers:
   production:
@@ -16,6 +16,16 @@ channels:
     bindings:
       kafka:
         topic: alarms.raw
+        partitions: 1
+        replicas: 1
+  kpis:
+    description: KPI samples emitted by the netgen-simulator.
+    publish:
+      message:
+        $ref: '#/components/messages/KpiSample'
+    bindings:
+      kafka:
+        topic: kpis
         partitions: 1
         replicas: 1
 components:
@@ -86,8 +96,77 @@ components:
             type: string
             enum:
               - Alarm
+    KpiSample:
+      name: KpiSample
+      title: KPI Sample
+      summary: 15‑minute KPI sample per cell.
+      payload:
+        type: object
+        required:
+          - "@type"
+          - sampleId
+          - siteId
+          - nodeId
+          - cellId
+          - region
+          - timestamp
+          - granularitySec
+          - kpis
+        properties:
+          '@type':
+            type: string
+            const: KpiSample
+          sampleId:
+            type: string
+            format: uuid
+          siteId:
+            type: string
+          nodeId:
+            type: string
+          cellId:
+            type: string
+          region:
+            type: string
+            enum:
+              - North
+              - Central
+              - South
+          timestamp:
+            type: string
+            format: date-time
+          granularitySec:
+            type: integer
+            minimum: 1
+          kpis:
+            type: object
+            required:
+              - dlThroughputMbps
+              - prbUtilPct
+              - rrcSetupSuccessPct
+              - dropCallRatePct
+              - availabilityPct
+            properties:
+              dlThroughputMbps:
+                type: number
+                minimum: 0
+                maximum: 1000
+              prbUtilPct:
+                type: number
+                minimum: 0
+                maximum: 100
+              rrcSetupSuccessPct:
+                type: number
+                minimum: 0
+                maximum: 100
+              dropCallRatePct:
+                type: number
+                minimum: 0
+                maximum: 100
+              availabilityPct:
+                type: number
+                minimum: 0
+                maximum: 100
   schemas:
-    # Additional schemas can be defined here
     placeholder: {}
   # Other components (securitySchemes, etc.) can be added later
   # TBD: other topics such as alarms.processed, metrics.raw

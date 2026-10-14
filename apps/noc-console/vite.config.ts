@@ -2,11 +2,7 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
-const gatewayUrl = process.env.VITE_GATEWAY_URL || 'http://127.0.0.1:8000';
-
-function ignoreProxyHangup(err: NodeJS.ErrnoException) {
-  return err.code === 'EPIPE' || err.code === 'ECONNRESET';
-}
+const gatewayUrl = process.env.VITE_GATEWAY_URL || 'http://localhost:8000';
 
 export default defineConfig({
   plugins: [react()],
@@ -28,21 +24,6 @@ export default defineConfig({
         ws: true,
         changeOrigin: true,
         secure: false,
-        configure(proxy) {
-          proxy.on('error', (err) => {
-            if (ignoreProxyHangup(err as NodeJS.ErrnoException)) {
-              return;
-            }
-            console.error('[vite] proxy error', err);
-          });
-          proxy.on('proxyReqWs', (_proxyReq, _req, socket) => {
-            socket.on('error', (err: NodeJS.ErrnoException) => {
-              if (ignoreProxyHangup(err)) {
-                return;
-              }
-            });
-          });
-        },
       },
     },
   },

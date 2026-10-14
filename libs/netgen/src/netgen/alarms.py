@@ -73,39 +73,50 @@ def fibre_cut(
     """
     rng = random.Random(seed)
 
-    # Pick a fibre link deterministically
-    fibre_links = [lnk for lnk in topology.links if lnk.kind == "fibre"]
-    if not fibre_links:
-        return []
+    # Pick a link to cut: prefer a hub's uplink (ring or core link where b is a hub)
+    # or an access link
+    candidate_links = []
+    hub_uplinks = []
+    for lnk in topology.links:
+        site_b = topology.site_by_id[lnk.b]
+        if site_b.kind == "hub" and lnk.role in ("ring", "core"):
+            hub_uplinks.append((lnk, "hub_uplink"))
+        elif site_b.kind == "access" and lnk.role == "access":
+            candidate_links.append((lnk, "access"))
 
-    # Prefer an aggregation uplink so the cut takes several cells down (a visible storm)
-    uplinks = [lnk for lnk in fibre_links if topology.site_by_id[lnk.b].kind == "agg"]
-    cut_link = rng.choice(uplinks or fibre_links)
-    site_a = cut_link.a
-    site_b = cut_link.b
+    # If we have hub uplinks, choose among them; otherwise use access links
+    chosen_link, cut_type = rng.choice(hub_uplinks or candidate_links)
 
-    # Determine downstream cells from both ends
-    def get_downstream_cells(site_id: str) -> list[str]:
-        cells: list[str] = []
+    if not chosen_link:
+        # Fallback to any fibre link
+        fibre_links = [lnk for lnk in topology.links if lnk.kind == "fibre"]
+        if not fibre_links:
+            return []
+        chosen_link, cut_type = rng.choice([(lnk, "fallback") for lnk in fibre_links])
+
+    site_a = chosen_link.a
+    site_b = chosen_link.b
+
+    # Determine downstream access sites from the far side (b)
+    def get_downstream_access(site_id: str) -> list[str]:
+        access_sites: list[str] = []
         stack = [site_id]
         while stack:
             current = stack.pop()
             for child in topology.children.get(current, []):
                 child_site = topology.site_by_id[child]
-                if child_site.kind == "cell":
-                    cells.append(child)
+                if child_site.kind == "access":
+                    access_sites.append(child)
                 else:
                     stack.append(child)
-        return cells
+        return access_sites
 
-    # Only the far side (b) of the cut loses service; core-core cuts have no cells behind them
-    far_side = topology.site_by_id[site_b]
-    all_downstream = [site_b] if far_side.kind == "cell" else []
-    if far_side.kind == "agg":
-        all_downstream = get_downstream_cells(site_b)
+    downstream_access = get_downstream_access(site_b)
+    if not downstream_access and topology.site_by_id[site_b].kind == "access":
+        downstream_access = [site_b]
 
     alarms: list[tuple[float, dict[str, Any]]] = []
-    base_time = start
+    base_time = start.replace(microsecond=0)
 
     # 1. Critical LOS on both ends of the cut link (simultaneous)
     for site_id in (site_a, site_b):
@@ -121,7 +132,7 @@ def fibre_cut(
         )
         alarms.append((0.0, alarm))
 
-    # 2. Sympathetic alarms on downstream cells over ~120 seconds
+    # 2. Sympathetic alarms on downstream access sites over ~120 seconds
     sympathetic_alarms = [
         ("major", "S1 link down", "transportAlarm"),
         ("major", "Cell unavailable", "equipmentAlarm"),
@@ -130,29 +141,24 @@ def fibre_cut(
     ]
 
     for idx, (severity, problem, a_type) in enumerate(sympathetic_alarms):
-        for cell_id in all_downstream:
+        for access_id in downstream_access:
             offset = 5.0 + idx * 30.0 + rng.uniform(0, 2)
-            alarm_time = base_time.replace(microsecond=0)
-            # Add offset seconds
-
-            alarm_time = alarm_time + timedelta(seconds=offset)
+            alarm_time = base_time + timedelta(seconds=offset)
             alarm = make_alarm(
                 rng=rng,
                 alarm_type=a_type,
                 perceived_severity=severity,
                 probable_cause="underlyingResourceUnavailable",
                 specific_problem=problem,
-                alarmed_object_id=cell_id,
-                site_id=cell_id,
+                alarmed_object_id=access_id,
+                site_id=access_id,
                 alarm_raised_time=alarm_time,
             )
             alarms.append((offset, alarm))
 
     # 3. Cleared alarms at the end (~120s)
     clear_offset = 120.0 + rng.uniform(0, 5)
-    clear_time = base_time.replace(microsecond=0)
-
-    clear_time = clear_time + timedelta(seconds=clear_offset)
+    clear_time = base_time + timedelta(seconds=clear_offset)
 
     # Clear the original LOS alarms
     for site_id in (site_a, site_b):
@@ -170,17 +176,17 @@ def fibre_cut(
         alarms.append((clear_offset, alarm))
 
     # Clear sympathetic alarms
-    for cell_id in all_downstream:
+    for access_id in downstream_access:
         alarm = make_alarm(
             rng=rng,
             alarm_type="communicationsAlarm",
             perceived_severity="cleared",
             probable_cause="underlyingResourceUnavailable",
             specific_problem="Service restored",
-            alarmed_object_id=cell_id,
-            site_id=cell_id,
+            alarmed_object_id=access_id,
+            site_id=access_id,
             state="cleared",
-            alarm_raised_time=clear_time,
+            alarm_raised_time=clear_time + timedelta(seconds=rng.uniform(0, 2)),
         )
         alarms.append((clear_offset + rng.uniform(0, 2), alarm))
 

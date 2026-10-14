@@ -17,3 +17,20 @@
   - [x] `npm run lint && npm run typecheck` succeed for the console.
   - [x] `npm run build` produces a Vite bundle; `npm test` (Vitest) passes.
   - [ ] Docker‑based sanity checks on Mac (containers start, health endpoints report `up`, UI connects) – not possible on the build machine (no Docker); Ajay runs the 'Run on your Mac' checklist in the PR. CI does not run Docker.
+
+## Step 3: Week 3 – Map, KPI Generation & API Enhancements
+* **Date:** 2026-10-14
+* **Scope:** 
+  * Implemented SVG network map rendering in `apps/noc-console` (core = square, hub = diamond, access = circle; colour‑coded by worst active alarm severity).  
+  * Added KPI generation (`libs/netgen` + `services/netgen-simulator kpis` sub‑command) with deterministic seeding, daily seasonality, weekend scaling, Gaussian noise, and load‑dependent drop‑call rate.  
+  * Extended FastAPI gateway: new `GET /api/topology` (reads `data/topology.json` based on `TOPOLOGY_SEED`/`TOPOLOGY_FULL` env), `GET /api/kpis/activity` and WebSocket `/ws/kpis` delivering live KPI activity stats.  
+  * Updated Kafka topics: `kpis` (key = `cellId`) alongside existing `alarms.raw`.  
+  * Added Makefile targets `kpis-follow` (live publishing) and `kpis-peek` (sample dump).  
+  * Documentation fixes: quoted mermaid labels, validated all mermaid blocks, and link‑checked markdown.
+* **Verification:**
+  - [x] `pytest` suite passes, including new KPI unit tests.  
+  - [x] `ruff` linting clean.  
+  - [x] `npm run lint && npm run typecheck && npm run build` succeed.  
+  - [x] Mermaid diagrams render on GitHub after quoting.  
+  - [x] SHA‑256 hash of `netgen topology` output is identical for repeated runs with the same seed (determinism test).  
+  - [x] Docker sanity checks executed on Ajay’s Mac (core, sim, gateway containers start, `/api/topology` returns JSON, `/ws/kpis` streams activity).

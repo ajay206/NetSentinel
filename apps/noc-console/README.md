@@ -1,18 +1,19 @@
 # NOC Console (Frontend)
 
 The **noc-console** application is the user‑facing dashboard for NetSentinel.  
-It is a single‑page application built with **Vite**, **React**, **TypeScript**, and **Tailwind CSS**.  
-The UI runs locally (Node 22) and talks to the backend **api‑gateway** through the Vite dev‑server proxy, so you never need to hard‑code hostnames or ports in the source code.
+It is a single‑page application built with **Vite**, **React**, **TypeScript**, and **Tailwind CSS**. The UI runs locally (Node 22) and talks to the backend **api‑gateway** through the Vite dev‑server proxy, so no hostnames or ports are hard‑coded.
 
 ---
 
-## Purpose
+## Purpose (Week 3)
 
-| Goal | Description |
-|------|-------------|
-| **Live alarm view** | Shows a table of the most recent alarms with colour‑coded severity (critical → red, major → orange, …, cleared → gray). |
-| **Service health tiles** | Small cards that display the health status of core services (api‑gateway, Kafka, TimescaleDB). |
-| **Extensible panels** | The layout is deliberately simple – a grid of panels that can be expanded in later weeks (e.g., KPI charts, topology view, ticket list). |
+| Feature | Description |
+|---------|-------------|
+| **Live alarm view** | Table of recent alarms, colour‑coded by severity (critical → red, major → orange, …, cleared → gray). |
+| **Network map** | SVG topology from `/api/topology`; sites rendered as square (core), diamond (hub), circle (access). Site colour reflects the worst **ACTIVE** alarm severity (green = none, yellow = warning, orange = major, red = critical). Critical sites pulse. |
+| **KPI activity panel** | Shows total samples, samples/min, cells reporting, last sample time (stale badge after 60 s), and network‑wide KPI averages (last 500 values) updated every 2 s via `/ws/kpis`. |
+| **Service health tiles** | Health status of core services (api‑gateway, Kafka, TimescaleDB). |
+| **IST timestamps** | All dates/times displayed in **IST (Asia/Kolkata)** with an “IST” label. |
 
 ---
 
@@ -22,20 +23,31 @@ The UI runs locally (Node 22) and talks to the backend **api‑gateway** throu
 noc-console/
 ├─ public/                 # Static assets (favicon, index.html)
 ├─ src/
-│  ├─ api/                 # Thin wrappers around the HTTP & WS endpoints
+│  ├─ api/                 # Thin wrappers around HTTP & WS endpoints
 │  │   ├─ health.ts        # GET /health
 │  │   ├─ alarms.ts        # GET /api/alarms/recent
-│  │   └─ ws.ts            # WebSocket client for /ws/alarms
+│  │   ├─ topology.ts      # GET /api/topology
+│  │   ├─ kpis.ts          # GET /api/kpis/activity
+│  │   └─ ws.ts            # WebSocket client for /ws/kpis
 │  ├─ components/          # Re‑usable UI pieces
-│  │   ├─ AlarmTable.tsx   # Table that renders alarms with severity colours
-│  │   ├─ ServiceTile.tsx  # Tile that shows health of a single service
-│  │   └─ Layout.tsx       # Simple grid layout for panels
-│  ├─ pages/               # Top‑level pages (currently only Dashboard)
-│  │   └─ Dashboard.tsx
-│  ├─ hooks/               # Custom React hooks (e.g., useAlarms, useHealth)
-│  ├─ utils/               # Helper functions (date formatting, className helpers)
-│  └─ main.tsx             # React entry point
-├─ vite.config.ts          # Vite config – includes the proxy definition
+│  │   ├─ AlarmTable.tsx
+│  │   ├─ ServiceTile.tsx
+│  │   ├─ NetworkMap.tsx   # SVG map, uses useTopology()
+│  │   ├─ KpiActivity.tsx  # Live KPI panel, uses useKpiActivity()
+│  │   └─ Layout.tsx
+│  ├─ hooks/               # Custom React hooks
+│  │   ├─ useAlarms.ts
+│  │   ├─ useHealth.ts
+│  │   ├─ useTopology.ts   # fetches topology, returns parsed SVG data
+│  │   └─ useKpiActivity.ts
+│  ├─ lib/                 # Helper libraries
+│  │   ├─ time.ts          # IST conversion, formatDate, stale check
+│  │   └─ siteStatus.ts    # severity ranking, colour mapping, pulse flag
+│  ├─ pages/
+│  │   └─ Dashboard.tsx    # Assembles Layout with the four panels
+│  ├─ utils/               # Misc helpers (classNames, debounce)
+│  └─ main.tsx
+├─ vite.config.ts
 ├─ tsconfig.json
 ├─ tailwind.config.cjs
 ├─ package.json
@@ -46,14 +58,13 @@ noc-console/
 
 ## How It Talks to the Backend
 
-During development the Vite dev server proxies API calls to the **api‑gateway** that is running on port 8000.
+During development the Vite dev server proxies API calls to the **api‑gateway** on port 8000.
 
 ```ts
 // vite.config.ts (excerpt)
 export default defineConfig({
   server: {
     proxy: {
-      // All /api/*, /health and /ws/* requests are forwarded to the gateway
       '^/(api|health|ws)': {
         target: 'http://localhost:8000',
         changeOrigin: true,
@@ -64,34 +75,20 @@ export default defineConfig({
 });
 ```
 
-Because of this proxy:
-
-* The frontend code uses **relative URLs** (`/api/alarms/recent`, `/health`, `/ws/alarms`).
-* No environment variable is required for the gateway address.
-* When you build the app for production, the same relative URLs will work behind any reverse‑proxy (e.g., Traefik) that routes `/api` and `/ws` to the gateway container.
-
-The `src/api` folder contains thin wrappers that use **fetch** for HTTP calls and the native **WebSocket** API for the live alarm stream.
+* Front‑end uses **relative URLs** (`/api/topology`, `/api/kpis/activity`, `/ws/kpis`).  
+* The same URLs work in production behind any reverse‑proxy.
 
 ---
 
 ## Adding a New Panel (Week 3+)
 
-1. **Create a component** in `src/components/` (or `src/pages/` if it is a full page).  
-   Follow the existing pattern: export a default React component that receives any needed props.
-
-2. **Update the layout**:  
-   Open `src/components/Layout.tsx` and add your component to the JSX grid.  
-   The layout uses Tailwind’s `grid` utilities, so you can control column/row span with classes like `col-span-2`.
-
-3. **Wire data sources** (if needed):  
-   * For HTTP data, add a function in `src/api/` and a corresponding hook in `src/hooks/`.  
-   * For real‑time data, extend `src/api/ws.ts` to listen for additional message types and expose them via a custom hook.
-
-4. **Style**:  
-   Use Tailwind utility classes; refer to `tailwind.config.cjs` for the colour palette that matches alarm severities.
-
-5. **Test**:  
-   Run `npm run test` (Jest) and `npm run lint` to ensure the new code follows the repo standards.
+1. **Create a component** in `src/components/` (or a full page in `src/pages/`). Export a default React component.  
+2. **Update the layout** – edit `src/components/Layout.tsx` and insert your component into the Tailwind `grid`.  
+3. **Wire data sources**:  
+   * HTTP → add a function in `src/api/` and a hook in `src/hooks/`.  
+   * Real‑time → extend `src/api/ws.ts` to listen for new message types and expose via a hook.  
+4. **Style** – use Tailwind utilities; refer to `tailwind.config.cjs` for the colour palette that matches alarm severities.  
+5. **Test** – run `npm run test` and `npm run lint` before committing.
 
 ---
 
@@ -99,33 +96,36 @@ The `src/api` folder contains thin wrappers that use **fetch** for HTTP calls an
 
 | Script | Description |
 |--------|-------------|
-| `npm run dev` | Starts Vite dev server on **http://localhost:5173** (proxy configured). |
+| `npm run dev` | Starts Vite dev server (`http://localhost:5173`). |
 | `npm run build` | Produces an optimized static bundle in `dist/`. |
-| `npm run lint` | Runs **eslint** + **prettier** checks. |
+| `npm run lint` | Runs **eslint** + **prettier**. |
 | `npm run typecheck` | Executes **tsc** in `noEmit` mode. |
 | `npm run test` | Runs **vitest** unit tests. |
-| `npm run preview` | Serves the production build locally (`vite preview`). |
+| `npm run preview` | Serves the production build locally. |
 
 ---
 
 ## Development Checklist
 
 1. **Prerequisite** – Node 22 (see `docs/handbook/02-local-setup.md`).  
-2. Run `npm install` once after cloning.  
+2. `npm install` once after cloning.  
 3. `make console-install` (installs deps via npm).  
 4. `make console` (starts dev server).  
-5. Verify the dashboard loads at **http://localhost:5173** and shows live alarms.  
-6. When adding new panels, run the full lint/typecheck/test suite before committing.
+5. Verify the dashboard loads at **http://localhost:5173** and shows:  
+   * Network map with site colours and pulsing critical sites.  
+   * KPI activity panel updating every 2 s.  
+   * Live alarm table.  
+6. Run the full lint/typecheck/test suite before pushing.
 
---- 
+---
 
 ## Gotchas on Mac M2 (8 GB RAM)
 
-* The Vite dev server is lightweight, but keep an eye on memory when the simulator is also running.  
-* If you see the UI become sluggish, stop the **netgen‑simulator** (`make down` or `docker compose stop sim`) and restart the console.  
+* The Vite dev server is lightweight, but running the KPI simulator together can push memory. Stop the simulator (`make down` or `docker compose stop sim`) if the UI becomes sluggish.  
+* SVG rendering is cheap; however, very large topologies (full mode) may cause the map to lag. Use the default **small** topology for development.
 
 Happy coding!  
 
 ---  
 
-*This README is maintained for junior developers joining the project. It explains the purpose, structure, and how to extend the NOC console.*
+*This README is maintained for junior developers joining the project. It explains the purpose, structure, new Week 3 panels, and how to extend the NOC console.*
