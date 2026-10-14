@@ -23,7 +23,7 @@ NetSentinel is an AI-assisted NOC copilot for telecom operators. It runs locally
 **Not yet built (Phase 2+)**
 - Neo4j / graph RAG
 - LangGraph agents
-- Ticket/incident services
+- Ticket service
 - llm-gateway
 - Kubernetes deployment
 

@@ -105,3 +105,17 @@ This log is maintained by Ajay to track learnings, insights, and key concepts en
    - Why does the smoke test poll the gateway endpoints until they become ready instead of using a fixed sleep interval?
 
 *(Leave space for answers.)*
+
+## W13 – incident-service and incident board
+
+### What was built
+- `incident-service` clusters `alarms.enriched` into incidents with an event-time session window (300 s gap) and topology relations: same site, direct link, ancestor or descendant within 4 hops, or a sibling under a non-core hub. It publishes them to `incidents`.
+- The console has an Incident board; selecting an incident filters both alarm feeds.
+- `incident-eval` measures compression, root match, purity and determinism (`evals/rca_report.md`). Sequential faults: 5.03× compression with 100% root match. Concurrent pairs: 65% root match, because nearby simultaneous cuts merge.
+
+### Learning Prompts for Ajay
+1. Why does replaying from the earliest offset with no consumer group give deterministic state, and what does it cost at scale?
+2. Why are core sites excluded as a shared ancestor? What happens to compression and purity if they aren't?
+3. How would you split two simultaneous fibre cuts that sit two hops apart? Which evidence is missing today?
+
+*(Leave space for answers.)*

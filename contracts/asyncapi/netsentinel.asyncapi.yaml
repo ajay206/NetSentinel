@@ -1,7 +1,7 @@
 asyncapi: '3.0.0'
 info:
   title: NetSentinel Alarm Stream
-  version: '0.2.0'
+  version: '0.3.0'
   description: AsyncAPI contract for alarm messages produced by netgen-simulator and consumed by the API gateway.
 servers:
   production:
@@ -43,8 +43,41 @@ channels:
         topic: kpis
         partitions: 1
         replicas: 1
+  incidents:
+    description: >-
+      Incident changelog from incident-service (W13). alarms.enriched is clustered by event-time
+      session window and topology relation. Kafka key = incident id; the latest version per key
+      wins. See ADR-012.
+    publish:
+      message:
+        $ref: '#/components/messages/Incident'
+    bindings:
+      kafka:
+        topic: incidents
+        partitions: 1
+        replicas: 1
 components:
   messages:
+    Incident:
+      name: Incident
+      title: Incident
+      summary: A cluster of related alarms with a topology root (closest to the core).
+      payload:
+        type: object
+        required: [id, rootSiteId, siteIds, alarmIds, alarmCount, severity, firstSeen, lastSeen, status, version]
+        properties:
+          id: {type: string, pattern: '^INC-[0-9A-F]{10}$', description: Deterministic, uuid5 of the first alarm id}
+          rootSiteId: {type: string}
+          siteIds: {type: array, items: {type: string}}
+          alarmIds: {type: array, items: {type: string}}
+          alarmKeys: {type: array, items: {type: string}}
+          alarmCount: {type: integer, minimum: 1}
+          severity: {type: string, enum: [critical, major, minor, warning, indeterminate, cleared]}
+          region: {type: [string, 'null']}
+          firstSeen: {type: string, format: date-time}
+          lastSeen: {type: string, format: date-time}
+          status: {type: string, enum: [open, cleared]}
+          version: {type: integer, minimum: 1}
     Alarm:
       name: Alarm
       title: Alarm
@@ -225,4 +258,4 @@ components:
   schemas:
     placeholder: {}
   # Other components (securitySchemes, etc.) can be added later
-  # TBD: other topics such as alarms.processed, metrics.raw
+  

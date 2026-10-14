@@ -4,7 +4,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-PROFILES=(--profile core --profile ui --profile pipeline --profile rag --profile copilot)
+PROFILES=(--profile core --profile ui --profile pipeline --profile rag --profile copilot --profile ops)
 GATEWAY_URL="${GATEWAY_URL:-http://localhost:8000}"
 WAIT_S="${DEMO_WAIT_S:-240}"
 

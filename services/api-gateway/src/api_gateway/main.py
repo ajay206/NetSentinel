@@ -55,6 +55,7 @@ COPILOT_URL = os.getenv("COPILOT_URL", "http://localhost:8005").rstrip("/")
 RAG_SERVICE_URL = os.getenv("RAG_SERVICE_URL", "http://localhost:8004").rstrip("/")
 ALARM_INGEST_URL = os.getenv("ALARM_INGEST_URL", "http://localhost:8001").rstrip("/")
 MCP_SERVER_URL = os.getenv("MCP_SERVER_URL", "http://localhost:8006").rstrip("/")
+INCIDENT_SERVICE_URL = os.getenv("INCIDENT_SERVICE_URL", "http://localhost:8007").rstrip("/")
 # W11: Phase 1 services probed through the gateway for the health panel
 PHASE1_SERVICES = {
     "alarm-ingest": lambda: ALARM_INGEST_URL,
@@ -63,6 +64,7 @@ PHASE1_SERVICES = {
     "rag-service": lambda: RAG_SERVICE_URL,
     "copilot-orchestrator": lambda: COPILOT_URL,
     "mcp-server": lambda: MCP_SERVER_URL,
+    "incident-service": lambda: INCIDENT_SERVICE_URL,
 }
 health_transport: httpx.AsyncBaseTransport | None = None
 # Tests swap this for an httpx.MockTransport
@@ -70,6 +72,7 @@ kpi_transport: httpx.AsyncBaseTransport | None = None
 ml_transport: httpx.AsyncBaseTransport | None = None
 rag_transport: httpx.AsyncBaseTransport | None = None
 copilot_transport: httpx.AsyncBaseTransport | None = None
+incident_transport: httpx.AsyncBaseTransport | None = None
 
 # Topology generation settings
 TOPOLOGY_SEED = int(os.getenv("TOPOLOGY_SEED", "42"))
@@ -583,4 +586,27 @@ async def copilot_analyze_proxy(request: Request) -> JSONResponse:
         payload = resp.json()
     except ValueError:
         return JSONResponse({"detail": "copilot returned non-JSON"}, status_code=502)
+    return JSONResponse(payload, status_code=resp.status_code)
+
+
+_INCIDENT_PATH_RE = re.compile(r"^(incidents(/INC-[0-9A-F]{10})?|stats)$")
+
+
+@app.get("/api/incidents")
+@app.get("/api/incidents/{incident_id}")
+async def incidents_proxy(request: Request, incident_id: str | None = None) -> JSONResponse:
+    """W13: incident board data from incident-service (viewer role)."""
+    path = "incidents" if incident_id is None else f"incidents/{incident_id}"
+    if not _INCIDENT_PATH_RE.match(path):
+        return JSONResponse({"detail": "Not found"}, status_code=404)
+    try:
+        async with httpx.AsyncClient(transport=incident_transport, timeout=10.0) as client:
+            resp = await client.get(f"{INCIDENT_SERVICE_URL}/{path}", params=request.query_params)
+    except httpx.HTTPError as exc:
+        logger.warning("incident-service unreachable: %s", exc)
+        return JSONResponse({"detail": "incident-service unreachable"}, status_code=503)
+    try:
+        payload = resp.json()
+    except ValueError:
+        return JSONResponse({"detail": "incident-service returned non-JSON"}, status_code=502)
     return JSONResponse(payload, status_code=resp.status_code)

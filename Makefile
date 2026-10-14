@@ -1,4 +1,4 @@
-.PHONY: up-core up-tools up-ui down topics test lint fmt smoke sim sim-loop sim-docker gateway console-install console console-build console-lint console-test test-all ingest up-pipeline enriched-peek ingest-stats kpi-service kpi-stats kpi-query ml ml-train anomalies topology kpis kpis-follow kpis-peek docs-check ml-train-xgb up-rag rag rag-ingest rag-eval runbooks copilot up-copilot analyze ollama-pull mcp mcp-dev mcp-contract copilot-contract gateway-contract token demo kafka-smoke
+.PHONY: up-core up-tools up-ui down topics test lint fmt smoke sim sim-loop sim-docker gateway console-install console console-build console-lint console-test test-all ingest up-pipeline enriched-peek ingest-stats kpi-service kpi-stats kpi-query ml ml-train anomalies topology kpis kpis-follow kpis-peek docs-check ml-train-xgb up-rag rag rag-ingest rag-eval runbooks copilot up-copilot analyze ollama-pull mcp mcp-dev mcp-contract copilot-contract gateway-contract token demo kafka-smoke incident up-incident incidents-peek incident-eval
 
 up-core:
 	docker compose --profile core up -d
@@ -10,7 +10,7 @@ up-ui:
 	docker compose --profile core --profile ui up --build -d
 
 down:
-	docker compose --profile core --profile tools --profile ui --profile sim --profile pipeline --profile rag --profile copilot down
+	docker compose --profile core --profile tools --profile ui --profile sim --profile pipeline --profile rag --profile copilot --profile ops down
 
 topics:
 	bash scripts/create_topics.sh
@@ -165,3 +165,15 @@ anomalies:
 
 docs-check:
 	python3 scripts/check_docs.py
+
+incident:
+	DISABLE_KAFKA=0 uv run uvicorn incident_service.main:app --port 8007
+
+up-incident:
+	docker compose --profile core --profile pipeline --profile ops up -d --build incident-service
+
+incidents-peek:
+	docker compose exec -T kafka /opt/kafka/bin/kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic incidents --from-beginning --property print.key=true --max-messages 5 --timeout-ms 10000
+
+incident-eval:
+	uv run incident-eval --out evals/rca_report.md

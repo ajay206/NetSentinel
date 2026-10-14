@@ -440,3 +440,30 @@ def test_healthz_and_readyz() -> None:
         resp = client.get("/readyz")
         assert resp.status_code == 200
         assert resp.json() == {"status": "ready", "kafka": "skipped", "topology": "loaded"}
+
+
+def test_incidents_proxy(monkeypatch: pytest.MonkeyPatch) -> None:
+    """W13: /api/incidents forwards to incident-service; ids are validated first."""
+    seen: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(str(request.url))
+        return httpx.Response(200, json={"items": [], "total": 0})
+
+    monkeypatch.setattr(main, "incident_transport", httpx.MockTransport(handler))
+    with TestClient(app) as client:
+        assert client.get("/api/incidents?status=open").json() == {"items": [], "total": 0}
+        assert client.get("/api/incidents/INC-0123456789").status_code == 200
+        assert client.get("/api/incidents/..%2Fadmin").status_code == 404
+    assert seen[0].endswith("/incidents?status=open")
+    assert seen[1].endswith("/incidents/INC-0123456789")
+    assert len(seen) == 2
+
+
+def test_incidents_proxy_down(monkeypatch: pytest.MonkeyPatch) -> None:
+    def refuse(request: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectError("refused", request=request)
+
+    monkeypatch.setattr(main, "incident_transport", httpx.MockTransport(refuse))
+    with TestClient(app) as client:
+        assert client.get("/api/incidents").status_code == 503
