@@ -74,6 +74,7 @@ services:
         condition: service_healthy
         required: false
       timescaledb:
+        condition: service_healthy
         required: false
     restart: unless-stopped
 
