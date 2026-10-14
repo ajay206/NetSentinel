@@ -90,4 +90,43 @@ describe("CopilotPanel", () => {
     );
     expect(screen.getByText("Copilot unavailable")).toBeInTheDocument();
   });
+
+  it("shows MCP tool-call chips, failed ones in red (W10)", () => {
+    render(
+      <CopilotPanel
+        onAnalyze={vi.fn()}
+        result={{
+          ...result,
+          toolCalls: [
+            { name: "get_alarms", ok: true, durationMs: 12, transport: "mcp" },
+            {
+              name: "kpi_anomalies",
+              ok: false,
+              durationMs: 30,
+              transport: "mcp",
+            },
+            {
+              name: "search_runbooks",
+              ok: true,
+              durationMs: 8,
+              transport: "mcp",
+            },
+          ],
+        }}
+      />,
+    );
+    const chips = screen.getAllByTestId("tool-call-chip");
+    expect(chips.map((c) => c.textContent)).toEqual([
+      "⚙ get_alarms",
+      "⚙ kpi_anomalies",
+      "⚙ search_runbooks",
+    ]);
+    expect(chips[1]).toHaveClass("bg-red-950");
+    expect(chips[0]).toHaveAttribute("title", "MCP · 12 ms");
+  });
+
+  it("hides chips when the response has no tool calls (W9 server)", () => {
+    render(<CopilotPanel onAnalyze={vi.fn()} result={result} />);
+    expect(screen.queryByTestId("tool-call-chips")).toBeNull();
+  });
 });

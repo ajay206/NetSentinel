@@ -10,7 +10,7 @@ from typing import Any
 from pydantic import ValidationError
 
 from copilot_orchestrator.clients.llm import LLM
-from copilot_orchestrator.clients.upstream import Upstream
+from copilot_orchestrator.clients.upstream import ToolRecorder
 from copilot_orchestrator.models import (
     AlarmRef,
     AnalyzeRequest,
@@ -34,7 +34,9 @@ def _camel_words(value: str | None) -> str:
     return re.sub(r"([a-z])([A-Z])", r"\1 \2", value or "").lower()
 
 
-async def gather(upstream: Upstream, req: AnalyzeRequest) -> tuple[Context, list[dict[str, Any]]]:
+async def gather(
+    upstream: ToolRecorder, req: AnalyzeRequest
+) -> tuple[Context, list[dict[str, Any]]]:
     """Collect alarms, fault prediction, runbooks and anomalies. Returns (context, raw alarms)."""
     raw_alarms = await upstream.alarms_for_site(req.site_id, req.window_minutes)
     alarms = [
@@ -165,7 +167,7 @@ def fallback_answer(ctx: Context) -> Answer:
 
 
 async def analyze(
-    req: AnalyzeRequest, upstream: Upstream, llm: LLM, max_attempts: int = 3
+    req: AnalyzeRequest, upstream: ToolRecorder, llm: LLM, max_attempts: int = 3
 ) -> AnalyzeResponse:
     started = time.perf_counter()
     ctx, _ = await gather(upstream, req)
@@ -203,5 +205,6 @@ async def analyze(
         context=ctx,
         sourceIds=sorted(ctx.source_ids()),
         warnings=list(upstream.warnings),
+        toolCalls=list(upstream.tool_calls),
         durationMs=int((time.perf_counter() - started) * 1000),
     )

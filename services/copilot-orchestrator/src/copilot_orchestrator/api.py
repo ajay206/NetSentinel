@@ -3,20 +3,29 @@
 from __future__ import annotations
 
 import os
+from collections.abc import AsyncIterator
 from typing import Annotated, Any
 
 from fastapi import Depends, FastAPI, HTTPException
 
 from copilot_orchestrator.analyze import analyze
 from copilot_orchestrator.clients.llm import LLM, OffLLM, OllamaLLM
-from copilot_orchestrator.clients.upstream import Upstream
+from copilot_orchestrator.clients.mcp_client import McpUpstream
+from copilot_orchestrator.clients.upstream import ToolRecorder, Upstream
 from copilot_orchestrator.models import AnalyzeRequest, AnalyzeResponse, NoEvidence
 
 app = FastAPI(title="copilot-orchestrator", version="0.1.0")
 
 
-def get_upstream() -> Upstream:
-    return Upstream()
+async def get_upstream() -> AsyncIterator[ToolRecorder]:
+    """TOOLS=mcp (default, W10): evidence via mcp-server tools. TOOLS=http: direct calls (W9)."""
+    upstream: ToolRecorder = (
+        McpUpstream.from_env() if os.getenv("TOOLS", "mcp") == "mcp" else Upstream()
+    )
+    try:
+        yield upstream
+    finally:
+        await upstream.aclose()
 
 
 def get_llm() -> LLM:
@@ -36,13 +45,13 @@ async def healthz() -> dict[str, str]:
 
 @app.get("/readyz")
 async def readyz(llm: Annotated[LLM, Depends(get_llm)]) -> dict[str, Any]:
-    return {"status": "ready", "llm": llm.name}
+    return {"status": "ready", "llm": llm.name, "tools": os.getenv("TOOLS", "mcp")}
 
 
 @app.post("/analyze", response_model=AnalyzeResponse)
 async def analyze_endpoint(
     req: AnalyzeRequest,
-    upstream: Annotated[Upstream, Depends(get_upstream)],
+    upstream: Annotated[ToolRecorder, Depends(get_upstream)],
     llm: Annotated[LLM, Depends(get_llm)],
 ) -> AnalyzeResponse:
     try:

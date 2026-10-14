@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import type { AnalyzeResponse } from "../types.copilot";
+import type { AnalyzeResponse, ToolCall } from "../types.copilot";
 
 const SITE_RE = /^SITE-\d{3}$/;
 const WINDOWS = ["15m", "30m", "60m", "120m"];
@@ -23,6 +23,31 @@ const SourceChip: React.FC<{ id: string }> = ({ id }) => (
   >
     {id.length > 28 ? `${id.slice(0, 26)}…` : id}
   </span>
+);
+
+/** W10: one chip per evidence call; red when the tool failed. */
+export const ToolCallChips: React.FC<{ calls: ToolCall[] }> = ({ calls }) => (
+  <div
+    className="flex flex-wrap gap-1"
+    data-testid="tool-call-chips"
+    aria-label="Tool calls"
+  >
+    {calls.map((c, i) => (
+      <span
+        key={`${c.name}-${i}`}
+        data-testid="tool-call-chip"
+        title={`${c.transport.toUpperCase()} · ${c.durationMs} ms${c.ok ? "" : " · failed"}`}
+        className={`font-mono text-[11px] px-2 py-0.5 rounded border ${
+          c.ok
+            ? "bg-violet-950 border-violet-700 text-violet-200"
+            : "bg-red-950 border-red-700 text-red-200"
+        }`}
+      >
+        {c.transport === "mcp" ? "⚙ " : ""}
+        {c.name}
+      </span>
+    ))}
+  </div>
 );
 
 /** W9: "Analyze site" -> cause / evidence / steps cards with cited alarm, anomaly and runbook ids. */
@@ -118,6 +143,10 @@ export const CopilotPanel: React.FC<CopilotPanelProps> = ({
               </span>
             )}
           </div>
+
+          {result.toolCalls && result.toolCalls.length > 0 && (
+            <ToolCallChips calls={result.toolCalls} />
+          )}
 
           <section className="bg-slate-800 rounded p-3">
             <h4 className="text-xs uppercase tracking-wide text-slate-400 mb-1">

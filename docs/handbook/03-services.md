@@ -515,3 +515,25 @@ The **copilot-orchestrator** service provides the AI‑driven analysis for Step�
 | **Upstream dependencies** | `gateway` (alarms), `ml-service` (anomalies & fault type), `rag-service` (runbooks) |
 | **Error handling** | Upstream failures become `warnings` in the response; HTTP 404 for “no alarms”, 422 for bad input, 503 if the service itself is down, 502 on non‑JSON from gateway. |
 | **Testing** | Unit tests + CI e2e fibre‑cut test with mocked HTTP and a MockLLM. OpenAPI contract kept in `contracts/openapi/copilot-orchestrator.yaml`. |
+
+# NetSentinel Handbook – Step 10 (W10) Services
+
+## mcp-server (W10)
+
+The **mcp-server** provides the internal MCP tool layer used by the Copilot orchestrator. It aggregates four tools behind a single HTTP endpoint.
+
+| Tool | Input Schema | Output Schema | Description |
+|------|--------------|---------------|-------------|
+| `get_alarms` | `{ "site_id": "string", "window_minutes": "integer (default 30)" }` | `{ "alarms": [ { "id": "string", "severity": "string", "timestamp": "string", ... } ] }` | Retrieves enriched alarms for a site from the gateway, anchored on the newest alarm, root‑first ordering. |
+| `predict_fault` | `{ "alarm": { "id": "string", "severity": "string", ... } }` | `{ "fault_type": "string", "confidence": "number" }` | ML‑service classifier that predicts the fault type for a given alarm. |
+| `search_runbooks` | `{ "query": "string", "fault_type": "string|null", "top_k": "integer (default 3)" }` | `{ "runbooks": [ { "id": "string", "title": "string", "content": "string" } ] }` | Hybrid RAG search that returns the most relevant runbooks (markdown). |
+| `kpi_anomalies` | `{ "site_id": "string", "hours": "integer (default 1)" }` | `{ "anomalies": [ { "cell_id": "string", "kpi": "string", "value": "number", "timestamp": "string" } ] }` | Returns KPI anomalies for the site’s cells (3 KPIs) from the ML service. |
+
+### Resource Template
+- `runbook://{runbook_id}` – Returns the runbook as `text/markdown`.
+
+### Prompt
+- `analyze_site(site_id, window="30m")` – Used by the Copilot orchestrator to drive the analysis flow.
+
+---  
+*All tool definitions are version‑controlled in `contracts/mcp/netsentinel-tools.json`.*

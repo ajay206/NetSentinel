@@ -102,6 +102,17 @@ class Answer(BaseModel):
     steps: list[Step] = Field(max_length=6)
 
 
+class ToolCall(BaseModel):
+    """One evidence call made for this answer (shown as a chip in the console)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: str
+    ok: bool
+    durationMs: int
+    transport: Literal["mcp", "http"]
+
+
 class AnalyzeResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -115,6 +126,7 @@ class AnalyzeResponse(BaseModel):
     context: Context
     sourceIds: list[str] = Field(description="Every id the answer was allowed to cite")
     warnings: list[str] = Field(default_factory=list, description="Upstream services that failed")
+    toolCalls: list[ToolCall] = Field(default_factory=list)
     durationMs: int
 
 

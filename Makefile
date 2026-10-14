@@ -1,4 +1,4 @@
-.PHONY: up-core up-tools up-ui down topics test lint fmt smoke sim sim-loop sim-docker gateway console-install console console-build console-lint console-test test-all ingest up-pipeline enriched-peek ingest-stats kpi-service kpi-stats kpi-query ml ml-train anomalies topology kpis kpis-follow kpis-peek docs-check ml-train-xgb up-rag rag rag-ingest rag-eval runbooks copilot up-copilot analyze ollama-pull
+.PHONY: up-core up-tools up-ui down topics test lint fmt smoke sim sim-loop sim-docker gateway console-install console console-build console-lint console-test test-all ingest up-pipeline enriched-peek ingest-stats kpi-service kpi-stats kpi-query ml ml-train anomalies topology kpis kpis-follow kpis-peek docs-check ml-train-xgb up-rag rag rag-ingest rag-eval runbooks copilot up-copilot analyze ollama-pull mcp mcp-dev mcp-contract copilot-contract
 
 up-core:
 	docker compose --profile core up -d
@@ -120,7 +120,19 @@ copilot:
 	uv run uvicorn copilot_orchestrator.api:app --port 8005
 
 up-copilot:
-	docker compose --profile copilot up -d --build copilot-orchestrator
+	docker compose --profile copilot up -d --build mcp-server copilot-orchestrator
+
+mcp:
+	MCP_ALLOW_NO_TOKEN=1 uv run uvicorn --factory mcp_server.app:build_app --port 8006
+
+mcp-dev:
+	uv run mcp dev services/mcp-server/src/mcp_server/server.py
+
+mcp-contract:
+	uv run python scripts/gen_mcp_contract.py
+
+copilot-contract:
+	uv run python scripts/gen_copilot_contract.py
 
 ollama-pull:
 	ollama pull qwen2.5:1.5b
