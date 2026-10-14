@@ -308,3 +308,23 @@ Then refresh the console.
 **Symptom:** A WebSocket connection is terminated with close code 4401.  
 **Cause:** No token or an expired/invalid token was supplied via the `?token=` query parameter.  
 **Fix:** Re‑authenticate in the console to obtain a fresh JWT and reconnect, ensuring the token is appended to the WebSocket URL.
+
+### 42. make demo times out waiting for /readyz
+- Check the Docker compose logs for `api-gateway` (`docker compose logs api-gateway`).
+- Kafka may be slow on first start; increase `DEMO_WAIT_S` (e.g., `make demo DEMO_WAIT_S=480`).
+
+### 43. smoke kpi_anomaly check fails
+- The KPI back‑fill may not have completed. Verify that the back‑fill step finished in the demo logs.
+- If `ml-service` returns 503, ensure `kpi-service` can connect to TimescaleDB and that the TimescaleDB container is healthy.
+
+### 44. smoke copilot check fails “no runbook citations”
+- The local Ollama model may not be running; start it or pull the image with `make ollama-pull`.
+- Verify `rag-service` is ready (`docker compose logs rag-service`) and that runbooks have been ingested (look for “runbooks loaded” in the logs).
+
+### 45. health check lists services down
+- The missing service profile was not started. Restart Docker compose with the required profile, e.g. `docker compose up --profile rag`.
+- After adding the profile, re‑run `make smoke` to confirm all services report healthy.
+
+### 46. Demo path stuck on Fault badge
+- In the console, click a root alarm in the **Enriched Alarms** view to expand its details; the fault badge appears only after an alarm is selected.
+- Ensure the Copilot panel has finished processing; a loading spinner indicates the answer is still being generated.

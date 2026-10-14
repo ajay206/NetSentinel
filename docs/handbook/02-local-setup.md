@@ -423,3 +423,41 @@ The compose file provides dev defaults for all other variables.
 uv run netgen-sim run --seed 42 --scenario fibre_cut --speed 60x
 ```
 The simulation injects a rapid series of alarms, causing the timeline to display a burst badge.
+
+## One‑command demo (W12)
+
+The `make demo` target builds and runs the complete Phase 1 demo scenario.
+
+### Steps performed by `make demo`
+1. `docker compose up` with the profiles **core**, **ui**, **pipeline**, **rag**, **copilot**.
+2. Creates the required Kafka topics.
+3. Waits for the API gateway `/readyz` (environment variable `DEMO_WAIT_S`, default 240 s).
+4. Back‑fills one day of KPI data (seed 42) into TimescaleDB.
+5. Starts the `netgen‑simulator` with the fibre‑cut scenario accelerated 60×.
+6. Executes a quick smoke check against the gateway.
+7. Prints the URL to open the console.
+
+### Environment variables
+- `DEMO_WAIT_S` – seconds to wait for `/readyz` before timing out (default 240).
+- `GATEWAY_URL` – base URL of the API gateway (default `http://localhost:8000`).
+
+### Re‑run only parts
+- **Scenario only:** `make sim` – runs the `netgen‑simulator` against an already‑running stack.
+- **Smoke only:** `make smoke` or `bash scripts/smoke.sh --json --wait 60`.
+
+### Example smoke output
+
+Example output (timings vary; `--json` prints the same checks as a JSON list):
+
+```text
+PASS  health             95 ms  9 services up
+PASS  login               4 ms  logged in
+PASS  alarms             12 ms  200 alarms
+PASS  timeline            3 ms  total=214 peak=61
+PASS  kpi_anomaly        40 ms  20 anomalies
+PASS  fault              35 ms  faultType=fibre_cut
+PASS  runbooks           60 ms  ids=RB-FIB-001,RB-FIB-002,RB-TRN-003
+PASS  copilot          9500 ms  llm, 6 sources
+PASS  rbac                2 ms  401 as expected
+9/9 checks passed
+```

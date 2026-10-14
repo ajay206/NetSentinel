@@ -231,3 +231,27 @@ Step 11 introduces JWT‑based authentication and role‑based access control 
   1. Open the console in a browser, log in with each demo user.  
   2. Restart compose with a real `JWT_SECRET` and confirm sessions survive a gateway restart.  
   3. Run `uv run netgen-sim … fibre_cut` and verify a burst badge appears on the timeline.
+
+## Step 12 – W12 Phase 1 wrap‑up + make demo
+
+### Summary
+Finalised Phase 1, added a one‑command demo (`make demo`), a gateway‑only smoke test, and the console “Demo path (fibre_cut)” UI strip. Updated health endpoints, token handling for analysis commands, and Docker compose profiles.
+
+### Changes
+| Component | Change |
+|-----------|--------|
+| api‑gateway | Added `/healthz` and `/readyz`; `/health` now lists `mcp-server`. |
+| mcp‑server | Added `/readyz`. |
+| makefile | New targets: `demo`, `smoke` (renamed from `kafka-smoke`), `down` (stops rag & copilot profiles), `analyze`/`anomalies` now fetch token first. |
+| scripts/demo.sh | Orchestrates compose up, topic creation, KPI back‑fill, fibre‑cut scenario, smoke verification, and console URL output. |
+| scripts/smoke.sh & scripts/smoke.py | Nine gateway checks, polling with timeout, JSON output option, no token leakage. |
+| console UI | Added “Demo path (fibre_cut)” strip showing the five‑stage flow and completion banner. |
+| docs/adr/ADR‑011 | Recorded decision to use scripted demo + gateway smoke as release gate. |
+| docs/handbook/w12‑setup.md | Documented one‑command demo and re‑run options. |
+| docs/handbook/w12‑troubleshooting.md | Added troubleshooting entries 42‑46. |
+| tests | Updated health endpoint tests; all existing pytest suites still pass (215 total). |
+
+### Verification
+- **Measured numbers** (see README): 215 pytest passes, 95 Vitest passes, lint clean.
+- **Mac checks pending:** Run `make demo` on a fresh clone, verify all five demo stages turn green, smoke test reports 9/9 PASS, and memory usage stays within the configured limits.
+- **Release gate:** ADR‑011 accepted; demo + smoke must pass before tagging `v0.1.0`.

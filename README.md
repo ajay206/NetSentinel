@@ -1,105 +1,133 @@
-# NetSentinel
+# NetSentinel – Phase 1 (Weeks 1-12)
 
-NetSentinel is an AI‑assisted Network Operations Center (NOC) copilot for telecom networks built on **synthetic data only**. It consists of event‑driven micro‑services communicating via Apache Kafka, time‑series storage in TimescaleDB, graph analysis in Neo4j, vector search in Qdrant, and a Model Context Protocol (MCP) server for AI tool execution.
-
-> **Note:** All network telemetry, alarms, KPIs, and customer data generated and processed by NetSentinel are entirely synthetic.
+NetSentinel is an AI-assisted NOC copilot for telecom operators. It runs locally on a Mac M2 (8 GB) using Docker and native processes and works only with synthetic data. Phase 1 delivers the core data-pipeline, a set of analysis services, and a web console.
 
 ## Status
-* **Current Phase:** **Week 3** – KPI generation, topology endpoint, and enhanced console panels.
-* **Built Components:**  
-  * `libs/netgen` – deterministic topology & fibre‑cut scenario (`seed=42`).  
-  * `services/netgen-simulator` – KPI back‑fill & live stream (`kpis` topic) plus unchanged alarm generator.  
-  * `services/api-gateway` – FastAPI gateway exposing `/api/topology`, `/api/kpis/activity` and WebSocket `/ws/kpis`.  
-  * `apps/noc-console` – New Network‑Map panel (SVG topology) and KPI‑Activity panel; timestamps shown in IST.  
-  * Core infra (Kafka KRaft, TimescaleDB, Neo4j, Qdrant), CI pipeline, pre‑commit hooks, and architecture handbook.  
+**Phase 1 complete, v0.1.0 pending tag**
 
-* **Planned Services:** Built in W4: `alarm-ingest` (alarms.raw → alarms.enriched). Remaining micro‑services (`kpi-service`, `incident-service`, `copilot-orchestrator`, `mcp-server`, `ml-service`, `topology‑service`, `rag‑service`, `ticket‑service`, `llm‑gateway`) will be added in later weeks.
+**Built services (Docker + tests)**
+- api-gateway (FastAPI, port 8000)
+- alarm-ingest (port 8001)
+- kpi-service (port 8002)
+- ml-service (port 8003)
+- rag-service (port 8004)
+- copilot-orchestrator (port 8005)
+- mcp-server (port 8006, internal)
+- netgen-simulator (CLI batch publisher)
 
-## Quick Start
+**Infrastructure (built)**
+- Kafka (KRaft)
+- TimescaleDB
+- Qdrant
 
-### 1. Prepare the repo
+**Not yet built (Phase 2+)**
+- Neo4j / graph RAG
+- LangGraph agents
+- Ticket/incident services
+- llm-gateway
+- Kubernetes deployment
+
+## Quick start
+**Prerequisites**
+- Docker Desktop
+- `uv` (Python package manager)
+- Node 20 (for the console)
+- Optional: Ollama with `make ollama-pull` to pull the local LLM
+
+**Setup**
 ```bash
-cp .env.example .env          # set POSTGRES_PASSWORD, etc.
-uv sync --all-extras --dev    # install Python deps
-```
-
-### 2. Core infrastructure (Docker)
-```bash
-make up-core      # starts Kafka and TimescaleDB
-make topics       # create required Kafka topics (alarms.raw, kpis, …)
-```
-
-### 3. Run the dashboard (Week 3)
-
-#### Native processes (recommended on low‑memory Mac)
-```bash
-# start the FastAPI gateway (uvicorn)
-make gateway
-
-# install & start the React UI
+cp env.example.txt .env
+# Edit .env and set:
+#   JWT_SECRET (≥32 characters)
+#   GATEWAY_SERVICE_TOKEN
+#   MCP_SERVICE_TOKEN
+uv sync --all-extras --dev
 make console-install
-make console          # Vite dev server → http://localhost:5173
+make demo          # stack up, topics, KPI back-fill, fibre_cut, smoke test
+make console       # starts the React console
 ```
+Open http://localhost:5173 and sign in with the demo user **operator** (password = `operator`).
 
-#### Containerised UI (api‑gateway runs in Docker)
+## Demo walkthrough
+`make demo` plays the seeded fibre_cut scenario. In the console, the **Demo path (fibre_cut)** strip at the top
+ticks off five stages and shows a hint for the next one:
+
+1. **Alarms stream** – enriched alarms arrive in *Enriched alarms* (and the *Alarm storm timeline* shows the burst).
+2. **KPI anomaly** – after the 1-day KPI back-fill, the *Anomalies* panel lists anomalous cells.
+3. **Fault badge** – click a root alarm in *Enriched alarms*: ml-service classifies it (XGBoost) and the SHAP drawer explains it.
+4. **Runbooks** – *Suggested runbooks* lists the best matches for the selected alarm.
+5. **Copilot answer** – as `operator`, press **Analyze site** in *Copilot analyze*; the answer must cite runbooks from its sources.
+
+When all five are done the strip shows **Phase 1 demo complete**. Viewers can follow stages 1–4; analyze needs the operator role.
+
+## Smoke test
+Run the gateway-only smoke test:
+
 ```bash
-make up-ui            # core + api‑gateway container (profile ui)
-make topics
-make console          # UI runs natively, talks to gateway container via proxy
+make smoke               # runs scripts/smoke.sh with defaults
+# or
+bash scripts/smoke.sh --json --wait 60
 ```
 
-### 4. Start the simulators
-```bash
-# Alarm generator (unchanged)
-make sim
+The script (`scripts/smoke.py`) performs nine checks (health, login, alarms, timeline, KPI anomaly, fault, runbooks, copilot citation, RBAC) through the API gateway and exits with status 0 on success.
 
-# KPI generator – back‑fill 7 days then follow live samples every 5 s
-make kpis-follow      # runs: uv run netgen-sim kpis --seed 42 --days 7 --follow --interval 5
+## Numbers (measured only)
+
+Measured on 2026-10-14 on the build box (Linux), not on the Mac.
+
+| Metric                              | Value |
+|-------------------------------------|-------|
+| Pytest total passed                 | 215 |
+| pytest breakdown (by service)       | api-gateway 57, ml-service 37, netgen 25, rag-service 18, copilot-orchestrator 17, alarm-ingest 14, kpi-service 14, mcp-server 12, netgen-simulator 10, root smoke 10, ns-common 1 |
+| Vitest (console) passed             | 95 |
+| Lint/format (ruff, ESLint, tsc)     | clean |
+
+### Configured memory limits (Docker compose)
+
+| Service               | Limit |
+|-----------------------|-------|
+| kafka                 | 1 GiB |
+| timescaledb           | 512 MiB |
+| qdrant                | 384 MiB |
+| ml-service            | 256 MiB |
+| rag-service           | 256 MiB |
+| api-gateway           | 192 MiB |
+| kpi-service           | 192 MiB |
+| copilot-orchestrator  | 192 MiB |
+| alarm-ingest          | 160 MiB |
+| mcp-server            | 128 MiB |
+
+### Not yet measured
+- End-to-end `make demo` execution time and memory usage on the Mac (Docker not available on the build box).
+
+## Architecture
+| Service                | Port | Role |
+|------------------------|------|------|
+| api-gateway            | 8000 | HTTP entry point, JWT/RBAC, rate limiting, WebSocket proxy |
+| alarm-ingest           | 8001 | Raw alarm deduplication & enrichment |
+| kpi-service            | 8002 | KPI ingestion, TimescaleDB storage, query API |
+| ml-service             | 8003 | Statistical baselines, XGBoost fault classifier, SHAP |
+| rag-service            | 8004 | Hybrid runbook search (Qdrant or in-memory) |
+| copilot-orchestrator   | 8005 | Orchestrates tool calls, local Ollama LLM, JSON response validation |
+| mcp-server             | 8006 | Internal MCP API for tool access |
+| netgen-simulator       | —    | Batch/stream CLI publisher for synthetic topology, KPIs, fault scenarios |
+
+## Repo layout
+```
+apps/
+services/
+libs/
+contracts/
+docs/
+scripts/
+evals/
+data/
 ```
 
-### 5. Verify the UI
-Open **http://localhost:5173**. You should see:
-
-* **Network Map** – SVG topology with sites coloured by the worst active alarm severity (critical sites pulse).  
-* **KPI Activity** – live sample rate, total samples, per‑cell reporting, and network‑wide averages (updated every 2 s).  
-* Alarm table, service‑health tiles, and timestamps displayed in **IST (Asia/Kolkata)**.
-
-### 6. Run checks
-```bash
-make test          # pytest + vitest
-make lint          # ruff + eslint
-make fmt           # auto‑format code
-make smoke         # simple Kafka produce/consume sanity check
-```
-
-## Repo Layout
-
-```
-netsentinel/
-├── apps/
-│   └── noc-console/        # React/Vite dashboard (Week 3)
-├── libs/
-│   ├── ns-common/          # Shared models, topic definitions, utils
-│   └── netgen/             # Topology library + fibre_cut scenario
-├── services/
-│   ├── netgen-simulator/   # CLI that emits alarms & KPI samples to Kafka
-│   └── api-gateway/        # FastAPI thin gateway (health, topology, KPI endpoints, WS)
-├── contracts/
-│   └── asyncapi/
-│       └── netsentinel.asyncapi.yaml
-├── docs/
-│   ├── adr/
-│   └── handbook/
-├── compose.yaml            # Docker Compose with profiles (core, tools, ui, sim)
-├── Makefile                # Automation targets (up‑core, up‑ui, sim, kpis-follow, …)
-├── pyproject.toml          # uv workspace root
-└── LEARNING_LOG.md
-```
-
-* `apps/` – Front‑end applications.  
-* `libs/` – Re‑usable Python libraries.  
-* `services/` – Backend micro‑services (each with its own Dockerfile).  
-* `contracts/` – AsyncAPI / OpenAPI specifications.  
+## Docs
+- `docs/handbook/README.md`
+- `docs/adr/` (ADR-001 … ADR-011)
+- `LEARNING_LOG.md`
 
 ## License
 MIT

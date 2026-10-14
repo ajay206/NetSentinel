@@ -11,7 +11,9 @@ logger = logging.getLogger(__name__)
 
 
 class ServiceTokenMiddleware:
-    """Pure-ASGI middleware: open /healthz, Bearer service token on /mcp (constant-time check).
+    """Pure-ASGI middleware: open /healthz and /readyz; Bearer service token on /mcp.
+
+    The token check is constant-time.
 
     With token=None (MCP_ALLOW_NO_TOKEN=1, local dev only) /mcp is not protected.
     """
@@ -32,6 +34,13 @@ class ServiceTokenMiddleware:
         path = scope.get("path", "")
         if path == "/healthz":
             response = JSONResponse({"status": "ok"})
+            await response(scope, receive, send)
+            return
+        if path == "/readyz":
+            # W12: ready = the tool layer is built and /mcp is protected (or explicitly open)
+            response = JSONResponse(
+                {"status": "ready", "auth": "token" if self.token else "open (dev)"}
+            )
             await response(scope, receive, send)
             return
 

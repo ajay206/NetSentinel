@@ -143,7 +143,14 @@ def check_password(username: str, password: str) -> str | None:
 
 
 def required_role(method: str, path: str) -> str | None:
-    if method == "OPTIONS" or path in ("/health", "/api/auth/login", "/docs", "/openapi.json"):
+    if method == "OPTIONS" or path in (
+        "/health",
+        "/healthz",
+        "/readyz",
+        "/api/auth/login",
+        "/docs",
+        "/openapi.json",
+    ):
         return None
     if method == "POST" and path == "/api/copilot/analyze":
         return "operator"

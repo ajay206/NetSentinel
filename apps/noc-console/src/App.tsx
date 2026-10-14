@@ -24,6 +24,9 @@ import { useKpiActivity } from './hooks/useKpiActivity';
 import { worstSeverityBySite } from './lib/siteStatus';
 import { AlarmTimeline } from './components/AlarmTimeline';
 import { useTimeline } from './hooks/useTimeline';
+import { DemoPath } from './components/DemoPath';
+import { demoStages } from './lib/demoPath';
+import { useAnomalyList } from './hooks/useAnomalies';
 import { roleAtLeast, type Session } from './lib/auth';
 
 interface AppProps {
@@ -35,6 +38,8 @@ interface AppProps {
 export const App: React.FC<AppProps> = ({ session, onLogout }) => {
   const canOperate = !session || roleAtLeast(session.role, 'operator');
   const timeline = useTimeline();
+  // W12: same query key as the Anomalies panel's default, so this shares its cache
+  const anomalies = useAnomalyList('dlThroughputMbps', 24);
   const { alarms, status: wsStatus } = useAlarmFeed();
   const { alarms: enrichedAlarms, status: enrichedStatus } = useEnrichedFeed();
   const { data: health, isError } = useHealth();
@@ -62,12 +67,29 @@ export const App: React.FC<AppProps> = ({ session, onLogout }) => {
     setRunbookId(null);
   };
 
+  const copilotSources = copilot.data?.sourceIds ?? [];
+  const stages = demoStages({
+    alarmCount: enrichedAlarms.length,
+    anomalyCount: anomalies.data?.items?.length ?? 0,
+    faultType: predictedFault,
+    runbookCount: runbookSearch.data?.results?.length ?? 0,
+    copilotSources: copilotSources.length,
+    copilotCited: (copilot.data?.answer?.steps ?? []).some((s) =>
+      copilotSources.includes(s.runbookId),
+    ),
+  });
+
   const severityBySite = useMemo(() => worstSeverityBySite(alarms), [alarms]);
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-200 flex flex-col">
       <Header wsStatus={wsStatus} user={session} onLogout={onLogout} />
       <main className="flex-1 p-4 grid grid-cols-1 lg:grid-cols-3 gap-4">
+        {/* W12: the Phase 1 demo path in one strip */}
+        <div className="lg:col-span-3">
+          <DemoPath stages={stages} />
+        </div>
+
         {/* Row 1 */}
         <div className="lg:col-span-2">
           <LiveAlarms alarms={alarms} />
