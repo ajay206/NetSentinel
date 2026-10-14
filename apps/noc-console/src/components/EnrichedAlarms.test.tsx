@@ -36,7 +36,10 @@ describe('EnrichedAlarms', () => {
   });
 
   it('selects a row on click and shows the fault badge slot (W7)', () => {
-    const alarm = makeEnriched({ id: 'sel', dedup: { key: 'k-sel', count: 1, firstSeen: '2026-10-14T10:00:00Z', isDuplicate: false } });
+    const alarm = makeEnriched({
+      id: 'sel',
+      dedup: { key: 'k-sel', count: 1, firstSeen: '2026-10-14T10:00:00Z', isDuplicate: false },
+    });
     const onSelect = vi.fn();
     const { rerender } = render(<EnrichedAlarms alarms={[alarm]} onSelect={onSelect} />);
     fireEvent.click(screen.getByText('LOS'));
@@ -47,7 +50,7 @@ describe('EnrichedAlarms', () => {
         onSelect={onSelect}
         selectedKey="k-sel"
         selectedBadge={<span data-testid="fault-badge">Fibre cut 91%</span>}
-      />
+      />,
     );
     expect(screen.getByTestId('fault-badge')).toHaveTextContent('Fibre cut 91%');
   });

@@ -554,6 +554,47 @@ The **mcp-server** provides the internal MCP tool layer used by the Copilot orch
 | OPTIONS | `*` | Yes | – | CORS preflight |
 | POST | `/api/copilot/analyze` | No | operator | Trigger Copilot analysis |
 | (WebSocket) | `/ws/*?token=` | No | viewer | Real‑time streams, token via query |
+| POST | `/api/auth/password` | No | viewer (self) | Change own password `{currentPassword, newPassword}`; returns a new token, older tokens get 401 |
+| GET | `/api/admin/users` | No | admin | Users with role, disabled, locked, failed logins |
+| POST | `/api/admin/users` | No | admin | Create `{username, role, password}` → 201 (409 if it exists) |
+| PATCH | `/api/admin/users/{username}` | No | admin | Change `role` and/or `disabled`; signs the user out |
+| POST | `/api/admin/users/{username}/unlock` | No | admin | Clear a lockout |
+| POST | `/api/admin/users/{username}/reset-password` | No | admin | Set `{newPassword}` (policy applies); signs the user out |
+| GET | `/api/admin/audit?limit=` | No | admin | Audit log, newest first |
+| GET | `/api/admin/settings` | No | admin | Read-only auth settings (no secrets) |
+| POST | `/api/incidents/{id}/actions` | No | operator | `{action: ack\|assign\|resolve\|note, assignee?, note?}` (resolve needs a note) |
+| POST | `/api/alarms/actions` | No | operator | `{key, action: ack\|resolve\|note, note?}` (key = alarm dedup key) |
+| GET | `/api/alarms/workflow` | No | viewer | Workflow state per alarm key |
+
+Error codes: 401 (no, bad, expired or revoked token), 403 (role too low or account disabled), 423 (account locked), 429 (rate limited), 503 (user store not ready). The generated contract is `contracts/openapi/api-gateway-auth.yaml` (`make gateway-contract`).
+
+#### Role-permission matrix (Step 13b)
+
+| Capability | viewer | operator | admin |
+|---|:-:|:-:|:-:|
+| Dashboards: alarms, KPIs, map, incidents, timeline, anomalies | ✅ | ✅ | ✅ |
+| Alarm detail drawer: fault badge, SHAP, suggested runbooks | ✅ | ✅ | ✅ |
+| Change own password (profile menu) | ✅ | ✅ | ✅ |
+| Copilot analyze | — | ✅ | ✅ |
+| Acknowledge / assign / resolve incidents, with notes | — | ✅ | ✅ |
+| Acknowledge / resolve alarms, with notes | — | ✅ | ✅ |
+| Admin tab: user management (create, disable, unlock, change role, reset password) | — | — | ✅ |
+| Admin tab: audit log | — | — | ✅ |
+| Admin tab: system health and auth settings | — | — | ✅ |
+
+What each role sees in the console:
+- **Viewer:** the Operations dashboard only. There is no Copilot card. The incident panel and alarm drawer show the workflow state and notes, with "Read-only: operators can acknowledge, assign and resolve."
+- **Operator:** the same dashboard plus Copilot. Selecting an incident shows a note box with Acknowledge, Assign to me, Assign and Resolve (Resolve stays disabled until there is a note) and Add note. The alarm drawer has Acknowledge, Resolve and Add note.
+- **Admin:** an **Operations | Admin** tab bar in the header. Admin shows:
+  - User management: a create form and a table with role selects, Disable/Enable, Unlock (only when locked) and Reset password. The admin's own row is not editable.
+  - Audit log: filterable, IST times.
+  - System & security settings, beside Service health.
+- **Everyone:** clicking your name opens the profile menu: a role description, **Change password** and Sign out. The dialog asks for the current password, then the new one twice. It shows a four-step strength bar and the rules still unmet. On success the session switches to the new token without signing out.
+
+#### Users, lockout and audit (ADR-013)
+- Users live in TimescaleDB (`ns_users`, bcrypt hashes) when `USER_STORE=postgres`, the compose default. Demo users `viewer`, `operator` and `admin` (password = username, synthetic demo only) are seeded on first run only. Change their passwords from the profile menu, or with an admin reset.
+- `LOGIN_MAX_FAILURES` (5) wrong passwords lock the account for `LOCKOUT_SECONDS` (900); an admin can unlock it earlier.
+- Every security and workflow action goes to `audit_log`. Passwords and tokens are never logged.
 
 ### `/health` payload (extended)
 

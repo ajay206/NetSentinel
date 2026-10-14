@@ -39,7 +39,7 @@ services:
 
   timescaledb:
     image: timescale/timescaledb:latest-pg16
-    profiles: ["core", "pipeline"]
+    profiles: ["core", "pipeline", "ui"]  # ui: the gateway keeps users + audit_log here (13b)
     ports:
       - "5432:5432"
     environment:
@@ -91,13 +91,18 @@ services:
       GATEWAY_SERVICE_TOKEN: ${GATEWAY_SERVICE_TOKEN:-dev-only-service-token}
       DEMO_USERS: "1"
       RATE_LIMIT_PER_MIN: "600"
+      # Step 13b: users + audit_log in TimescaleDB (bcrypt hashes; demo users seeded on first run)
+      USER_STORE: ${USER_STORE:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set in .env}
+      LOGIN_MAX_FAILURES: ${LOGIN_MAX_FAILURES:-5}
+      LOCKOUT_SECONDS: ${LOCKOUT_SECONDS:-900}
     mem_limit: 192m
     depends_on:
       kafka:
         condition: service_healthy
         required: false
       timescaledb:
-        condition: service_started
+        condition: service_healthy
         required: false
     restart: unless-stopped
 
@@ -334,6 +339,10 @@ services:
       KAFKA_BOOTSTRAP: kafka:29092
       GATEWAY_URL: http://api-gateway:8000
       CONSOLE_URL: http://noc-console
+      # Step 13b smoke roles/password checks (synthetic demo users; override if changed)
+      SMOKE_VIEWER_PASSWORD: ${SMOKE_VIEWER_PASSWORD:-viewer}
+      SMOKE_OPERATOR_PASSWORD: ${SMOKE_OPERATOR_PASSWORD:-operator}
+      SMOKE_ADMIN_PASSWORD: ${SMOKE_ADMIN_PASSWORD:-admin}
     mem_limit: 192m
     restart: "no"
 

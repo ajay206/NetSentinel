@@ -11,6 +11,8 @@ export interface Incident {
   lastSeen: string;
   status: 'open' | 'cleared';
   version: number;
+  /** Step 13b: operator workflow overlay (null until someone acts on it). */
+  workflow?: import('./hooks/useWorkflow').Workflow | null;
 }
 
 export interface IncidentList {

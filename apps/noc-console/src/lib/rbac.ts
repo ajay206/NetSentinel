@@ -1,0 +1,37 @@
+import type { Role } from './auth';
+
+/**
+ * Step 13b: what each role may do in the console. The gateway enforces the same rules (403),
+ * so this only hides controls a role cannot use. Keep in sync with the handbook matrix.
+ */
+export const PERMISSIONS = {
+  'dashboard.view': 'viewer',
+  'runbooks.view': 'viewer',
+  'copilot.analyze': 'operator',
+  'incident.act': 'operator',
+  'alarm.act': 'operator',
+  'admin.users': 'admin',
+  'admin.audit': 'admin',
+  'admin.settings': 'admin',
+} as const satisfies Record<string, Role>;
+
+export type Permission = keyof typeof PERMISSIONS;
+
+const ORDER: Role[] = ['viewer', 'operator', 'admin'];
+
+export function can(role: Role | undefined | null, permission: Permission): boolean {
+  if (!role) return false;
+  return ORDER.indexOf(role) >= ORDER.indexOf(PERMISSIONS[permission]);
+}
+
+export const ROLE_STYLE: Record<Role, string> = {
+  viewer: 'bg-slate-700/60 text-slate-200',
+  operator: 'bg-sky-500/15 text-sky-300',
+  admin: 'bg-violet-500/15 text-violet-300',
+};
+
+export const ROLE_BLURB: Record<Role, string> = {
+  viewer: 'Read-only: dashboards, alarms, KPIs, incidents and runbooks.',
+  operator: 'Viewer + copilot and acknowledge / assign / resolve incidents and alarms.',
+  admin: 'Operator + user management, audit log and system settings.',
+};

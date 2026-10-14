@@ -42,7 +42,7 @@ const explanation: FaultExplanation = {
 describe('ShapDrawer', () => {
   it('renders nothing when alarm is null', () => {
     const { container } = render(
-      <ShapDrawer alarm={null} isLoading={false} isError={false} onClose={() => {}} />
+      <ShapDrawer alarm={null} isLoading={false} isError={false} onClose={() => {}} />,
     );
     expect(container.firstChild).toBeNull();
   });
@@ -56,7 +56,7 @@ describe('ShapDrawer', () => {
         isLoading={false}
         isError={false}
         onClose={() => {}}
-      />
+      />,
     );
     expect(screen.getByText(/site-123/)).toBeInTheDocument();
     expect(screen.getByText(/EU/)).toBeInTheDocument();
@@ -72,7 +72,7 @@ describe('ShapDrawer', () => {
         isLoading={false}
         isError={false}
         onClose={() => {}}
-      />
+      />,
     );
     const bars = screen.getAllByTestId('shap-bar');
     expect(bars[0]).toHaveClass('bg-red-400');
@@ -84,17 +84,13 @@ describe('ShapDrawer', () => {
 
   it('calls onClose when close button clicked', () => {
     const onClose = vi.fn();
-    render(
-      <ShapDrawer alarm={alarm} isLoading={false} isError={false} onClose={onClose} />
-    );
+    render(<ShapDrawer alarm={alarm} isLoading={false} isError={false} onClose={onClose} />);
     fireEvent.click(screen.getByLabelText('Close'));
     expect(onClose).toHaveBeenCalledOnce();
   });
 
   it('shows error message when isError true', () => {
-    render(
-      <ShapDrawer alarm={alarm} isLoading={false} isError={true} onClose={() => {}} />
-    );
+    render(<ShapDrawer alarm={alarm} isLoading={false} isError={true} onClose={() => {}} />);
     expect(screen.getByText(/ml-service unreachable/)).toBeInTheDocument();
   });
 

@@ -1,3 +1,4 @@
+import type React from 'react';
 import { useMemo } from 'react';
 import { sortIncidents, durationLabel } from '../lib/incidents';
 import type { IncidentList } from '../types.incident';
@@ -9,6 +10,8 @@ interface IncidentBoardProps {
   isError: boolean;
   selectedId: string | null;
   onSelect: (id: string | null) => void;
+  /** Step 13b: workflow panel for the selected incident (actions hidden for viewers). */
+  selectedFooter?: React.ReactNode;
 }
 
 const TITLE = 'Incident board';
@@ -25,6 +28,7 @@ export function IncidentBoard({
   isError,
   selectedId,
   onSelect,
+  selectedFooter,
 }: IncidentBoardProps) {
   const sortedIncidents = useMemo(() => {
     if (!data?.items) return [];
@@ -82,6 +86,11 @@ export function IncidentBoard({
             </button>
           </div>
         )}
+        {selectedId && selectedFooter && (
+          <div className="rounded-lg border border-slate-700 bg-slate-950/60 p-3">
+            {selectedFooter}
+          </div>
+        )}
         <div className={`${ROW} ns-thead px-3 py-1.5`} role="row">
           <span>Severity</span>
           <span>Root site</span>
@@ -133,7 +142,13 @@ export function IncidentBoard({
                         : 'bg-slate-700 text-slate-400'
                     }`}
                   >
-                    {incident.status === 'open' ? 'OPEN' : 'CLEARED'}
+                    {incident.workflow?.state === 'resolved'
+                      ? 'RESOLVED'
+                      : incident.workflow?.state === 'acknowledged'
+                        ? 'ACK'
+                        : incident.status === 'open'
+                          ? 'OPEN'
+                          : 'CLEARED'}
                   </span>
                 </button>
               </li>

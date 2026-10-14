@@ -1,16 +1,21 @@
-"""W11: JWT login, RBAC (viewer < operator < admin) and rate limits for the gateway.
+"""W11 + Step 13b: JWT login, RBAC (viewer < operator < admin) and rate limits for the gateway.
 
-HS256 tokens are issued by ``POST /api/auth/login`` against a small user table (demo users
-by default; synthetic data only). ``AuthMiddleware`` is pure ASGI so it also guards WebSockets,
-where browsers cannot set headers and pass ``?token=`` instead.
+HS256 tokens are issued by ``POST /api/auth/login`` against a persisted user table (bcrypt
+hashes in Postgres, see ``users.py``; demo users are seeded on first run; synthetic data only).
+Tokens carry a ``tv`` (token version) claim; changing or resetting a password, changing a role
+or disabling a user bumps the version, so older tokens stop working at once. Repeated failed
+logins lock the account for a while. ``AuthMiddleware`` is pure ASGI so it also guards
+WebSockets, where browsers cannot set headers and pass ``?token=`` instead. See ADR-014.
 """
 
 from __future__ import annotations
 
+import asyncio
 import hmac
 import json
 import logging
 import os
+import re
 import secrets
 import time
 from collections import deque
@@ -19,13 +24,24 @@ from typing import Any
 from urllib.parse import parse_qs
 
 import jwt
-from fastapi import APIRouter, HTTPException, Request, status
+from fastapi import APIRouter, HTTPException, Request, Response, status
 from pydantic import BaseModel, Field
 from starlette.types import ASGIApp, Receive, Scope, Send
 
-logger = logging.getLogger(__name__)
+from api_gateway.users import (
+    ROLES,
+    USERNAME_RE,
+    MemoryUserStore,
+    PgUserStore,
+    User,
+    UserStore,
+    hash_password,
+    password_problems,
+    seed,
+    verify_password,
+)
 
-ROLES = ("viewer", "operator", "admin")
+logger = logging.getLogger(__name__)
 
 
 def role_at_least(role: str, needed: str) -> bool:
@@ -44,6 +60,10 @@ class AuthSettings:
     rate_per_min: int
     login_rate_per_min: int
     service_token: str | None = field(default=None, repr=False)
+    lockout_threshold: int = 5
+    lockout_seconds: int = 900
+    user_store: str = "memory"
+    database_url: str = field(default="", repr=False)
 
     @staticmethod
     def _parse_users(s: str) -> dict[str, tuple[str, str]]:
@@ -89,10 +109,63 @@ class AuthSettings:
             rate_per_min=rate_per_min,
             login_rate_per_min=login_rate_per_min,
             service_token=os.getenv("GATEWAY_SERVICE_TOKEN") or None,
+            lockout_threshold=int(os.getenv("LOGIN_MAX_FAILURES", "5")),
+            lockout_seconds=int(os.getenv("LOCKOUT_SECONDS", "900")),
+            user_store=os.getenv("USER_STORE", "memory"),
+            database_url=_database_url(),
         )
 
 
+def _database_url() -> str:
+    url = os.getenv("DATABASE_URL")
+    if url:
+        return url
+    user = os.getenv("POSTGRES_USER", "postgres")
+    pw = os.getenv("POSTGRES_PASSWORD", "postgres")
+    host = os.getenv("TIMESCALE_HOST", "localhost")
+    port = os.getenv("TIMESCALE_PORT", "5432")
+    db = os.getenv("POSTGRES_DB", "postgres")
+    return f"postgresql://{user}:{pw}@{host}:{port}/{db}"
+
+
 settings = AuthSettings.from_env()
+store: UserStore = MemoryUserStore()
+store_state: dict[str, Any] = {"ready": False, "seeded": 0, "error": None}
+_cache: dict[str, tuple[float, User | None]] = {}
+_CACHE_TTL = 2.0
+
+
+async def init_store(retries: int = 30, delay: float = 2.0) -> None:
+    """Open the configured user store and seed it on first run (retries while Postgres starts)."""
+    global store
+    if settings.user_store == "postgres":
+        store = PgUserStore(settings.database_url)
+    for attempt in range(1, retries + 1):
+        try:
+            await store.start()
+            store_state["seeded"] = await seed(store, settings.users)
+            store_state.update(ready=True, error=None)
+            logger.info("user store %s ready (%d seeded)", store.kind, store_state["seeded"])
+            return
+        except Exception as exc:  # noqa: BLE001 - keep retrying, report the type only
+            store_state["error"] = type(exc).__name__
+            logger.warning("user store not ready (attempt %d): %s", attempt, type(exc).__name__)
+            await asyncio.sleep(delay)
+
+
+async def get_user(username: str, fresh: bool = False) -> User | None:
+    now = time.monotonic()
+    hit = _cache.get(username)
+    if not fresh and hit and hit[0] > now:
+        return hit[1]
+    user = await store.get(username)
+    _cache[username] = (now + _CACHE_TTL, user)
+    return user
+
+
+async def save_user(user: User) -> None:
+    await store.save(user)
+    _cache.pop(user.username, None)
 
 
 class AuthError(HTTPException):
@@ -100,11 +173,12 @@ class AuthError(HTTPException):
         super().__init__(status_code=status_code, detail=detail)
 
 
-def issue_token(username: str, role: str, now: float | None = None) -> str:
+def issue_token(username: str, role: str, now: float | None = None, token_version: int = 1) -> str:
     now = time.time() if now is None else now
     payload = {
         "sub": username,
         "role": role,
+        "tv": token_version,
         "iat": int(now),
         "exp": int(now + settings.ttl_seconds),
         "iss": "netsentinel-gateway",
@@ -132,14 +206,45 @@ def decode_token(token: str) -> dict[str, Any]:
     return payload
 
 
-def check_password(username: str, password: str) -> str | None:
-    entry = settings.users.get(username)
-    if not entry:
-        return None
-    stored_pw, role = entry
-    if hmac.compare_digest(stored_pw, password):
-        return role
-    return None
+_DUMMY_HASH = hash_password("timing-equaliser-not-a-real-password")
+
+
+async def _fail_password(user: User, now: float, detail: str) -> None:
+    """Count a wrong password against lockout, then raise 401 or 423."""
+    user.failed_logins += 1
+    if user.failed_logins >= settings.lockout_threshold:
+        user.locked_until = now + settings.lockout_seconds
+        user.failed_logins = 0
+        await save_user(user)
+        await store.audit(
+            "system",
+            "user.locked",
+            user.username,
+            {"afterFailures": settings.lockout_threshold},
+        )
+        raise AuthError(status.HTTP_423_LOCKED, "Account locked; try later or ask an admin")
+    await save_user(user)
+    raise AuthError(status.HTTP_401_UNAUTHORIZED, detail)
+
+
+async def authenticate(username: str, password: str, now: float | None = None) -> User:
+    """Check credentials with lockout: 401 bad credentials, 403 disabled, 423 locked."""
+    now = time.time() if now is None else now
+    user = await get_user(username, fresh=True)
+    if user is None:
+        verify_password(password, _DUMMY_HASH)  # same cost as a real check
+        raise AuthError(status.HTTP_401_UNAUTHORIZED, "Invalid credentials")
+    if user.locked_until > now:
+        raise AuthError(status.HTTP_423_LOCKED, "Account locked; try later or ask an admin")
+    if not verify_password(password, user.password_hash):
+        await _fail_password(user, now, "Invalid credentials")
+    if user.disabled:
+        raise AuthError(status.HTTP_403_FORBIDDEN, "Account disabled")
+    if user.failed_logins or user.locked_until:
+        user.failed_logins = 0
+        user.locked_until = 0.0
+        await save_user(user)
+    return user
 
 
 def required_role(method: str, path: str) -> str | None:
@@ -154,11 +259,17 @@ def required_role(method: str, path: str) -> str | None:
         return None
     if method == "POST" and path == "/api/copilot/analyze":
         return "operator"
-    if path.startswith("/api/auth/users"):
+    if path.startswith("/api/auth/users") or path.startswith("/api/admin"):
         return "admin"
+    # Step 13b: incident and alarm workflow actions (ack / assign / resolve with notes)
+    if method == "POST" and _ACTION_RE.match(path):
+        return "operator"
     if path.startswith("/api") or path.startswith("/ws"):
         return "viewer"
     return None
+
+
+_ACTION_RE = re.compile(r"^/api/(incidents/[^/]+|alarms)/actions$")
 
 
 class RateLimiter:
@@ -241,7 +352,24 @@ class AuthMiddleware:
             except AuthError as exc:
                 await _reject(send, is_ws, 401, str(exc.detail))
                 return
-            user = {"username": str(claims["sub"]), "role": str(claims["role"])}
+            if not store_state["ready"]:
+                await _reject(send, is_ws, 503, "User store not ready")
+                return
+            try:
+                account = await get_user(str(claims["sub"]))
+            except Exception as exc:  # noqa: BLE001 - DB hiccup: fail closed, no stack to client
+                logger.warning("user lookup failed: %s", type(exc).__name__)
+                await _reject(send, is_ws, 503, "User store unavailable")
+                return
+            if (
+                account is None
+                or account.disabled
+                or int(claims.get("tv", 0)) != account.token_version
+            ):
+                await _reject(send, is_ws, 401, "Token revoked; sign in again")
+                return
+            # the live role wins: a demotion takes effect without waiting for token expiry
+            user = {"username": account.username, "role": account.role}
 
         if not role_at_least(user["role"], needed):
             await _reject(send, is_ws, 403, f"Requires role {needed}")
@@ -302,23 +430,7 @@ class LoginRequest(BaseModel):
     password: str = Field(..., max_length=128)
 
 
-@router.post("/login")
-async def login(req: LoginRequest) -> dict[str, Any]:
-    role = check_password(req.username, req.password)
-    if not role:
-        raise AuthError(status.HTTP_401_UNAUTHORIZED, "Invalid credentials")
-    token = issue_token(req.username, role)
-    return {
-        "accessToken": token,
-        "tokenType": "bearer",
-        "expiresIn": settings.ttl_seconds,
-        "username": req.username,
-        "role": role,
-    }
-
-
-@router.get("/me")
-async def me(request: Request) -> dict[str, str]:
+def current_user(request: Request) -> dict[str, str]:
     if settings.disabled:
         return {"username": "anonymous", "role": "admin"}
     user = request.scope.get("state", {}).get("user")
@@ -327,9 +439,201 @@ async def me(request: Request) -> dict[str, str]:
     return user
 
 
+def _require_store() -> None:
+    if not store_state["ready"]:
+        raise AuthError(status.HTTP_503_SERVICE_UNAVAILABLE, "User store not ready")
+
+
+def _token_response(user: User) -> dict[str, Any]:
+    return {
+        "accessToken": issue_token(user.username, user.role, token_version=user.token_version),
+        "tokenType": "bearer",
+        "expiresIn": settings.ttl_seconds,
+        "username": user.username,
+        "role": user.role,
+    }
+
+
+@router.post("/login")
+async def login(req: LoginRequest) -> dict[str, Any]:
+    _require_store()
+    user = await authenticate(req.username, req.password)
+    await store.audit(user.username, "auth.login", user.username, {})
+    return _token_response(user)
+
+
+@router.get("/me")
+async def me(request: Request) -> dict[str, str]:
+    return current_user(request)
+
+
+class PasswordChange(BaseModel):
+    currentPassword: str = Field(..., max_length=128)
+    newPassword: str = Field(..., max_length=128)
+
+
+@router.post("/password")
+async def change_password(req: PasswordChange, request: Request) -> dict[str, Any]:
+    """Any signed-in user. Old tokens stop working (token version bump); a new one is returned."""
+    _require_store()
+    actor = current_user(request)["username"]
+    user = await get_user(actor, fresh=True)
+    if user is None:
+        raise AuthError(status.HTTP_401_UNAUTHORIZED, "Unknown user")
+    now = time.time()
+    if user.locked_until > now:
+        raise AuthError(status.HTTP_423_LOCKED, "Account locked; try later or ask an admin")
+    if not verify_password(req.currentPassword, user.password_hash):
+        await _fail_password(user, now, "Current password is wrong")
+    if req.newPassword == req.currentPassword:
+        raise AuthError(400, "New password must differ from the current one")
+    problems = password_problems(req.newPassword, actor)
+    if problems:
+        raise AuthError(status.HTTP_400_BAD_REQUEST, "Password needs " + ", ".join(problems))
+    user.password_hash = hash_password(req.newPassword)
+    user.token_version += 1
+    user.password_changed_at = time.time()
+    await save_user(user)
+    await store.audit(actor, "password.changed", actor, {})
+    return _token_response(user)
+
+
 @router.get("/users")
 async def list_users() -> list[dict[str, str]]:
-    return sorted(
-        [{"username": u, "role": r} for u, (_, r) in settings.users.items()],
-        key=lambda x: x["username"],
-    )
+    _require_store()
+    return [{"username": u.username, "role": u.role} for u in await store.list()]
+
+
+# --- Step 13b: admin user management, audit log and settings (admin role) ----------------
+
+admin_router = APIRouter(prefix="/api/admin")
+
+
+class NewUser(BaseModel):
+    username: str = Field(..., max_length=32)
+    role: str
+    password: str = Field(..., max_length=128)
+
+
+class UserPatch(BaseModel):
+    role: str | None = None
+    disabled: bool | None = None
+
+
+class PasswordReset(BaseModel):
+    newPassword: str = Field(..., max_length=128)
+
+
+async def _target(username: str) -> User:
+    _require_store()
+    user = await get_user(username, fresh=True)
+    if user is None:
+        raise AuthError(status.HTTP_404_NOT_FOUND, "User not found")
+    return user
+
+
+async def _active_admins() -> int:
+    return sum(1 for u in await store.list() if u.role == "admin" and not u.disabled)
+
+
+@admin_router.get("/users")
+async def admin_users() -> dict[str, Any]:
+    _require_store()
+    return {"items": [u.public() for u in await store.list()]}
+
+
+@admin_router.post("/users", status_code=201)
+async def admin_create_user(req: NewUser, request: Request) -> dict[str, Any]:
+    _require_store()
+    actor = current_user(request)["username"]
+    if not USERNAME_RE.match(req.username):
+        raise AuthError(400, "Username: 3-32 chars, lowercase letters, digits, . _ -")
+    if req.role not in ROLES:
+        raise AuthError(400, f"Role must be one of {', '.join(ROLES)}")
+    problems = password_problems(req.password, req.username)
+    if problems:
+        raise AuthError(400, "Password needs " + ", ".join(problems))
+    user = User(username=req.username, role=req.role, password_hash=hash_password(req.password))
+    if not await store.create(user):
+        raise AuthError(409, "User already exists")
+    await store.audit(actor, "user.created", req.username, {"role": req.role})
+    return user.public()
+
+
+@admin_router.patch("/users/{username}")
+async def admin_update_user(username: str, req: UserPatch, request: Request) -> dict[str, Any]:
+    actor = current_user(request)["username"]
+    user = await _target(username)
+    if username == actor and (req.role not in (None, user.role) or req.disabled):
+        raise AuthError(400, "You cannot change your own role or disable yourself")
+    detail: dict[str, Any] = {}
+    if req.role is not None and req.role != user.role:
+        if req.role not in ROLES:
+            raise AuthError(400, f"Role must be one of {', '.join(ROLES)}")
+        if user.role == "admin" and await _active_admins() <= 1:
+            raise AuthError(400, "Cannot demote the last active admin")
+        detail.update({"from": user.role, "to": req.role})
+        user.role = req.role
+    if req.disabled is not None and req.disabled != user.disabled:
+        if req.disabled and user.role == "admin" and await _active_admins() <= 1:
+            raise AuthError(400, "Cannot disable the last active admin")
+        user.disabled = req.disabled
+        detail["disabled"] = req.disabled
+    if detail:
+        user.token_version += 1  # sign the user out everywhere
+        await save_user(user)
+        action = "user.role_changed" if "to" in detail else "user.updated"
+        await store.audit(actor, action, username, detail)
+    return user.public()
+
+
+@admin_router.post("/users/{username}/unlock")
+async def admin_unlock(username: str, request: Request) -> dict[str, Any]:
+    actor = current_user(request)["username"]
+    user = await _target(username)
+    user.locked_until = 0.0
+    user.failed_logins = 0
+    await save_user(user)
+    await store.audit(actor, "user.unlocked", username, {})
+    return user.public()
+
+
+@admin_router.post("/users/{username}/reset-password")
+async def admin_reset_password(
+    username: str, req: PasswordReset, request: Request
+) -> dict[str, Any]:
+    actor = current_user(request)["username"]
+    user = await _target(username)
+    problems = password_problems(req.newPassword, username)
+    if problems:
+        raise AuthError(400, "Password needs " + ", ".join(problems))
+    user.password_hash = hash_password(req.newPassword)
+    user.token_version += 1
+    user.locked_until = 0.0
+    user.failed_logins = 0
+    user.password_changed_at = time.time()
+    await save_user(user)
+    await store.audit(actor, "password.reset", username, {})
+    return user.public()
+
+
+@admin_router.get("/audit")
+async def admin_audit(limit: int = 200) -> dict[str, Any]:
+    _require_store()
+    return {"items": await store.audit_log(max(1, min(limit, 1000)))}
+
+
+@admin_router.get("/settings")
+async def admin_settings(response: Response) -> dict[str, Any]:
+    response.headers["Cache-Control"] = "no-store"
+    return {
+        "userStore": store.kind,
+        "userStoreReady": store_state["ready"],
+        "tokenTtlSeconds": settings.ttl_seconds,
+        "rateLimitPerMin": settings.rate_per_min,
+        "loginRateLimitPerMin": settings.login_rate_per_min,
+        "lockoutThreshold": settings.lockout_threshold,
+        "lockoutSeconds": settings.lockout_seconds,
+        "demoUsersSeeded": store_state["seeded"] > 0,
+        "authDisabled": settings.disabled,
+    }

@@ -32,16 +32,33 @@ import { useAnomalyList } from './hooks/useAnomalies';
 import { IncidentBoard } from './views/IncidentBoard';
 import { useIncidents } from './hooks/useIncidents';
 import { alarmBelongsTo } from './lib/incidents';
-import { roleAtLeast, type Session } from './lib/auth';
+import { saveSession, type Role, type Session } from './lib/auth';
+import { can } from './lib/rbac';
+import { useAlarmAction, useAlarmWorkflow, useIncidentAction } from './hooks/useWorkflow';
+import { WorkflowActions } from './components/WorkflowActions';
+import { ChangePasswordDialog } from './components/ChangePasswordDialog';
+import { AdminDashboard } from './views/admin/AdminDashboard';
 
 interface AppProps {
   /** W11: set by AuthGate; without it (tests, AUTH_DISABLED) every control is enabled. */
   session?: Session;
   onLogout?: () => void;
+  /** Step 13b: a password change returns a fresh token (older ones are revoked). */
+  onSessionChange?: (s: Session) => void;
 }
 
-export const App: React.FC<AppProps> = ({ session, onLogout }) => {
-  const canOperate = !session || roleAtLeast(session.role, 'operator');
+export const App: React.FC<AppProps> = ({ session, onLogout, onSessionChange }) => {
+  // Step 13b: role-specific dashboards. The gateway enforces the same rules (403).
+  const role = session?.role ?? 'admin';
+  const me = session?.username ?? 'anonymous';
+  const canOperate = can(role, 'incident.act');
+  const canCopilot = can(role, 'copilot.analyze');
+  const isAdmin = can(role, 'admin.users');
+  const [view, setView] = useState<'ops' | 'admin'>('ops');
+  const [pwOpen, setPwOpen] = useState(false);
+  const incidentAction = useIncidentAction();
+  const alarmWorkflow = useAlarmWorkflow();
+  const alarmAction = useAlarmAction();
   const timeline = useTimeline();
   // W12: same query key as the Anomalies panel's default, so this shares its cache
   const anomalies = useAnomalyList('dlThroughputMbps', 24);
@@ -127,100 +144,156 @@ export const App: React.FC<AppProps> = ({ session, onLogout }) => {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-200 flex flex-col">
-      <Header wsStatus={wsStatus} user={session} onLogout={onLogout} />
-      {/* 12-column grid, 16px gutters; rows share a fixed height so neighbouring panels align */}
-      <main className="mx-auto w-full max-w-[1600px] flex-1 space-y-4 px-6 py-5">
-        <KpiSummary {...summary} />
+      <Header
+        wsStatus={wsStatus}
+        user={session}
+        onLogout={onLogout}
+        onChangePassword={session ? () => setPwOpen(true) : undefined}
+        views={
+          isAdmin
+            ? [
+                { id: 'ops', label: 'Operations' },
+                { id: 'admin', label: 'Admin' },
+              ]
+            : []
+        }
+        activeView={view}
+        onSelectView={(id) => setView(id === 'admin' ? 'admin' : 'ops')}
+      />
+      {session && (
+        <ChangePasswordDialog
+          open={pwOpen}
+          username={session.username}
+          onClose={() => setPwOpen(false)}
+          onChanged={(r) => {
+            const next: Session = {
+              token: r.accessToken,
+              username: r.username,
+              role: r.role as Role,
+              expiresAt: Date.now() + r.expiresIn * 1000,
+            };
+            saveSession(next);
+            onSessionChange?.(next);
+          }}
+        />
+      )}
+      {isAdmin && view === 'admin' ? (
+        <main className="mx-auto w-full max-w-[1600px] flex-1 px-6 py-5">
+          <AdminDashboard currentUser={me} health={health} healthError={isError} />
+        </main>
+      ) : (
+        /* 12-column grid, 16px gutters; rows share a fixed height so neighbouring panels align */
+        <main className="mx-auto w-full max-w-[1600px] flex-1 space-y-4 px-6 py-5">
+          <KpiSummary {...summary} />
 
-        <DemoPath stages={stages} />
+          <DemoPath stages={stages} />
 
-        {/* Row: what is happening now */}
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
-          <div className="lg:col-span-6 2xl:col-span-7">
-            <AlarmTimeline
-              data={timeline.data}
-              isLoading={timeline.isLoading}
-              isError={timeline.isError}
-              rootSiteId={summary.stormRoot}
-            />
-          </div>
-          <div className="lg:col-span-6 2xl:col-span-5">
-            <IncidentBoard
-              data={incidents.data}
-              isLoading={incidents.isLoading}
-              isError={incidents.isError}
-              selectedId={incidentId}
-              onSelect={setIncidentId}
-            />
-          </div>
-        </div>
-
-        {/* Row: alarm tables (filtered by the selected incident) + service health */}
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
-          <div className="lg:col-span-9 lg:h-[420px]">
-            <LiveAlarms alarms={shownAlarms} />
-          </div>
-          <div className="lg:col-span-3 lg:h-[420px]">
-            <ServiceHealth health={health} isError={isError} />
-          </div>
-        </div>
-
-        <div className="lg:h-[460px]">
-          <EnrichedAlarms
-            alarms={shownEnriched}
-            status={enrichedStatus}
-            selectedKey={selectedKey}
-            onSelect={(a) => selectAlarm(a.dedup.key)}
-            selectedBadge={
-              <FaultBadge
-                prediction={prediction.data}
-                isLoading={prediction.isLoading}
-                isError={prediction.isError}
+          {/* Row: what is happening now */}
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
+            <div className="lg:col-span-6 2xl:col-span-7">
+              <AlarmTimeline
+                data={timeline.data}
+                isLoading={timeline.isLoading}
+                isError={timeline.isError}
+                rootSiteId={summary.stormRoot}
               />
-            }
-          />
-        </div>
+            </div>
+            <div className="lg:col-span-6 2xl:col-span-5">
+              <IncidentBoard
+                data={incidents.data}
+                isLoading={incidents.isLoading}
+                isError={incidents.isError}
+                selectedId={incidentId}
+                onSelect={setIncidentId}
+                selectedFooter={
+                  incidentId ? (
+                    <WorkflowActions
+                      subject={`incident ${incidentId}`}
+                      workflow={incidents.data?.items.find((i) => i.id === incidentId)?.workflow}
+                      canAct={canOperate}
+                      currentUser={me}
+                      allowAssign
+                      isPending={incidentAction.isPending}
+                      error={incidentAction.error}
+                      onAction={(action, extra) =>
+                        incidentAction.mutate({ incidentId, action, ...extra })
+                      }
+                    />
+                  ) : null
+                }
+              />
+            </div>
+          </div>
 
-        {/* Row: network + KPIs */}
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
-          <div className="lg:col-span-7">
-            <NetworkMap
-              topology={topology}
-              isLoading={topoLoading}
-              isError={topoError}
-              severityBySite={severityBySite}
+          {/* Row: alarm tables (filtered by the selected incident) + service health */}
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
+            <div className="lg:col-span-9 lg:h-[420px]">
+              <LiveAlarms alarms={shownAlarms} />
+            </div>
+            <div className="lg:col-span-3 lg:h-[420px]">
+              <ServiceHealth health={health} isError={isError} />
+            </div>
+          </div>
+
+          <div className="lg:h-[460px]">
+            <EnrichedAlarms
+              alarms={shownEnriched}
+              status={enrichedStatus}
+              selectedKey={selectedKey}
+              onSelect={(a) => selectAlarm(a.dedup.key)}
+              selectedBadge={
+                <FaultBadge
+                  prediction={prediction.data}
+                  isLoading={prediction.isLoading}
+                  isError={prediction.isError}
+                />
+              }
             />
           </div>
-          <div className="lg:col-span-5">
-            <section className="ns-card">
-              <CardHeader
-                title="KPI activity"
-                subtitle="Live KPI samples streaming from the cells."
-                info="Counts and network-wide averages of the KPI samples the simulator publishes every 15 minutes (synthetic)."
+
+          {/* Row: network + KPIs */}
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
+            <div className="lg:col-span-7">
+              <NetworkMap
+                topology={topology}
+                isLoading={topoLoading}
+                isError={topoError}
+                severityBySite={severityBySite}
               />
-              <KpiActivity activity={kpiActivity} status={kpiStatus} />
-            </section>
+            </div>
+            <div className="lg:col-span-5">
+              <section className="ns-card">
+                <CardHeader
+                  title="KPI activity"
+                  subtitle="Live KPI samples streaming from the cells."
+                  info="Counts and network-wide averages of the KPI samples the simulator publishes every 15 minutes (synthetic)."
+                />
+                <KpiActivity activity={kpiActivity} status={kpiStatus} />
+              </section>
+            </div>
           </div>
-        </div>
 
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          <KpiChartsContainer />
-          <AnomaliesContainer />
-        </div>
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <KpiChartsContainer />
+            <AnomaliesContainer />
+          </div>
 
-        {/* Row: diagnosis (runbooks live in the alarm drawer) */}
-        <div>
-          <CopilotPanel
-            defaultSiteId={selected?.siteId ?? null}
-            onAnalyze={(siteId, window) => copilot.mutate({ siteId, window })}
-            result={copilot.data}
-            isPending={copilot.isPending}
-            error={copilot.error}
-            onOpenRunbook={setRunbookId}
-            canAnalyze={canOperate}
-          />
-        </div>
-      </main>
+          {/* Row: diagnosis (runbooks live in the alarm drawer). Viewers have no copilot. */}
+          {canCopilot && (
+            <div>
+              <CopilotPanel
+                defaultSiteId={selected?.siteId ?? null}
+                onAnalyze={(siteId, window) => copilot.mutate({ siteId, window })}
+                result={copilot.data}
+                isPending={copilot.isPending}
+                error={copilot.error}
+                onOpenRunbook={setRunbookId}
+                canAnalyze={canCopilot}
+              />
+            </div>
+          )}
+        </main>
+      )}
       <ShapDrawer
         alarm={selected}
         prediction={prediction.data}
@@ -228,6 +301,21 @@ export const App: React.FC<AppProps> = ({ session, onLogout }) => {
         isLoading={explanation.isLoading}
         isError={explanation.isError}
         onClose={() => selectAlarm(null)}
+        actions={
+          selected ? (
+            <WorkflowActions
+              subject={`alarm ${selected.siteId}`}
+              workflow={alarmWorkflow.data?.[selected.dedup.key]}
+              canAct={canOperate}
+              currentUser={me}
+              isPending={alarmAction.isPending}
+              error={alarmAction.error}
+              onAction={(action, { note }) =>
+                action !== 'assign' && alarmAction.mutate({ key: selected.dedup.key, action, note })
+              }
+            />
+          ) : null
+        }
         runbooks={
           <RunbooksPanel
             alarmLabel={selected ? `${selected.specificProblem} @ ${selected.siteId}` : null}

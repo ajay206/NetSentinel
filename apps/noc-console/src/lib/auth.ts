@@ -48,6 +48,15 @@ export async function login(username: string, password: string): Promise<Session
   if (res.status === 401) {
     throw new Error('Invalid username or password');
   }
+  if (res.status === 423) {
+    throw new Error('Account locked after too many failed attempts; try later or ask an admin');
+  }
+  if (res.status === 403) {
+    throw new Error('Account disabled; ask an admin');
+  }
+  if (res.status === 503) {
+    throw new Error('Sign-in is starting up; try again in a few seconds');
+  }
   if (res.status === 429) {
     throw new Error('Too many attempts, wait a minute');
   }

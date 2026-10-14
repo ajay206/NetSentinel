@@ -28,7 +28,8 @@ from fastapi.responses import JSONResponse
 # netgen is a workspace dependency
 from netgen import build_topology
 
-from api_gateway.auth import AuthMiddleware
+from api_gateway import auth as auth_mod
+from api_gateway.auth import AuthMiddleware, admin_router
 from api_gateway.auth import router as auth_router
 from api_gateway.timeline import build_timeline
 
@@ -289,6 +290,8 @@ async def kpi_handler(sample: dict[str, Any]) -> None:
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """Application lifespan manager."""
     consumer_tasks: list[asyncio.Task] = []
+    # Step 13b: open the user store (retries in the background while Postgres starts)
+    consumer_tasks.append(asyncio.create_task(auth_mod.init_store()))
     if not DISABLE_KAFKA:
         consumer_tasks.append(asyncio.create_task(consume_topic(ALARM_TOPIC, alarm_handler)))
         consumer_tasks.append(asyncio.create_task(consume_topic(KPI_TOPIC, kpi_handler)))
@@ -315,6 +318,7 @@ app = FastAPI(
 
 # W11: auth first so CORS (added last = outermost) also decorates 401/403/429 responses
 app.include_router(auth_router)
+app.include_router(admin_router)
 app.add_middleware(AuthMiddleware)
 app.add_middleware(
     CORSMiddleware,
@@ -589,14 +593,18 @@ async def copilot_analyze_proxy(request: Request) -> JSONResponse:
     return JSONResponse(payload, status_code=resp.status_code)
 
 
-_INCIDENT_PATH_RE = re.compile(r"^(incidents(/INC-[0-9A-F]{10})?|stats)$")
+_INCIDENT_PATH_RE = re.compile(r"^(incidents(/INC-[0-9A-F]{10})?|stats|alarms/workflow)$")
 
 
+@app.get("/api/alarms/workflow")
 @app.get("/api/incidents")
 @app.get("/api/incidents/{incident_id}")
 async def incidents_proxy(request: Request, incident_id: str | None = None) -> JSONResponse:
     """W13: incident board data from incident-service (viewer role)."""
-    path = "incidents" if incident_id is None else f"incidents/{incident_id}"
+    if request.url.path == "/api/alarms/workflow":
+        path = "alarms/workflow"
+    else:
+        path = "incidents" if incident_id is None else f"incidents/{incident_id}"
     if not _INCIDENT_PATH_RE.match(path):
         return JSONResponse({"detail": "Not found"}, status_code=404)
     try:
@@ -610,3 +618,61 @@ async def incidents_proxy(request: Request, incident_id: str | None = None) -> J
     except ValueError:
         return JSONResponse({"detail": "incident-service returned non-JSON"}, status_code=502)
     return JSONResponse(payload, status_code=resp.status_code)
+
+
+_INCIDENT_ID_RE = re.compile(r"^INC-[0-9A-F]{10}$")
+
+
+async def _workflow_call(request: Request, path: str, target: str) -> JSONResponse:
+    """Step 13b: forward an operator action with the signed-in user, then audit it."""
+    user = auth_mod.current_user(request)
+    body = await request.body()
+    if len(body) > 4_000:
+        return JSONResponse({"detail": "Request too large"}, status_code=413)
+    try:
+        async with httpx.AsyncClient(transport=incident_transport, timeout=10.0) as client:
+            resp = await client.post(
+                f"{INCIDENT_SERVICE_URL}/{path}",
+                content=body,
+                headers={
+                    "Content-Type": "application/json",
+                    "X-NS-User": user["username"],
+                    "X-NS-Role": user["role"],
+                },
+            )
+    except httpx.HTTPError as exc:
+        logger.warning("incident-service unreachable: %s", exc)
+        return JSONResponse({"detail": "incident-service unreachable"}, status_code=503)
+    try:
+        payload = resp.json()
+    except ValueError:
+        return JSONResponse({"detail": "incident-service returned non-JSON"}, status_code=502)
+    if resp.status_code == 200:
+        try:
+            req = json.loads(body or b"{}")
+        except ValueError:
+            req = {}
+        kind = "incident" if path.startswith("incidents/") else "alarm"
+        detail = {k: req[k] for k in ("assignee", "note") if req.get(k)}
+        await auth_mod.store.audit(
+            user["username"], f"{kind}.{req.get('action', '?')}", target, detail
+        )
+    return JSONResponse(payload, status_code=resp.status_code)
+
+
+@app.post("/api/incidents/{incident_id}/actions")
+async def incident_action_proxy(incident_id: str, request: Request) -> JSONResponse:
+    """Acknowledge, assign, resolve or annotate an incident (operator role)."""
+    if not _INCIDENT_ID_RE.match(incident_id):
+        return JSONResponse({"detail": "Not found"}, status_code=404)
+    return await _workflow_call(request, f"incidents/{incident_id}/actions", incident_id)
+
+
+@app.post("/api/alarms/actions")
+async def alarm_action_proxy(request: Request) -> JSONResponse:
+    """Acknowledge, resolve or annotate an alarm by its dedup key (operator role)."""
+    try:
+        key = str(json.loads(await request.body() or b"{}").get("key", ""))[:400]
+    except (ValueError, AttributeError):
+        return JSONResponse({"detail": "Invalid JSON"}, status_code=400)
+    return await _workflow_call(request, "alarms/actions", key or "?")
