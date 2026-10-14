@@ -24,6 +24,7 @@ from copilot_orchestrator.models import (
     NoEvidence,
     RunbookRef,
     Step,
+    UpstreamError,
 )
 from copilot_orchestrator.prompts.analyze import build_messages
 
@@ -166,12 +167,23 @@ def fallback_answer(ctx: Context) -> Answer:
     )
 
 
+def _raise_if_alarm_tool_failed(upstream: ToolRecorder) -> None:
+    """An empty alarm list is only "no evidence" if the alarm tool itself succeeded."""
+    name = upstream.TOOL_NAMES["alarms_for_site"]
+    if all(c.get("ok", True) for c in upstream.tool_calls if c.get("name") == name):
+        return
+    warnings = "; ".join(upstream.warnings) or "alarm tool failed"
+    unreachable = any("unavailable" in w for w in upstream.warnings)
+    raise UpstreamError(503 if unreachable else 502, f"evidence tools failed: {warnings}"[:300])
+
+
 async def analyze(
     req: AnalyzeRequest, upstream: ToolRecorder, llm: LLM, max_attempts: int = 3
 ) -> AnalyzeResponse:
     started = time.perf_counter()
     ctx, _ = await gather(upstream, req)
     if not ctx.alarms:
+        _raise_if_alarm_tool_failed(upstream)
         raise NoEvidence()
 
     errors: list[str] = []

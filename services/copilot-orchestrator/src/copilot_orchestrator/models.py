@@ -142,5 +142,14 @@ class NoEvidence(Exception):
     pass
 
 
+class UpstreamError(Exception):
+    """Evidence tools failed (not "no alarms"): 503 if unreachable, 502 if they errored."""
+
+    def __init__(self, status_code: int, detail: str) -> None:
+        super().__init__(detail)
+        self.status_code = status_code
+        self.detail = detail
+
+
 class LLMError(Exception):
     pass

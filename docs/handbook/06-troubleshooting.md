@@ -376,3 +376,8 @@ Then refresh the console.
 
 ### 57. Port 5173 already in use
 - The console now runs as the `noc-console` container (nginx, profile `ui`). Stop it (`docker compose --profile ui stop noc-console`) before running the native Vite dev server, or vice versa.
+
+### 58. Copilot returns 404 "No alarms" while alarms exist (mcp-server 421 Invalid Host header)
+- Cause: FastMCP's DNS-rebinding protection only allowed `localhost`, so calls to `http://mcp-server:8006/mcp` from the copilot container got 421. The copilot treated the failed alarm tool as "no evidence" (404).
+- Fixed: mcp-server allows `localhost:*`, `127.0.0.1:*` and `mcp-server:*` (override with `MCP_ALLOWED_HOSTS` / `MCP_ALLOWED_ORIGINS`, comma-separated). The copilot now returns **503** when mcp-server is unreachable and **502** when the alarm tool errors; 404 means the tool really returned no alarms.
+- Check: `make logs S=mcp-server` shows no `Invalid Host header`; `make analyze SITE=SITE-012` returns an answer.

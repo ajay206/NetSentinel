@@ -12,7 +12,12 @@ from copilot_orchestrator.analyze import analyze
 from copilot_orchestrator.clients.llm import LLM, OffLLM, OllamaLLM
 from copilot_orchestrator.clients.mcp_client import McpUpstream
 from copilot_orchestrator.clients.upstream import ToolRecorder, Upstream
-from copilot_orchestrator.models import AnalyzeRequest, AnalyzeResponse, NoEvidence
+from copilot_orchestrator.models import (
+    AnalyzeRequest,
+    AnalyzeResponse,
+    NoEvidence,
+    UpstreamError,
+)
 
 app = FastAPI(title="copilot-orchestrator", version="0.1.0")
 
@@ -56,6 +61,8 @@ async def analyze_endpoint(
 ) -> AnalyzeResponse:
     try:
         return await analyze(req, upstream, llm)
+    except UpstreamError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc
     except NoEvidence as exc:
         raise HTTPException(status_code=404, detail="No alarms for site in window") from exc
 

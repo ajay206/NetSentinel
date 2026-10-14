@@ -294,7 +294,8 @@ Introduces the topology‑aware incident clustering service, its API, and the ne
 | ml-service | `xgboost-cpu` → `xgboost` (prebuilt wheels everywhere); NCCL excluded; `uv.lock` updated |
 | demo/smoke/Makefile | Host steps moved into the tools container; `scripts/gw.py` (wait/token/call); `make logs S=`, `ps`, `reset-db`, `incidents`, `tools-build`; `(dev)` markers on host targets |
 | copilot | `AnalyzeRequest` accepts `siteId` (alias) and `site_id`; console sends `siteId`; contract regenerated |
-| docs | Docker-only prerequisites (+ memory note, WSL2), troubleshooting #51–57 |
+| mcp-server / copilot | FastMCP `transport_security` allows the `mcp-server` host (`MCP_ALLOWED_HOSTS`), fixing 421; copilot maps failed evidence tools to 503/502 instead of 404 |
+| docs | Docker-only prerequisites (+ memory note, WSL2), troubleshooting #51–58 |
 
 ### Verification
 - ruff, pytest, vitest, console lint/typecheck/build green in a clean clone; `docker compose config` passes for all 512 profile combinations (compose v2.32 binary, no daemon); shellcheck clean.
