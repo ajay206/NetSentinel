@@ -1,4 +1,4 @@
-.PHONY: up-core up-tools up-ui down topics test lint fmt smoke sim sim-loop sim-docker gateway console-install console console-build console-lint console-test test-all topology kpis kpis-follow kpis-peek docs-check
+.PHONY: up-core up-tools up-ui down topics test lint fmt smoke sim sim-loop sim-docker gateway console-install console console-build console-lint console-test test-all ingest up-pipeline enriched-peek ingest-stats topology kpis kpis-follow kpis-peek docs-check
 
 up-core:
 	docker compose --profile core up -d
@@ -10,7 +10,7 @@ up-ui:
 	docker compose --profile core --profile ui up --build -d
 
 down:
-	docker compose --profile core --profile tools --profile ui --profile sim down
+	docker compose --profile core --profile tools --profile ui --profile sim --profile pipeline down
 
 topics:
 	bash scripts/create_topics.sh
@@ -70,6 +70,18 @@ kpis-follow:
 
 kpis-peek:
 	kcat -C -b localhost:9092 -t kpis -c 5 -e
+
+ingest:
+	uv run uvicorn alarm_ingest.main:app --port 8001
+
+up-pipeline:
+	docker compose --profile core --profile pipeline up -d --build
+
+ingest-stats:
+	curl -s localhost:8001/stats; echo
+
+enriched-peek:
+	docker compose exec -T kafka /opt/kafka/bin/kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic alarms.enriched --from-beginning --max-messages 5 --timeout-ms 10000
 
 docs-check:
 	python3 scripts/check_docs.py

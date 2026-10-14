@@ -13,7 +13,7 @@ NetSentinel is an AI‑assisted Network Operations Center (NOC) copilot for tele
   * `apps/noc-console` – New Network‑Map panel (SVG topology) and KPI‑Activity panel; timestamps shown in IST.  
   * Core infra (Kafka KRaft, TimescaleDB, Neo4j, Qdrant), CI pipeline, pre‑commit hooks, and architecture handbook.  
 
-* **Planned Services:** Remaining micro‑services (`alarm-ingest`, `kpi-service`, `incident-service`, `copilot-orchestrator`, `mcp-server`, `ml-service`, `topology‑service`, `rag‑service`, `ticket‑service`, `llm‑gateway`) will be added in later weeks.
+* **Planned Services:** Built in W4: `alarm-ingest` (alarms.raw → alarms.enriched). Remaining micro‑services (`kpi-service`, `incident-service`, `copilot-orchestrator`, `mcp-server`, `ml-service`, `topology‑service`, `rag‑service`, `ticket‑service`, `llm‑gateway`) will be added in later weeks.
 
 ## Quick Start
 

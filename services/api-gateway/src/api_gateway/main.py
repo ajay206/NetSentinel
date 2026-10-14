@@ -36,6 +36,7 @@ logger = logging.getLogger("api-gateway")
 KAFKA_BOOTSTRAP = os.getenv("KAFKA_BOOTSTRAP", "localhost:9092")
 ALARM_TOPIC = os.getenv("ALARM_TOPIC", "alarms.raw")
 KPI_TOPIC = os.getenv("KPI_TOPIC", "kpis")
+ENRICHED_TOPIC = os.getenv("ENRICHED_TOPIC", "alarms.enriched")
 TIMESCALE_HOST = os.getenv("TIMESCALE_HOST", "localhost")
 TIMESCALE_PORT = int(os.getenv("TIMESCALE_PORT", "5432"))
 CORS_ORIGINS = [
@@ -54,7 +55,8 @@ topology = build_topology(seed=TOPOLOGY_SEED, small=not TOPOLOGY_FULL)
 class AlarmHub:
     """Manages WebSocket clients and recent alarm buffer."""
 
-    def __init__(self, maxlen: int = 200) -> None:
+    def __init__(self, maxlen: int = 200, message_type: str = "alarm") -> None:
+        self.message_type = message_type
         self.clients: set[WebSocket] = set()
         self.recent: deque[dict[str, Any]] = deque(maxlen=maxlen)
 
@@ -70,7 +72,7 @@ class AlarmHub:
     async def publish(self, alarm: dict[str, Any]) -> None:
         """Broadcast alarm to all connected clients."""
         self.recent.append(alarm)
-        message = json.dumps({"type": "alarm", "alarm": alarm}, default=str)
+        message = json.dumps({"type": self.message_type, "alarm": alarm}, default=str)
         dead_clients: list[WebSocket] = []
         for client in self.clients:
             try:
@@ -86,6 +88,7 @@ class AlarmHub:
 
 
 hub = AlarmHub()
+enriched_hub = AlarmHub(message_type="enriched")
 
 
 class KpiActivity:
@@ -236,6 +239,10 @@ async def alarm_handler(alarm: dict[str, Any]) -> None:
     await hub.publish(alarm)
 
 
+async def enriched_handler(alarm: dict[str, Any]) -> None:
+    await enriched_hub.publish(alarm)
+
+
 async def kpi_handler(sample: dict[str, Any]) -> None:
     kpi_activity.record(sample)
 
@@ -247,7 +254,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     if not DISABLE_KAFKA:
         consumer_tasks.append(asyncio.create_task(consume_topic(ALARM_TOPIC, alarm_handler)))
         consumer_tasks.append(asyncio.create_task(consume_topic(KPI_TOPIC, kpi_handler)))
-        logger.info("Kafka consumer tasks started for topics: %s, %s", ALARM_TOPIC, KPI_TOPIC)
+        consumer_tasks.append(asyncio.create_task(consume_topic(ENRICHED_TOPIC, enriched_handler)))
+        logger.info("Kafka consumers started: %s, %s, %s", ALARM_TOPIC, KPI_TOPIC, ENRICHED_TOPIC)
     else:
         logger.info("Kafka disabled via DISABLE_KAFKA=1")
     yield
@@ -304,9 +312,13 @@ async def recent_alarms() -> JSONResponse:
     return JSONResponse(hub.get_snapshot())
 
 
-@app.websocket("/ws/alarms")
-async def websocket_alarms(websocket: WebSocket) -> None:
-    """WebSocket endpoint for real-time alarm streaming."""
+@app.get("/api/alarms/enriched/recent")
+async def recent_enriched_alarms() -> JSONResponse:
+    """Return recent enriched alarms (from alarm-ingest via alarms.enriched)."""
+    return JSONResponse(enriched_hub.get_snapshot())
+
+
+async def _serve_hub(websocket: WebSocket, hub: AlarmHub) -> None:
     await hub.connect(websocket)
     try:
         # Send snapshot
@@ -321,6 +333,18 @@ async def websocket_alarms(websocket: WebSocket) -> None:
         logger.exception("WebSocket error: %s", e)
     finally:
         hub.disconnect(websocket)
+
+
+@app.websocket("/ws/alarms")
+async def websocket_alarms(websocket: WebSocket) -> None:
+    """WebSocket endpoint for real-time raw alarm streaming."""
+    await _serve_hub(websocket, hub)
+
+
+@app.websocket("/ws/enriched")
+async def websocket_enriched(websocket: WebSocket) -> None:
+    """WebSocket endpoint for enriched alarms (snapshot, then type=enriched messages)."""
+    await _serve_hub(websocket, enriched_hub)
 
 
 @app.get("/api/topology")

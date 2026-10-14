@@ -18,6 +18,18 @@ channels:
         topic: alarms.raw
         partitions: 1
         replicas: 1
+  alarms.enriched:
+    description: >-
+      Alarms after alarm-ingest (W4) - normalised, enriched with topology, deduplicated and
+      correlated. Kafka key = siteId. At-least-once delivery (ADR-004).
+    publish:
+      message:
+        $ref: '#/components/messages/EnrichedAlarm'
+    bindings:
+      kafka:
+        topic: alarms.enriched
+        partitions: 3
+        replicas: 1
   kpis:
     description: KPI samples emitted by the netgen-simulator.
     publish:
@@ -96,6 +108,47 @@ components:
             type: string
             enum:
               - Alarm
+    EnrichedAlarm:
+      name: EnrichedAlarm
+      title: Enriched alarm
+      summary: Alarm plus topology enrichment, dedup and correlation, produced by alarm-ingest.
+      payload:
+        allOf:
+          - $ref: '#/components/messages/Alarm/payload'
+          - type: object
+            required: [ingestedAt, enrichment, dedup, correlation]
+            properties:
+              '@type':
+                type: string
+                const: EnrichedAlarm
+              ingestedAt:
+                type: string
+                format: date-time
+              enrichment:
+                type: object
+                required: [region, known, nodeTypes]
+                properties:
+                  siteName: {type: [string, 'null']}
+                  region: {type: string, description: North, Central, South or Unknown}
+                  siteKind: {type: [string, 'null'], enum: [core, hub, access, null]}
+                  nodeTypes: {type: array, items: {type: string}}
+                  parentSiteId: {type: [string, 'null']}
+                  known: {type: boolean}
+              dedup:
+                type: object
+                required: [key, count, firstSeen, isDuplicate]
+                properties:
+                  key: {type: string, description: 'siteId|alarmType|probableCause|specificProblem'}
+                  count: {type: integer, minimum: 1}
+                  firstSeen: {type: string, format: date-time}
+                  isDuplicate: {type: boolean}
+              correlation:
+                type: object
+                required: [groupId, rootSiteId, role]
+                properties:
+                  groupId: {type: [string, 'null']}
+                  rootSiteId: {type: [string, 'null']}
+                  role: {type: string, enum: [root, symptom, none]}
     KpiSample:
       name: KpiSample
       title: KPI Sample

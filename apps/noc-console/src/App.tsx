@@ -1,6 +1,8 @@
 import React, { useMemo } from 'react';
 import { Header } from './components/Header';
 import { LiveAlarms } from './components/LiveAlarms';
+import { EnrichedAlarms } from './components/EnrichedAlarms';
+import { useEnrichedFeed } from './hooks/useEnrichedFeed';
 import { ServiceHealth } from './components/ServiceHealth';
 import { PlaceholderPanel } from './components/PlaceholderPanel';
 import { NetworkMap } from './components/NetworkMap';
@@ -13,6 +15,7 @@ import { worstSeverityBySite } from './lib/siteStatus';
 
 export const App: React.FC = () => {
   const { alarms, status: wsStatus } = useAlarmFeed();
+  const { alarms: enrichedAlarms, status: enrichedStatus } = useEnrichedFeed();
   const { data: health, isError } = useHealth();
   const { data: topology, isLoading: topoLoading, isError: topoError } = useTopology();
   const { activity: kpiActivity, status: kpiStatus } = useKpiActivity();
@@ -29,6 +32,11 @@ export const App: React.FC = () => {
         </div>
         <div>
           <ServiceHealth health={health} isError={isError} />
+        </div>
+
+        {/* Row 1b: enriched feed from alarm-ingest (W4) */}
+        <div className="lg:col-span-3">
+          <EnrichedAlarms alarms={enrichedAlarms} status={enrichedStatus} />
         </div>
 
         {/* Row 2 */}

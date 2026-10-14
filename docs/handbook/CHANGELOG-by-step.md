@@ -34,3 +34,28 @@
   - [x] Mermaid diagrams render on GitHub after quoting.  
   - [x] SHA‑256 hash of `netgen topology` output is identical for repeated runs with the same seed (determinism test).  
   - [x] Docker sanity checks executed on Ajay’s Mac (core, sim, gateway containers start, `/api/topology` returns JSON, `/ws/kpis` streams activity).
+
+## Step 4: Week 4 – alarm‑ingest and enriched alarm feed
+* **Date:** 2026-10-14
+* **Scope:**  
+  * Added `services/alarm-ingest` – FastAPI service on port 8001 that consumes `alarms.raw`, normalises, enriches with deterministic topology seed, de‑duplicates (300 s window) and correlates alarms, then publishes to `alarms.enriched`.  
+  * Extended `api-gateway` to consume `alarms.enriched` and expose:
+    * WebSocket `/ws/enriched` – sends a snapshot followed by incremental `{"type":"enriched","alarm":…}` messages.  
+    * `GET /api/alarms/enriched/recent` – returns the latest N enriched alarms.  
+  * Updated `noc-console` UI with a full‑width **Enriched alarm feed** panel under *Live Alarms*:
+    * Columns: Time (IST), Severity chip, Site (+ site name), Region, Node types, Problem, Dedup (×N badge), Correlation (root / ↳ rootSite / —).  
+    * Summary chips: Alarms, Deduped, Groups.  
+    * Rows with the same de‑dup key are replaced and moved to the top.
+  * Docker Compose profile `pipeline` – runs `alarm-ingest` with `mem_limit: 160m`.  
+  * Makefile targets: `make ingest`, `make up-pipeline`, `make ingest-stats`, `make enriched-peek`, `make down` (stops pipeline).  
+  * Tests:
+    * Pytest suite for `alarm-ingest` covering normalisation, enrichment, de‑duplication (including window expiry with a fake clock), correlation, pipeline stats and FastAPI health endpoints.  
+    * Gateway tests for `/ws/enriched`.  
+    * Vitest suite for the EnrichedAlarms panel and the `applyEnrichedMessage` helper.  
+
+* **Verification:**
+  - [x] `pytest` passes for alarm‑ingest and gateway.
+  - [x] `ruff` linting clean.
+  - [x] `npm run lint && npm run typecheck && npm run build` succeed.
+  - [x] Mermaid diagram in `03-services.md` (alarm-ingest data flow) renders with quoted labels; `make docs-check` passes.
+  - [ ] Docker checks on Ajay's Mac (`make up-pipeline`, `make enriched-peek`, enriched panel fills during `make sim`).

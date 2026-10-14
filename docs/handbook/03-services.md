@@ -144,13 +144,103 @@ The **Week 3** additions are highlighted as **BUILT** and include short hand�
 
 ---
 
+## Pipeline Micro‑services (Week 4 – BUILT)
+
+# Services Inventory – Week 4
+
+### 6. alarm‑ingest (Week 4 – BUILT)
+
+**Purpose**  
+Consume raw alarms, normalise, enrich with topology, de‑duplicate, correlate and publish enriched alarms for downstream consumption.
+
+**Inputs / Outputs**  
+
+| Direction | Kafka Topic | Key | Value |
+|-----------|-------------|-----|-------|
+| **Consume** | `alarms.raw` | none (partition key not used) | raw alarm JSON |
+| **Produce** | `alarms.enriched` | `siteId` | `EnrichedAlarm` JSON |
+
+**Processing Stages**
+
+1. **Normalize** – Validate `id`, `site`, `severity`. Map severity aliases (`crit`, `maj`, `min`, `warn`, `clear`, `indeterminate`) to canonical values. Convert `alarmRaisedTime` to UTC ISO‑8601 (`Z`). Invalid messages are counted in `stats.invalid` and dropped.
+2. **Enrich** – Build the topology in memory with `netgen.build_topology(seed=TOPOLOGY_SEED)` (same seed as the gateway, so site ids match). Add `siteName`, `region`, `siteKind`, `nodeTypes`, `parentSiteId`, `known`. Unknown sites get `region: "Unknown"`.
+3. **De‑duplicate** – Build a key `siteId|alarmType|probableCause|specificProblem`. Keep entries for 300 s. Emit a de‑dup record `{key, count, firstSeen, isDuplicate}`. A `clear` alarm removes active keys for the same `siteId` and `probableCause`.
+4. **Correlate** – A critical alarm at site **X** creates a correlation group `corr-<alarm id>` that lives for 180 s. Subsequent alarms from **X** or any descendant in the topology receive role `symptom` with `rootSiteId: X`. Otherwise role is `none`.
+5. **Publish** – Add `ingestedAt` (UTC, shown as IST in the console) and `@type: "EnrichedAlarm"` then publish to `alarms.enriched` keyed by `siteId`.
+
+**Environment Variables**
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `KAFKA_BOOTSTRAP` | Kafka bootstrap servers | `localhost:9092` (compose: `kafka:29092`) |
+| `RAW_TOPIC` | Raw alarm topic name | `alarms.raw` |
+| `ENRICHED_TOPIC` | Enriched alarm topic name | `alarms.enriched` |
+| `TOPOLOGY_SEED` | Topology seed (integer) | `42` |
+| `TOPOLOGY_FULL` | `1` = full 60-site topology, `0` = small 12-site | `0` |
+| `DISABLE_KAFKA` | If `1`, skip Kafka connection (useful for local dev) | `0` |
+| `PORT` | FastAPI listen port | `8001` |
+
+**Endpoints**
+
+* `GET /healthz` – always 200.
+* `GET /readyz` – 200 when Kafka is connected or `DISABLE_KAFKA=1`; otherwise 503.
+* `GET /stats` – JSON with `received`, `published`, `invalid`, `duplicates`, `activeDedupKeys`.
+
+**How to Run**
+
+```bash
+# Local development
+make ingest          # runs uvicorn on :8001
+
+# Full pipeline (docker compose)
+make up-pipeline
+
+# Stop everything
+make down
+```
+
+**How to Test**
+
+```bash
+# Unit tests
+uv run pytest services/alarm-ingest
+
+# Stats endpoint
+curl http://localhost:8001/stats
+
+# Peek at enriched messages
+make enriched-peek
+```
+
+**Debugging Tips**
+
+* `/stats` shows counts; `duplicates` counts repeats inside the 300 s window; after a restart the windows start empty.
+* `make enriched-peek` consumes a few messages from `alarms.enriched` and prints them.
+* `GET /readyz` returning 503 means the service cannot reach Kafka. Check network and broker logs.
+* Consumer group lag:  
+  ```bash
+  kafka-consumer-groups.sh --bootstrap-server $KAFKA_BOOTSTRAP \
+    --describe --group alarm-ingest
+  ```
+
+**Data flow**
+
+```mermaid
+flowchart LR
+    A["alarms.raw"] --> B["normalize"]
+    B --> C["enrich"]
+    C --> D["dedupe"]
+    D --> E["correlate"]
+    E --> F["alarms.enriched"]
+    F --> G["api-gateway /ws/enriched"]
+    G --> H["noc-console panel"]
+```
+
+---
+
 ## Planned Micro‑services (Phase 1 & 2 – PLANNED)
 
 *(Unchanged from previous weeks; retained for roadmap visibility.)*
-
-### 6. alarm‑ingest
-* **Status:** PLANNED
-* **Purpose:** Consumes `alarms.raw`, enriches with topology metadata, republishes to `alarms.enriched`.
 
 ### 7. kpi‑service
 * **Status:** PLANNED
