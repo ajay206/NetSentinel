@@ -80,3 +80,23 @@ The topology seed does not contain the site ID, or the site ID in the raw alarm 
 **Fix**  
 * Check the raw alarm `siteId` / `alarmedObject.id` for correct formatting.  
 * Make sure `TOPOLOGY_SEED` / `TOPOLOGY_FULL` are the same for the simulator, alarm-ingest and the gateway (default 42 / 0).
+
+### 13. KPI charts empty
+**Symptom**: The KPI panel shows no lines or data points.  
+**Cause**: The console queried the KPI service with a time range that contains no samples (e.g., wrong IST conversion) or the service returned an empty `points` array.  
+**Fix**: Verify the request parameters in the network tab. Ensure `from`/`to` are in IST and fall within the last 62 days. Use `GET /kpis/cells` to confirm that the cell has recent samples.  
+
+### 14. kpi-service unreachable (503)
+**Symptom**: The API‑gateway returns `503 Service Unavailable` with message *“kpi-service unreachable”*.  
+**Cause**: The KPI service container is not running, crashed, or the `KPI_SERVICE_URL` env var points to the wrong host/port.  
+**Fix**: `docker compose ps` → restart the service (`docker compose up -d kpi-service`). Check logs (`docker compose logs kpi-service`). Ensure the port matches `PORT` env var.  
+
+### 15. readyz 503 (DB)
+**Symptom**: `GET /readyz` returns `503 Service Unavailable`.  
+**Cause**: TimescaleDB is not reachable, credentials are wrong, or migrations have not been applied.  
+**Fix**: Confirm the TimescaleDB container is up (`docker compose ps`). Test connectivity: `docker compose exec timescaledb psql -U $POSTGRES_USER -c "\dt"`. Apply migrations manually if needed (`make kpi-service` will run them at startup).  
+
+### 16. Duplicate‑key / no new rows after replay
+**Symptom**: After replaying a Kafka partition, the row count in `kpi_samples` does not increase.  
+**Cause**: The `INSERT … ON CONFLICT (cell_id, ts) DO NOTHING` clause intentionally discards duplicates; the replayed messages have timestamps identical to existing rows.  
+**Fix**: This is expected behavior. If you need to reprocess data, adjust the consumer offset or change the primary key strategy (e.g., include a version column).

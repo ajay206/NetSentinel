@@ -31,7 +31,10 @@ channels:
         partitions: 3
         replicas: 1
   kpis:
-    description: KPI samples emitted by the netgen-simulator.
+    description: >-
+      KPI samples emitted by the netgen-simulator (key = cellId). Consumed by api-gateway
+      (activity strip) and, from W5, by kpi-service (group kpi-service), which stores them in
+      TimescaleDB idempotently on (cellId, timestamp) - see ADR-005.
     publish:
       message:
         $ref: '#/components/messages/KpiSample'

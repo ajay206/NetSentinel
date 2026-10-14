@@ -144,7 +144,7 @@ The **Week 3** additions are highlighted as **BUILT** and include short hand�
 
 ---
 
-## Pipeline Micro‑services (Week 4 – BUILT)
+## Pipeline Micro‑services (Weeks 4–5 – BUILT)
 
 # Services Inventory – Week 4
 
@@ -238,13 +238,104 @@ flowchart LR
 
 ---
 
+### 7. kpi-service (Week 5 – BUILT)
+
+**Purpose**  
+Consume KPI samples from Kafka, store them in a TimescaleDB hypertable, and expose read‑only HTTP endpoints for the NOC console.
+
+#### Inputs / Outputs
+
+| Direction | System                | Interface / Format                     |
+|-----------|-----------------------|----------------------------------------|
+| Input     | `kpis` Kafka topic    | JSON messages, fields: `cellId`, `siteId`, `region`, `ts` (ISO‑8601 IST), `dlThroughputMbps`, `prbUtilPct`, `rrcSetupSuccessPct`, `dropCallRatePct`, `availabilityPct` |
+| Output    | TimescaleDB `kpi_samples` | Table rows (UTC timestamps) |
+| Output    | FastAPI HTTP endpoints | JSON responses (see *Endpoints* section) |
+
+#### Database Schema
+
+| Table | Columns | Description |
+|-------|---------|-------------|
+| `kpi_samples` (hypertable) | `cell_id` **TEXT** PK part | Identifier of the cell |
+| | `ts` **TIMESTAMPTZ** PK part | Sample timestamp (stored in UTC) |
+| | `site_id` **TEXT** | Site identifier |
+| | `region` **TEXT** | Geographic region |
+| | `dl_throughput_mbps` **DOUBLE PRECISION** | Downlink throughput |
+| | `prb_util_pct` **DOUBLE PRECISION** |
+| | `rrc_setup_success_pct` **DOUBLE PRECISION** |
+| | `drop_call_rate_pct` **DOUBLE PRECISION** |
+| | `availability_pct` **DOUBLE PRECISION** |
+| Indexes | `PRIMARY KEY (cell_id, ts)` | Guarantees idempotent inserts |
+| | `INDEX ON cell_id` | Fast lookup per cell |
+| | `INDEX ON ts DESC` | Recent‑sample queries |
+
+#### API Endpoints
+
+| Method | Path | Query Params | Description |
+|--------|------|--------------|-------------|
+| `GET` | `/healthz` | – | Returns `200 OK` if the process is alive. |
+| `GET` | `/readyz` | – | Returns `200 OK` only when DB and Kafka are reachable; otherwise `503`. |
+| `GET` | `/stats` | – | `{received, written, invalid}` counters. |
+| `GET` | `/kpis/cells` | `limit` (default 500) | List of cells with latest timestamp and sample count. |
+| `GET` | `/kpis/cells/{cellId}` | `from`, `to` (ISO‑8601 UTC, e.g. `2026-10-14T09:00:00Z`), `agg` (`raw`, `15m`, `1h`, `1d`) | Time‑series points for a single cell. Aggregation uses `time_bucket` + `AVG`. Default: last 24 h. Max range: 62 days. Invalid params → `422`. |
+
+#### Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `KAFKA_BOOTSTRAP` | `localhost:9092` | Kafka bootstrap servers |
+| `KPI_TOPIC` | `kpis` | Kafka topic name |
+| `KPI_STORE` | `postgres` | `postgres` or `memory` (test mode) |
+| `TIMESCALE_HOST` | `localhost` | TimescaleDB host |
+| `TIMESCALE_PORT` | `5432` | TimescaleDB port |
+| `POSTGRES_USER` | `postgres` | DB user |
+| `POSTGRES_PASSWORD` | – (from `.env`) | DB password |
+| `POSTGRES_DB` | `postgres` | Database name |
+| `DATABASE_URL` | – | If set, overrides the assembled URL |
+| `DISABLE_KAFKA` | – | If set, the consumer is disabled (useful for dev) |
+| `PORT` | `8002` | HTTP listen port |
+| `KPI_SERVICE_URL` | `http://localhost:8002` | Used by the API‑gateway to proxy requests |
+
+#### Run / Test / Debug
+
+```bash
+# Start the service (reads .env)
+make kpi-service
+
+# Show DB row count
+docker compose exec timescaledb \
+  psql -U postgres -c "SELECT COUNT(*) FROM kpi_samples;"
+
+# Check consumer lag
+docker compose exec kafka \
+  kafka-consumer-groups.sh --bootstrap-server localhost:9092 \
+  --describe --group kpi-service
+
+# Run KPI‑service stats helper (prints received / written counters)
+make kpi-stats
+
+# Run unit tests
+pytest -q src/kpi_service/tests
+
+# Run linter / type‑checker
+ruff check src/kpi_service
+mypy src/kpi_service
+```
+
+#### Architecture Diagram
+
+```mermaid
+flowchart LR
+    A["netgen-simulator"] --> B["kpis topic"]
+    B --> C["kpi-service"]
+    C --> D["TimescaleDB"]
+    E["noc-console"] --> F["api-gateway /api/kpi"]
+    F --> C
+```
+
+
 ## Planned Micro‑services (Phase 1 & 2 – PLANNED)
 
 *(Unchanged from previous weeks; retained for roadmap visibility.)*
-
-### 7. kpi‑service
-* **Status:** PLANNED
-* **Purpose:** Processes KPI streams and persists metric history to TimescaleDB.
 
 ### 8. incident‑service
 * **Status:** PLANNED

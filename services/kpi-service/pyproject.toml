@@ -1,0 +1,23 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "kpi-service"
+version = "0.1.0"
+description = "KPI ingestion and query service for NetSentinel"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+    "aiokafka>=0.11",
+    "psycopg[binary]>=3.2",
+    "psycopg-pool>=3.2",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/kpi_service"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"

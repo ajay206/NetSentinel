@@ -1,6 +1,6 @@
 # Profiles and memory budget:
 # core services (~1.5 GB total), UI profile adds ~192 MB, Sim profile adds ~256 MB,
-# Pipeline profile (alarm-ingest) adds ~160 MB.
+# Pipeline profile (alarm-ingest ~160 MB + kpi-service ~192 MB) adds ~350 MB.
 # The console runs natively on the host and is not containerized.
 services:
   kafka:
@@ -67,6 +67,7 @@ services:
       ALARM_TOPIC: alarms.raw
       KPI_TOPIC: kpis
       ENRICHED_TOPIC: alarms.enriched
+      KPI_SERVICE_URL: http://kpi-service:8002
       TOPOLOGY_SEED: "42"
       TOPOLOGY_FULL: "0"
       TIMESCALE_HOST: timescaledb
@@ -101,6 +102,32 @@ services:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request;urllib.request.urlopen('http://localhost:8001/healthz')\""]
+      interval: 10s
+      retries: 5
+    restart: unless-stopped
+
+  kpi-service:
+    build:
+      context: .
+      dockerfile: services/kpi-service/Dockerfile
+    profiles: ["pipeline"]
+    ports:
+      - "8002:8002"
+    environment:
+      KAFKA_BOOTSTRAP: kafka:29092
+      KPI_TOPIC: kpis
+      KPI_STORE: postgres
+      TIMESCALE_HOST: timescaledb
+      TIMESCALE_PORT: "5432"
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set in .env}
+    mem_limit: 192m
+    depends_on:
+      kafka:
+        condition: service_healthy
+      timescaledb:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request;urllib.request.urlopen('http://localhost:8002/healthz')\""]
       interval: 10s
       retries: 5
     restart: unless-stopped

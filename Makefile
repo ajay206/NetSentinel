@@ -1,4 +1,4 @@
-.PHONY: up-core up-tools up-ui down topics test lint fmt smoke sim sim-loop sim-docker gateway console-install console console-build console-lint console-test test-all ingest up-pipeline enriched-peek ingest-stats topology kpis kpis-follow kpis-peek docs-check
+.PHONY: up-core up-tools up-ui down topics test lint fmt smoke sim sim-loop sim-docker gateway console-install console console-build console-lint console-test test-all ingest up-pipeline enriched-peek ingest-stats kpi-service kpi-stats kpi-query topology kpis kpis-follow kpis-peek docs-check
 
 up-core:
 	docker compose --profile core up -d
@@ -82,6 +82,15 @@ ingest-stats:
 
 enriched-peek:
 	docker compose exec -T kafka /opt/kafka/bin/kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic alarms.enriched --from-beginning --max-messages 5 --timeout-ms 10000
+
+kpi-service:
+	uv run --env-file .env uvicorn kpi_service.main:app --port 8002
+
+kpi-stats:
+	curl -s localhost:8002/stats; echo
+
+kpi-query:
+	curl -s "localhost:8000/api/kpi/cells?limit=3"; echo
 
 docs-check:
 	python3 scripts/check_docs.py

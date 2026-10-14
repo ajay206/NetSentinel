@@ -1,0 +1,88 @@
+openapi: 3.1.0
+info:
+  title: NetSentinel kpi-service
+  version: 0.1.0
+  description: KPI time-series query API (W5). Reached from the console via api-gateway /api/kpi/*.
+servers:
+  - url: http://localhost:8002
+paths:
+  /healthz:
+    get:
+      responses:
+        '200': {description: Process is alive}
+  /readyz:
+    get:
+      responses:
+        '200': {description: Store reachable and Kafka connected (or disabled)}
+        '503': {description: Not ready}
+  /stats:
+    get:
+      responses:
+        '200':
+          description: Consumer counters
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  received: {type: integer}
+                  written: {type: integer}
+                  invalid: {type: integer}
+  /kpis/cells:
+    get:
+      parameters:
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 5000, default: 500}}
+      responses:
+        '200':
+          description: Cells that have samples, newest first
+          content:
+            application/json:
+              schema:
+                type: array
+                items: {$ref: '#/components/schemas/KpiCell'}
+  /kpis/cells/{cellId}:
+    get:
+      parameters:
+        - {name: cellId, in: path, required: true, schema: {type: string}}
+        - {name: from, in: query, schema: {type: string, format: date-time}}
+        - {name: to, in: query, schema: {type: string, format: date-time}}
+        - {name: agg, in: query, schema: {type: string, enum: [raw, 15m, 1h, 1d], default: 1h}}
+      responses:
+        '200':
+          description: Time series (UTC timestamps, end-exclusive window, max 62 days)
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/KpiSeries'}
+        '422': {description: Invalid agg, timestamps, from >= to, or range > 62 days}
+components:
+  schemas:
+    KpiCell:
+      type: object
+      required: [cellId, lastTs, sampleCount]
+      properties:
+        cellId: {type: string}
+        siteId: {type: [string, 'null']}
+        region: {type: [string, 'null']}
+        lastTs: {type: string, format: date-time}
+        sampleCount: {type: integer}
+    KpiPoint:
+      type: object
+      required: [ts]
+      properties:
+        ts: {type: string, format: date-time}
+        dlThroughputMbps: {type: [number, 'null']}
+        prbUtilPct: {type: [number, 'null']}
+        rrcSetupSuccessPct: {type: [number, 'null']}
+        dropCallRatePct: {type: [number, 'null']}
+        availabilityPct: {type: [number, 'null']}
+    KpiSeries:
+      type: object
+      required: [cellId, agg, from, to, points]
+      properties:
+        cellId: {type: string}
+        agg: {type: string}
+        from: {type: string, format: date-time}
+        to: {type: string, format: date-time}
+        points:
+          type: array
+          items: {$ref: '#/components/schemas/KpiPoint'}
