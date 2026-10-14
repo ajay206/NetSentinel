@@ -204,7 +204,7 @@ Introduces the `copilot-orchestrator` service that analyses recent alarms and KP
 - [x] **CI workflow** – steps of `.github/workflows/ci.yml` re-run locally in a clean clone.  
 - [x] **Local streamable‑HTTP smoke test** – token accepted, wrong token yields 401 (checked).  
 - [ ] **MCP Inspector** – verified on Ajay’s Mac (requires Node/npx).  
-- [ ] **Docker health** – `docker compose up -d` starts all services, `docker compose ps` shows healthy.  
+- [ ] **Docker health** – `docker compose up -d` starts all services, `make ps` shows healthy.  
 - [ ] **Browser e2e with Ollama** – pending; will be executed in Phase 2.
 
 ## Step 11 – W11 gateway JWT/RBAC + alarm storm timeline
@@ -278,3 +278,25 @@ Introduces the topology‑aware incident clustering service, its API, and the ne
   * Concurrent with 60 s gap – 90 incidents, compression 4.41×, root match 65 %, split 1, merged 9.  
 - **Operational checks**: `/readyz` returns 200, Incident board displays cards, filters work, and restart yields identical incident sets.  
 - **Mac checks pending** – verify UI rendering on macOS browsers.
+
+## Fix 1 – demo portability (`fix-demo-portability`)
+
+### Summary
+`make demo` now works on any machine with only Docker, git and make (macOS, Linux, Windows/WSL2). Fixes the bugs Ajay hit running the demo on a Mac against main `58a9b6c`.
+
+### Changes
+| Area | Change |
+|---|---|
+| compose.yaml | Every `depends_on` has a `condition`; kafka/timescaledb also in dependent profiles (all 512 profile combinations validate); fixed project `name: netsentinel`; new `noc-console` (nginx, `ui`) and `tools` (`cli`) services |
+| Dockerfiles | Run `uvicorn`/`netgen-sim` from the venv instead of `uv run`; `UV_NO_CACHE`/`UV_CACHE_DIR`; home dir for appuser; libgomp1 for ml-service; multi-arch base images |
+| kpi-service | No more `PoolClosed` crash: fresh pool per attempt, background retry with backoff, `/readyz` 503 until migrated |
+| rag-service | Retries ingest in the background when Qdrant isn't ready |
+| ml-service | `xgboost-cpu` → `xgboost` (prebuilt wheels everywhere); NCCL excluded; `uv.lock` updated |
+| demo/smoke/Makefile | Host steps moved into the tools container; `scripts/gw.py` (wait/token/call); `make logs S=`, `ps`, `reset-db`, `incidents`, `tools-build`; `(dev)` markers on host targets |
+| copilot | `AnalyzeRequest` accepts `siteId` (alias) and `site_id`; console sends `siteId`; contract regenerated |
+| docs | Docker-only prerequisites (+ memory note, WSL2), troubleshooting #51–57 |
+
+### Verification
+- ruff, pytest, vitest, console lint/typecheck/build green in a clean clone; `docker compose config` passes for all 512 profile combinations (compose v2.32 binary, no daemon); shellcheck clean.
+- Each service's `uv sync --frozen --no-dev --package …` venv imports its app and has `uvicorn` on PATH.
+- **Mac checks pending:** images not built on the box (no Docker daemon); run `make demo` on Mac (arm64) and on Linux/WSL.

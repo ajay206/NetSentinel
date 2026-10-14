@@ -13,7 +13,7 @@ export const useCopilotAnalyze = () =>
       const resp = await fetch('/api/copilot/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ site_id: siteId, window }),
+        body: JSON.stringify({ siteId, window }),
       });
       if (resp.status === 404) throw new Error('No alarms for this site in the window');
       if (!resp.ok) throw new Error('Copilot unavailable');

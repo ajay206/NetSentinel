@@ -28,25 +28,16 @@ NetSentinel is an AI-assisted NOC copilot for telecom operators. It runs locally
 - Kubernetes deployment
 
 ## Quick start
-**Prerequisites**
-- Docker Desktop
-- `uv` (Python package manager)
-- Node 20 (for the console)
-- Optional: Ollama with `make ollama-pull` to pull the local LLM
+**Prerequisites:** Docker (Desktop or Engine with Compose v2), git and make. That's all: Python, uv and Node are only needed for development. Windows: use WSL2. On 8 GB machines, give Docker 4–5 GB (see `docs/handbook/02-local-setup.md`).
+Optional: Ollama on the host (`ollama pull qwen2.5:1.5b`) for LLM answers.
 
-**Setup**
 ```bash
-cp env.example.txt .env
-# Edit .env and set:
-#   JWT_SECRET (≥32 characters)
-#   GATEWAY_SERVICE_TOKEN
-#   MCP_SERVICE_TOKEN
-uv sync --all-extras --dev
-make console-install
-make demo          # stack up, topics, KPI back-fill, fibre_cut, smoke test
-make console       # starts the React console
+git clone https://github.com/ajay206/NetSentinel.git && cd NetSentinel
+make demo          # .env from env.example.txt if missing; build, start, topics, KPIs, fibre_cut, smoke
 ```
 Open http://localhost:5173 and sign in with the demo user **operator** (password = `operator`).
+For real secrets, edit `.env` (JWT_SECRET ≥32 chars, GATEWAY_SERVICE_TOKEN, MCP_SERVICE_TOKEN, POSTGRES_PASSWORD) before the first run.
+Logs: `make logs S=<service>`; stop: `make down`.
 
 ## Demo walkthrough
 `make demo` plays the seeded fibre_cut scenario. In the console, the **Demo path (fibre_cut)** strip at the top

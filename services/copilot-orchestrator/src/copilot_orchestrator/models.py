@@ -6,9 +6,11 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class AnalyzeRequest(BaseModel):
+    # Clients (console, smoke.py, `make analyze`) send camelCase `siteId` like the rest of the
+    # API; `site_id` is still accepted (populate_by_name) for older callers.
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
 
-    site_id: str = Field(pattern=r"^SITE-\d{3}$")
+    site_id: str = Field(alias="siteId", pattern=r"^SITE-\d{3}$")
     window: str = Field(default="30m", pattern=r"^\d{1,3}m$")
 
     @property

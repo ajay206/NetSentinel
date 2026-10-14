@@ -1,4 +1,6 @@
-.PHONY: up-core up-tools up-ui down topics test lint fmt smoke sim sim-loop sim-docker gateway console-install console console-build console-lint console-test test-all ingest up-pipeline enriched-peek ingest-stats kpi-service kpi-stats kpi-query ml ml-train anomalies topology kpis kpis-follow kpis-peek docs-check ml-train-xgb up-rag rag rag-ingest rag-eval runbooks copilot up-copilot analyze ollama-pull mcp mcp-dev mcp-contract copilot-contract gateway-contract token demo kafka-smoke incident up-incident incidents-peek incident-eval
+.PHONY: logs ps reset-db tools-build incidents up-core up-tools up-ui down topics test lint fmt smoke sim sim-loop sim-docker gateway console-install console console-build console-lint console-test test-all ingest up-pipeline enriched-peek ingest-stats kpi-service kpi-stats kpi-query ml ml-train anomalies topology kpis kpis-follow kpis-peek docs-check ml-train-xgb up-rag rag rag-ingest rag-eval runbooks copilot up-copilot analyze ollama-pull mcp mcp-dev mcp-contract copilot-contract gateway-contract token demo kafka-smoke incident up-incident incidents-peek incident-eval
+
+# Targets marked (dev) run on the host and need uv / Node; everything else needs only Docker.
 
 up-core:
 	docker compose --profile core up -d
@@ -9,18 +11,41 @@ up-tools:
 up-ui:
 	docker compose --profile core --profile ui up --build -d
 
+# Every compose profile: `docker compose logs/ps/down` only see services whose profile is enabled
+PROFILES := --profile core --profile tools --profile ui --profile sim --profile pipeline --profile rag --profile copilot --profile ops --profile cli
+# One-shot tools container (netgen-sim, smoke.py, gw.py) on the compose network
+TOOLS := docker compose --profile cli run --rm --no-deps -T tools
+
 down:
-	docker compose --profile core --profile tools --profile ui --profile sim --profile pipeline --profile rag --profile copilot --profile ops down
+	docker compose $(PROFILES) down
+
+# make logs S=kpi-service [F=1 to follow]
+S ?=
+logs:
+	docker compose $(PROFILES) logs --tail=200 $(if $(F),-f) $(S)
+
+ps:
+	docker compose $(PROFILES) ps
+
+# Removes the TimescaleDB volume (all KPI data). Needed when pg-data was initialised with a
+# different POSTGRES_PASSWORD than the one in .env (Postgres only reads it on first init).
+reset-db:
+	docker compose $(PROFILES) rm -sf timescaledb kpi-service ml-service
+	-docker volume rm netsentinel_pg-data
+	@echo "pg-data removed; start again with: make demo (or make up-pipeline)"
 
 topics:
 	bash scripts/create_topics.sh
 
+# (dev) needs uv/Node on the host
 test:
 	uv run pytest
 
+# (dev) needs uv/Node on the host
 lint:
 	uv run ruff check .
 
+# (dev) needs uv/Node on the host
 fmt:
 	uv run ruff format .
 
@@ -31,26 +56,31 @@ demo:
 smoke:
 	bash scripts/smoke.sh
 
+tools-build:
+	docker compose --profile cli build tools
+
 kafka-smoke:
 	@echo '{"smoke": "test", "siteId": "SITE-001"}' | docker compose exec -T kafka /opt/kafka/bin/kafka-console-producer.sh --bootstrap-server localhost:9092 --topic alarms.raw
 	@echo "Consumed test message:"
 	docker compose exec -T kafka /opt/kafka/bin/kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic alarms.raw --from-beginning --max-messages 1 --timeout-ms 5000
 
 sim:
-	uv run netgen-sim run --seed 42 --scenario fibre_cut --speed 60x
+	$(TOOLS) netgen-sim run --seed 42 --scenario fibre_cut --speed 60x
 
 sim-loop:
-	uv run netgen-sim run --seed 42 --scenario fibre_cut --speed 60x --loop
+	$(TOOLS) netgen-sim run --seed 42 --scenario fibre_cut --speed 60x --loop
 
 sim-docker:
 	docker compose --profile core --profile sim up -d --build netgen-simulator
 
+# (dev) needs uv/Node on the host
 gateway:
 	uv run uvicorn api_gateway.main:app --reload --port 8000
 
 console-install:
 	npm --prefix apps/noc-console ci
 
+# (dev) needs uv/Node on the host
 console:
 	npm --prefix apps/noc-console run dev
 
@@ -66,18 +96,20 @@ console-test:
 
 test-all: test console-test
 
+# (dev) needs uv/Node on the host
 topology:
 	uv run netgen topology --seed 42 --out data/topology.json
 
 kpis:
-	uv run netgen-sim kpis --seed 42 --days 1
+	$(TOOLS) netgen-sim kpis --seed 42 --days 1
 
 kpis-follow:
-	uv run netgen-sim kpis --seed 42 --days 1 --follow
+	$(TOOLS) netgen-sim kpis --seed 42 --days 1 --follow
 
 kpis-peek:
-	kcat -C -b localhost:9092 -t kpis -c 5 -e
+	docker compose exec -T kafka /opt/kafka/bin/kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic kpis --from-beginning --max-messages 5 --timeout-ms 10000
 
+# (dev) needs uv/Node on the host
 ingest:
 	uv run uvicorn alarm_ingest.main:app --port 8001
 
@@ -90,6 +122,7 @@ ingest-stats:
 enriched-peek:
 	docker compose exec -T kafka /opt/kafka/bin/kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic alarms.enriched --from-beginning --max-messages 5 --timeout-ms 10000
 
+# (dev) needs uv/Node on the host
 kpi-service:
 	uv run --env-file .env uvicorn kpi_service.main:app --port 8002
 
@@ -99,39 +132,49 @@ kpi-stats:
 kpi-query:
 	curl -s "localhost:8000/api/kpi/cells?limit=3"; echo
 
+# (dev) needs uv/Node on the host
 ml:
 	uv run uvicorn ml_service.api:app --port 8003
 
+# (dev) needs uv/Node on the host
 ml-train:
 	uv run python -m ml_service.train_baselines --experiment anomaly-baselines --seed 42 --days 7
 
+# (dev) needs uv/Node on the host
 ml-train-xgb:
 	cd services/ml-service && uv run python -m ml_service.train_xgb --register
 
 up-rag:
 	docker compose --profile rag up -d --build qdrant rag-service
 
+# (dev) needs uv/Node on the host
 rag:
 	uv run uvicorn rag_service.api:app --port 8004
 
+# (dev) needs uv/Node on the host
 runbooks:
 	python3 scripts/gen_runbooks.py
 
+# (dev) needs uv/Node on the host
 rag-ingest:
 	uv run python -m rag_service.ingest data/runbooks
 
+# (dev) needs uv/Node on the host
 rag-eval:
 	uv run python -m rag_service.eval --mode all --k 3
 
+# (dev) needs uv/Node on the host
 copilot:
 	uv run uvicorn copilot_orchestrator.api:app --port 8005
 
 up-copilot:
 	docker compose --profile copilot up -d --build mcp-server copilot-orchestrator
 
+# (dev) needs uv/Node on the host
 mcp:
 	MCP_ALLOW_NO_TOKEN=1 uv run uvicorn --factory mcp_server.app:build_app --port 8006
 
+# (dev) needs uv/Node on the host
 mcp-dev:
 	uv run mcp dev services/mcp-server/src/mcp_server/server.py
 
@@ -147,7 +190,7 @@ gateway-contract:
 # W11: get a JWT from the gateway (demo users; synthetic data only)
 AS ?= operator
 token:
-	@curl -s -X POST localhost:8000/api/auth/login -H 'Content-Type: application/json' -d '{"username":"$(AS)","password":"$(AS)"}' | python3 -c 'import json,sys;print(json.load(sys.stdin)["accessToken"])'
+	@$(TOOLS) python scripts/gw.py token --as $(AS)
 
 ollama-pull:
 	ollama pull qwen2.5:1.5b
@@ -155,17 +198,19 @@ ollama-pull:
 SITE ?= SITE-012
 WINDOW ?= 30m
 analyze:
-	@TOKEN=$$($(MAKE) -s token AS=operator); \
-	curl -s -XPOST localhost:8000/api/copilot/analyze -H 'content-type: application/json' \
-		-H "Authorization: Bearer $$TOKEN" -d '{"siteId":"$(SITE)","window":"$(WINDOW)"}'; echo
+	@$(TOOLS) python scripts/gw.py call POST /api/copilot/analyze --as operator --data '{"siteId":"$(SITE)","window":"$(WINDOW)"}'
 
 anomalies:
-	@TOKEN=$$($(MAKE) -s token AS=viewer); \
-	curl -s -H "Authorization: Bearer $$TOKEN" "localhost:8000/api/ml/anomalies?hours=24&limit=5"; echo
+	@$(TOOLS) python scripts/gw.py call GET "/api/ml/anomalies?hours=24&limit=5" --as viewer
 
+incidents:
+	@$(TOOLS) python scripts/gw.py call GET "/api/incidents?limit=5" --as viewer
+
+# (dev) needs uv/Node on the host
 docs-check:
 	python3 scripts/check_docs.py
 
+# (dev) needs uv/Node on the host
 incident:
 	DISABLE_KAFKA=0 uv run uvicorn incident_service.main:app --port 8007
 
@@ -175,5 +220,6 @@ up-incident:
 incidents-peek:
 	docker compose exec -T kafka /opt/kafka/bin/kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic incidents --from-beginning --property print.key=true --max-messages 5 --timeout-ms 10000
 
+# (dev) needs uv/Node on the host
 incident-eval:
 	uv run incident-eval --out evals/rca_report.md

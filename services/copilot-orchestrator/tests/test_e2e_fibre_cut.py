@@ -52,3 +52,16 @@ def test_no_alarms_404_and_bad_site_422(client_with):
     assert c.post("/analyze", json={"site_id": "SITE-777"}).status_code == 404
     assert c.post("/analyze", json={"site_id": "S-12"}).status_code == 422
     assert c.get("/healthz").json() == {"status": "ok"}
+
+
+@pytest.mark.parametrize("key", ["siteId", "site_id"])
+def test_analyze_accepts_camel_and_snake_site_id(client_with, key):
+    resp = client_with(MockLLM([good_answer()])).post("/analyze", json={key: "SITE-010"})
+    assert resp.status_code == 200, resp.text
+
+
+def test_analyze_rejects_unknown_fields(client_with):
+    resp = client_with(MockLLM([good_answer()])).post(
+        "/analyze", json={"siteId": "SITE-010", "bogus": 1}
+    )
+    assert resp.status_code == 422

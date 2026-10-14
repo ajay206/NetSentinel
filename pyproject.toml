@@ -28,6 +28,11 @@ dev = [
     "pytest-asyncio>=0.24",
 ]
 
+[tool.uv]
+# xgboost's Linux wheels pull in NVIDIA NCCL (~300 MB) for multi-GPU training. NetSentinel is
+# CPU-only, so drop it everywhere (xgboost only loads NCCL lazily for GPU collectives).
+override-dependencies = ["nvidia-nccl-cu13; sys_platform == 'never'"]
+
 [tool.uv.workspace]
 members = ["libs/*", "services/*"]
 

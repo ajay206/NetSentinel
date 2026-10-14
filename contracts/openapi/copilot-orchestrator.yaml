@@ -95,10 +95,10 @@ components:
       title: AlarmRef
     AnalyzeRequest:
       properties:
-        site_id:
+        siteId:
           type: string
           pattern: ^SITE-\d{3}$
-          title: Site Id
+          title: Siteid
         window:
           type: string
           pattern: ^\d{1,3}m$
@@ -107,7 +107,7 @@ components:
       additionalProperties: false
       type: object
       required:
-      - site_id
+      - siteId
       title: AnalyzeRequest
     AnalyzeResponse:
       properties:

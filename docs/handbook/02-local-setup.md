@@ -2,57 +2,44 @@
 
 This guide walks you through setting up NetSentinel locally on a resource‑constrained development environment like a MacBook Air M2 with 8 GB RAM.
 
-## System Prerequisites
-* **Python:** `>=3.12` (install via Homebrew or python.org)  
-* **uv:** Fast Python package installer and workspace manager (`pip install uv`)  
-* **Docker Desktop:** Allocate **at least 4 GB RAM** to Docker (Settings → Resources).  
-* **Node:** **v22** (required for the React dashboard). Install with Homebrew: `brew install node@22`.  
-* **Ollama (Optional for AI phases):** Running locally (`ollama serve`) with models like `llama3` or `mistral`.
+## Quick start (any OS: macOS, Linux, Windows via WSL2)
 
-## Step‑by‑Step Setup
+The demo needs only three things on the host. Python, uv, Node, compilers and libomp are **not** required: every service, the console and the CLI tools (simulator, smoke test, gateway helper) run in containers.
 
-1. **Clone the repository and copy the environment file**
-   ```bash
-   git clone https://github.com/ajay206/netsentinel.git
-   cd netsentinel
-   cp .env.example .env
-   # Edit .env and set POSTGRES_PASSWORD=your_secure_password
-   ```
+| Prerequisite | Notes |
+|---|---|
+| **Docker** | Docker Desktop (macOS/Windows) or Docker Engine + Compose v2 plugin (Linux). Images are multi-arch (linux/amd64 and linux/arm64, e.g. Apple Silicon). |
+| **git** | To clone the repo. |
+| **make** | Preinstalled on macOS (Xcode CLT prompt) and most Linux distros; `sudo apt install make` on Debian/Ubuntu/WSL. |
 
-2. **Install Python dependencies (uv)**
-   ```bash
-   uv sync --all-extras --dev
-   ```
+**Windows:** use WSL2 (Ubuntu) with Docker Desktop's WSL integration enabled, and clone the repo *inside* the WSL filesystem (e.g. `~/src`), not under `/mnt/c`.
 
-3. **Install Node dependencies for the UI**
-   ```bash
-   cd apps/noc-console
-   npm ci   # installs exact versions from package-lock.json
-   cd ../..
-   ```
+**Memory (8 GB machines):** the full demo stack has ~3.5 GB of container memory limits (Kafka 1 GB, TimescaleDB 512 MB, the rest 64–384 MB each). Give Docker **at least 4 GB, ideally 5 GB** (Docker Desktop → Settings → Resources; on WSL2 set `memory=5GB` in `%UserProfile%\.wslconfig`), and close heavy apps while it runs. Optional: Ollama on the host for LLM answers (otherwise the copilot uses deterministic fallback answers).
 
-4. **Start Core Infrastructure (Kafka + TimescaleDB)**
-   ```bash
-   make up-core
-   ```
-   *This starts the `core` profile in `compose.yaml` – a single‑node KRaft Kafka broker (heap capped at 512 MiB) and a TimescaleDB instance (memory‑limited for an 8 GB laptop).*
+```bash
+git clone https://github.com/ajay206/NetSentinel.git
+cd NetSentinel
+make demo        # creates .env from env.example.txt if missing, builds, starts, seeds, smoke-tests
+```
 
-5. **Create Kafka topics**
-   ```bash
-   make topics
-   ```
+Then open **http://localhost:5173** and sign in as `operator` / `operator`.
 
-6. **Run the test suite**
-   ```bash
-   make test
-   ```
+| Command | What it does |
+|---|---|
+| `make demo` | Build + start all profiles, create topics, back-fill KPIs, play fibre_cut, run the smoke test |
+| `make smoke` | 9-check smoke test (inside the tools container) |
+| `make logs S=kpi-service` | Logs for one service (`F=1` to follow). Plain `docker compose logs <svc>` fails with "no such service" because of profiles |
+| `make ps` | Status of every container across profiles |
+| `make sim`, `make kpis`, `make analyze`, `make anomalies`, `make incidents`, `make token AS=viewer` | Run in the tools container (`docker compose --profile cli run --rm tools …`) |
+| `make reset-db` | Delete the TimescaleDB volume (see troubleshooting #53) |
+| `make down` | Stop everything |
 
-7. **Verify the event loop (smoke test)**
-   ```bash
-   make smoke
-   ```
+## Developer setup (optional: only to run tests or services natively)
 
----
+* **Python** `>=3.12` and **uv** (`uv sync --all-extras --dev`).
+* **Node 20+** for console development (`make console-install && make console`, Vite on :5173; stop the `noc-console` container first, or it holds the port).
+* Makefile targets marked `(dev)` use these host tools. On macOS, importing xgboost natively needs `brew install libomp` (the containers don't).
+* The sections below are the original week-by-week developer walkthroughs.
 
 ## Week 2: Run the Dashboard
 
