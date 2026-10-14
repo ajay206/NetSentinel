@@ -327,3 +327,7 @@ Introduces the topology‑aware incident clustering service, its API, and the ne
   - pytest: permission matrix per role, password change and revocation, lockout and unlock, admin guards, audit, workflow rules;
   - Vitest: role-based dashboards, change-password form, RBAC matrix;
   - smoke: `roles` and `password` checks (12 checks with `CONSOLE_URL`).
+
+### Fix 2 — smoke vs the login rate limiter
+- `scripts/smoke.py` reuses one token per user and backs off on login 429s, honouring `Retry-After` within a bounded total wait (`SMOKE_LOGIN_MAX_WAIT`, default 75 s). Production limiter defaults are unchanged.
+- Tests cover the back-off and token reuse (5 logins per run) and the wait bound. Troubleshooting #66 explains it.
