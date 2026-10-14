@@ -17,3 +17,7 @@
 ### 4. Ruff or pre-commit hook failures
 * **Cause:** Code formatting or linting rules violated.
 * **Solution:** Run `make fmt` (`uv run ruff format .`) and `make lint` (`uv run ruff check .`) to automatically fix and check issues.
+
+### 5. Vite `ws proxy socket error: write EPIPE`
+* **Cause:** The Vite dev server's WebSocket HTTP proxy writes to a socket the browser already closed (React Strict Mode remount, HMR, reconnect).
+* **Solution:** The console opens `ws://127.0.0.1:8000/ws/alarms` directly in `npm run dev`. Restart `make console` after pulling. `/api` and `/health` still go through the Vite proxy. Override with `VITE_WS_URL` or `VITE_GATEWAY_URL` if the gateway is not on port 8000.

@@ -54,6 +54,27 @@ function reducer(state: AlarmState, action: Action): AlarmState {
   }
 }
 
+function alarmSocketUrl(): string {
+  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+  const explicit = import.meta.env.VITE_WS_URL as string | undefined;
+  if (explicit) {
+    return explicit;
+  }
+  // Vite's HTTP proxy for WebSockets logs write EPIPE on a normal close
+  // (Strict Mode remount, HMR, reconnect). In dev, talk to the gateway
+  // directly; production still uses a relative URL behind the reverse proxy.
+  if (import.meta.env.DEV) {
+    const gateway = import.meta.env.VITE_GATEWAY_URL as string | undefined;
+    if (gateway) {
+      const u = new URL(gateway, location.origin);
+      const wsProto = u.protocol === 'https:' ? 'wss' : 'ws';
+      return `${wsProto}://${u.host}/ws/alarms`;
+    }
+    return `${proto}://127.0.0.1:8000/ws/alarms`;
+  }
+  return `${proto}://${location.host}/ws/alarms`;
+}
+
 export function useAlarmFeed() {
   const [state, dispatch] = useReducer(reducer, {
     alarms: [],
@@ -65,17 +86,25 @@ export function useAlarmFeed() {
   const disposedRef = useRef(false);
 
   const connect = useCallback(() => {
-    const proto = location.protocol === 'https:' ? 'wss' : 'ws';
-    const url = `${proto}://${location.host}/ws/alarms`;
+    if (disposedRef.current) {
+      return;
+    }
+    const url = alarmSocketUrl();
     const ws = new WebSocket(url);
     wsRef.current = ws;
 
     ws.onopen = () => {
+      if (wsRef.current !== ws) {
+        return;
+      }
       dispatch({ type: 'setStatus', status: 'open' });
       backoffRef.current = 1000;
     };
 
     ws.onclose = () => {
+      if (wsRef.current !== ws) {
+        return;
+      }
       dispatch({ type: 'setStatus', status: 'closed' });
       if (!disposedRef.current) {
         backoffRef.current = Math.min(backoffRef.current * 2, 10000);
@@ -83,9 +112,8 @@ export function useAlarmFeed() {
       }
     };
 
-    ws.onerror = () => {
-      ws.close();
-    };
+    // Do not call close() here: it races Vite's WS proxy and the browser
+    // already follows onerror with onclose, which drives reconnect.
 
     ws.onmessage = (event: MessageEvent) => {
       try {
@@ -103,18 +131,28 @@ export function useAlarmFeed() {
 
   useEffect(() => {
     disposedRef.current = false;
-    connect();
+    // Defer so React Strict Mode's immediate unmount never opens a socket.
+    const startId = window.setTimeout(connect, 0);
     return () => {
       disposedRef.current = true;
+      window.clearTimeout(startId);
       if (reconnectRef.current) {
         clearTimeout(reconnectRef.current);
+        reconnectRef.current = null;
       }
-      if (wsRef.current) {
-        wsRef.current.onopen = null;
-        wsRef.current.onclose = null;
-        wsRef.current.onerror = null;
-        wsRef.current.onmessage = null;
-        wsRef.current.close();
+      const ws = wsRef.current;
+      wsRef.current = null;
+      if (ws) {
+        ws.onopen = null;
+        ws.onclose = null;
+        ws.onerror = null;
+        ws.onmessage = null;
+        if (
+          ws.readyState === WebSocket.OPEN ||
+          ws.readyState === WebSocket.CONNECTING
+        ) {
+          ws.close();
+        }
       }
     };
   }, [connect]);
