@@ -193,3 +193,19 @@ make docs-check
 ```
 
 It runs `@mermaid-js/mermaid-cli` on all mermaid blocks and verifies relative markdown links and images.
+
+## Week 6: ml-service and the Anomalies panel
+
+```bash
+make up-core && make topics      # Kafka + TimescaleDB
+make kpi-service                 # terminal 1, :8002 (stores KPIs)
+make kpis                        # backfill 1 day of KPIs (more days = better baseline)
+make ml                          # terminal 2, ml-service on :8003
+make gateway                     # terminal 3, :8000 (proxies /api/ml/*)
+make console                     # terminal 4, http://localhost:5173
+make anomalies                   # top 5 anomalies via the gateway
+make ml-train                    # offline precision/recall/F1 on synthetic ground truth
+```
+
+Expected: the **Anomalies** panel lists cells with a `z` score badge, and the KPI chart shows
+red dots plus an "N anomalies" badge on anomalous points. Times are shown in IST.

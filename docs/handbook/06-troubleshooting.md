@@ -100,3 +100,42 @@ The topology seed does not contain the site ID, or the site ID in the raw alarm 
 **Symptom**: After replaying a Kafka partition, the row count in `kpi_samples` does not increase.  
 **Cause**: The `INSERT … ON CONFLICT (cell_id, ts) DO NOTHING` clause intentionally discards duplicates; the replayed messages have timestamps identical to existing rows.  
 **Fix**: This is expected behavior. If you need to reprocess data, adjust the consumer offset or change the primary key strategy (e.g., include a version column).
+
+### 17. ml-service unreachable (panel shows error)
+**Symptom**: The Anomalies panel displays *“ml-service unreachable — run make ml”*.  
+**Cause**: `api-gateway` cannot reach `ml-service` (service not started or wrong `ML_SERVICE_URL`).  
+**Fix**:  
+```bash
+make ml            # start the FastAPI server
+# or, if the URL changed:
+export ML_SERVICE_URL=http://<host>:8003
+```
+Then refresh the console.
+
+### 18. No anomalies shown (panel empty)
+**Symptom**: Panel shows *“No anomalies in the last 24 h”* even though synthetic data contains injected blocks.  
+**Cause**:  
+* Less than one full day of KPI history is available – the first day is excluded from anomaly injection, so the evaluation data set contains no detectable anomalies.  
+* Or the KPI fetch failed and returned empty series.  
+**Fix**:  
+1. Populate KPI data: `make kpis` or `make kpis-follow` to ingest at least 2 days of 15‑min points.  
+2. Verify the fetch endpoint with `curl $KPI_SERVICE_URL/kpis/SITE-001-N1-C1?kpi=dlThroughputMbps&hours=48`.  
+
+### 19. Too many anomalies on short history
+**Symptom**: When requesting only a few hours of data, the CUSUM detector flags many points (often the points adjacent to an injected block).  
+**Cause**: CUSUM is sensitive to short windows; the rolling‑median trend is poorly estimated with < 2 days, leading to larger residuals.  
+**Fix**:  
+* Request at least 168 h (7 days) for stable baselines, or  
+* Adjust `ANOMALY_Z` upward for short queries, or  
+* Tune CUSUM parameters (`k`, `h`) in `baselines.py` for the specific KPI.
+
+### 20. MLflow not installed – runs not logged to server
+**Symptom**: After `make ml-train` the console prints *“MLflow not available, writing JSON run log”* and no entry appears in the MLflow UI.  
+**Cause**: The optional `mlflow-skinny` package is missing or `MLFLOW_TRACKING_URI` is unset.  
+**Fix**:  
+* Install the optional dependency: `uv add mlflow-skinny`.  
+* Or set an environment variable pointing to a running MLflow server:  
+  ```bash
+  export MLFLOW_TRACKING_URI=http://mlflow:5000
+  ```
+  The service will automatically switch to server logging.

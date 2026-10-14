@@ -8,6 +8,7 @@ import { PlaceholderPanel } from './components/PlaceholderPanel';
 import { NetworkMap } from './components/NetworkMap';
 import { KpiActivity } from './components/KpiActivity';
 import { KpiChartsContainer } from './components/KpiChartsContainer';
+import { AnomaliesContainer } from './components/AnomaliesContainer';
 import { useAlarmFeed } from './hooks/useAlarmFeed';
 import { useHealth } from './hooks/useHealth';
 import { useTopology } from './hooks/useTopology';
@@ -55,7 +56,7 @@ export const App: React.FC = () => {
             <KpiActivity activity={kpiActivity} status={kpiStatus} />
           </section>
           <KpiChartsContainer />
-          <PlaceholderPanel title="Anomalies" week={6} />
+          <AnomaliesContainer />
           <PlaceholderPanel title="Copilot" week={9} />
         </div>
       </main>

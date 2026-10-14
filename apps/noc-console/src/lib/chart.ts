@@ -42,3 +42,39 @@ export function buildPath(
 
   return { d: parts.join(' '), min, max };
 }
+
+/** x/y of point i using the same scaling as buildPath (null when the value is missing). */
+export function pointPosition(
+  values: (number | null)[],
+  i: number,
+  width: number,
+  height: number,
+  pad = 4,
+): { x: number; y: number } | null {
+  const v = values[i];
+  if (v === null || v === undefined) return null;
+  const valid = values.filter((x): x is number => x !== null);
+  const min = Math.min(...valid);
+  const max = Math.max(...valid);
+  const innerW = width - 2 * pad;
+  const innerH = height - 2 * pad;
+  const stepX = values.length > 1 ? innerW / (values.length - 1) : 0;
+  const y = max === min ? pad + innerH / 2 : pad + innerH - ((v - min) / (max - min)) * innerH;
+  return { x: pad + i * stepX, y };
+}
+
+/**
+ * Map anomaly timestamps onto chart point indices: an anomaly belongs to the last point
+ * whose bucket start is at or before it (works for 15m, 1h and 1d aggregation).
+ */
+export function anomalyIndices(pointTs: string[], anomalyTs: string[]): number[] {
+  const starts = pointTs.map((t) => new Date(t).getTime());
+  const out = new Set<number>();
+  anomalyTs.forEach((t) => {
+    const a = new Date(t).getTime();
+    let idx = -1;
+    for (let i = 0; i < starts.length && starts[i] <= a; i += 1) idx = i;
+    if (idx >= 0) out.add(idx);
+  });
+  return [...out].sort((x, y) => x - y);
+}

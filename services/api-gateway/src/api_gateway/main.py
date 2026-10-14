@@ -46,8 +46,10 @@ CORS_ORIGINS = [
 ]
 DISABLE_KAFKA = os.getenv("DISABLE_KAFKA", "0") == "1"
 KPI_SERVICE_URL = os.getenv("KPI_SERVICE_URL", "http://localhost:8002").rstrip("/")
+ML_SERVICE_URL = os.getenv("ML_SERVICE_URL", "http://localhost:8003").rstrip("/")
 # Tests swap this for an httpx.MockTransport
 kpi_transport: httpx.AsyncBaseTransport | None = None
+ml_transport: httpx.AsyncBaseTransport | None = None
 
 # Topology generation settings
 TOPOLOGY_SEED = int(os.getenv("TOPOLOGY_SEED", "42"))
@@ -396,4 +398,23 @@ async def kpi_proxy(path: str, request: Request) -> JSONResponse:
         body = resp.json()
     except ValueError:
         return JSONResponse({"detail": "kpi-service returned non-JSON"}, status_code=502)
+    return JSONResponse(body, status_code=resp.status_code)
+
+
+@app.get("/api/ml/{path:path}")
+async def ml_proxy(path: str, request: Request) -> JSONResponse:
+    """Forward read-only anomaly queries to ml-service (W6): /api/ml/anomalies[/cells/{id}]."""
+    if not re.fullmatch(r"anomalies(/cells/[A-Za-z0-9_.\-]+)?", path) or ".." in path:
+        return JSONResponse({"detail": "Not found"}, status_code=404)
+    try:
+        # ml-service scans up to 20 cells, so allow a longer timeout than the KPI proxy
+        async with httpx.AsyncClient(transport=ml_transport, timeout=20.0) as client:
+            resp = await client.get(f"{ML_SERVICE_URL}/{path}", params=request.query_params)
+    except httpx.HTTPError as exc:
+        logger.warning("ml-service unreachable: %s", exc)
+        return JSONResponse({"detail": "ml-service unreachable"}, status_code=503)
+    try:
+        body = resp.json()
+    except ValueError:
+        return JSONResponse({"detail": "ml-service returned non-JSON"}, status_code=502)
     return JSONResponse(body, status_code=resp.status_code)

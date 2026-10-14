@@ -38,6 +38,17 @@ function renderCharts(overrides: Partial<Parameters<typeof KpiCharts>[0]> = {}) 
 }
 
 describe('KpiCharts', () => {
+  it('marks anomalies with red dots and a badge (W6)', () => {
+    renderCharts({ anomalyTs: ['2026-10-14T07:30:00Z'] });
+    expect(screen.getAllByTestId('anomaly-mark')).toHaveLength(1);
+    expect(screen.getByTestId('anomaly-badge')).toHaveTextContent('1 anomaly');
+  });
+
+  it('shows no badge without anomalies', () => {
+    renderCharts();
+    expect(screen.queryByTestId('anomaly-badge')).toBeNull();
+  });
+
   it('draws the series with min/max/last and cell options', () => {
     const { container } = renderCharts();
     expect(screen.getByText('KPI charts')).toBeInTheDocument();

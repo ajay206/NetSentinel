@@ -293,3 +293,32 @@ def test_kpi_proxy_forwards_and_handles_errors() -> None:
         assert client.get("/api/kpi/cells").status_code == 503
     finally:
         gw.kpi_transport = None
+
+
+def test_ml_proxy_forwards_and_handles_errors() -> None:
+    import api_gateway.main as gw
+    import httpx
+
+    seen: list[str] = []
+
+    def handler(req: httpx.Request) -> httpx.Response:
+        seen.append(str(req.url))
+        return httpx.Response(200, json={"kpi": "dlThroughputMbps", "hours": 24, "items": []})
+
+    gw.ml_transport = httpx.MockTransport(handler)
+    try:
+        client = TestClient(app)
+        resp = client.get("/api/ml/anomalies", params={"hours": "24"})
+        assert resp.status_code == 200
+        assert seen[0].endswith("/anomalies?hours=24")
+        assert client.get("/api/ml/anomalies/cells/C1").status_code == 200
+        assert seen[1].endswith("/anomalies/cells/C1")
+        assert client.get("/api/ml/train").status_code == 404
+
+        def boom(req: httpx.Request) -> httpx.Response:
+            raise httpx.ConnectError("down")
+
+        gw.ml_transport = httpx.MockTransport(boom)
+        assert client.get("/api/ml/anomalies").status_code == 503
+    finally:
+        gw.ml_transport = None

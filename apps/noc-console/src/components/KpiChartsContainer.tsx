@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { KpiCharts } from './KpiCharts';
 import { useKpiCells, useKpiSeries } from '../hooks/useKpiSeries';
+import { useCellAnomalies } from '../hooks/useAnomalies';
 import type { KpiName } from '../types.kpi';
 
 export const KpiChartsContainer: React.FC = () => {
@@ -24,6 +25,8 @@ export const KpiChartsContainer: React.FC = () => {
     isError: seriesError,
   } = useKpiSeries(cellId, agg, hours);
 
+  const { data: cellAnomalies } = useCellAnomalies(cellId, kpi, hours);
+
   const isLoading = cellsLoading || seriesLoading;
   const isError = cellsError || seriesError;
 
@@ -41,6 +44,7 @@ export const KpiChartsContainer: React.FC = () => {
       onAggChange={setAgg}
       hours={hours}
       onHoursChange={setHours}
+      anomalyTs={Array.isArray(cellAnomalies?.anomalies) ? cellAnomalies.anomalies.map((a) => a.ts) : []}
     />
   );
 };

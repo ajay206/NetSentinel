@@ -1,0 +1,96 @@
+openapi: 3.1.0
+info:
+  title: NetSentinel ml-service
+  version: 0.1.0
+  description: >-
+    Statistical anomaly baselines (W6): seasonal decomposition + robust z-score + CUSUM over
+    15-minute KPI series read from kpi-service. Reached from the console via api-gateway /api/ml/*.
+servers:
+  - url: http://localhost:8003
+paths:
+  /healthz:
+    get:
+      responses:
+        '200': {description: Process is alive}
+  /readyz:
+    get:
+      responses:
+        '200': {description: kpi-service reachable}
+        '503': {description: kpi-service unavailable}
+  /anomalies:
+    get:
+      summary: Top anomalies across up to 20 cells
+      parameters:
+        - $ref: '#/components/parameters/kpi'
+        - {name: hours, in: query, schema: {type: integer, minimum: 1, maximum: 1440, default: 24}}
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 200, default: 50}}
+      responses:
+        '200':
+          description: Anomalies sorted by score (desc), then time (desc)
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [kpi, hours, items]
+                properties:
+                  kpi: {type: string}
+                  hours: {type: integer}
+                  items:
+                    type: array
+                    items:
+                      allOf:
+                        - $ref: '#/components/schemas/Anomaly'
+                        - type: object
+                          required: [cellId, region]
+                          properties:
+                            cellId: {type: string}
+                            region: {type: string}
+        '422': {description: Unknown KPI or hours out of range}
+        '502': {description: kpi-service error}
+  /anomalies/cells/{cellId}:
+    get:
+      summary: Anomalies for one cell (baseline learned from up to 7 days)
+      parameters:
+        - {name: cellId, in: path, required: true, schema: {type: string}}
+        - $ref: '#/components/parameters/kpi'
+        - {name: hours, in: query, schema: {type: integer, minimum: 1, maximum: 1440, default: 168}}
+      responses:
+        '200':
+          description: Anomalies within the requested window
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [cellId, kpi, from, to, threshold, points, anomalies]
+                properties:
+                  cellId: {type: string}
+                  kpi: {type: string}
+                  from: {type: string, format: date-time}
+                  to: {type: string, format: date-time}
+                  threshold: {type: number, description: robust z threshold (ANOMALY_Z)}
+                  points: {type: integer, description: number of 15-min points analysed}
+                  anomalies:
+                    type: array
+                    items: {$ref: '#/components/schemas/Anomaly'}
+        '404': {description: Unknown cell or no data}
+        '422': {description: Unknown KPI or hours out of range}
+        '502': {description: kpi-service error}
+components:
+  parameters:
+    kpi:
+      name: kpi
+      in: query
+      schema:
+        type: string
+        enum: [dlThroughputMbps, prbUtilPct, rrcSetupSuccessPct, dropCallRatePct, availabilityPct]
+        default: dlThroughputMbps
+  schemas:
+    Anomaly:
+      type: object
+      required: [ts, value, score, method, direction]
+      properties:
+        ts: {type: string, format: date-time}
+        value: {type: number}
+        score: {type: number, description: absolute robust z-score of the residual}
+        method: {type: string, enum: [zscore, cusum, both]}
+        direction: {type: string, enum: [high, low]}

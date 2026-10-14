@@ -333,6 +333,80 @@ flowchart LR
 ```
 
 
+### 8. ml-service (Week 6 – BUILT)
+
+#### Purpose
+`ml-service` provides statistical anomaly detection for KPI time‑series.  
+It fetches 15‑minute KPI data from **kpi‑service**, builds a simple STL‑like baseline (trend + seasonal), computes a robust Z‑score and a CUSUM alarm, and returns the points that exceed the configured thresholds.
+
+#### How detection works (step‑by‑step)
+1. **Fetch data** – The service calls `GET /kpis/{cellId}?kpi={kpi}&hours=N` on `kpi-service`.  
+2. **Build baseline** –  
+   * If ≥ 2 days of data:  
+     * Trend = centred rolling median over 1 day (96 points).  
+     * Seasonal = median of detrended values for each of the 96 phase positions.  
+   * If < 2 days: trend = centred 3 h rolling median, no seasonal term.  
+3. **Compute residuals** – `residual = raw – trend – seasonal`.  
+4. **Robust Z‑score** – `z = (residual - median(residual)) / (1.4826 * MAD)`.  
+   * If MAD = 0, replace denominator with `1.2533 * mean(|residual - median|)`.  
+5. **CUSUM** – Apply a two‑sided CUSUM on the Z‑score series (`k=0.5`, `h=5`).  
+6. **Flag anomalies** – A point is an anomaly when `|z| > ANOMALY_Z` (default 3.5) **or** CUSUM raises an alarm.  
+7. **Return JSON** – Each anomaly includes cell, timestamp (converted to IST for operators), score, direction, and method (`zscore`, `cusum`, or `both`).
+
+#### Endpoints
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/healthz` | Always returns 200. |
+| `GET` | `/readyz` | 200 if `kpi-service` reachable, otherwise 503. |
+| `GET` | `/anomalies/cells/{cellId}` | Query anomalies for a single cell. Parameters: `kpi` (required), `hours` (default 168). |
+| `GET` | `/anomalies` | Scan up to 20 cells, sort by score descending. Params: `kpi` (required), `hours` (default 24), `limit` (default 50). |
+
+#### Environment variables
+| Variable | Default | Meaning |
+|----------|---------|---------|
+| `KPI_SERVICE_URL` | `http://localhost:8002` | Base URL of the KPI service. |
+| `ANOMALY_Z` | `3.5` | Z‑score threshold for flagging. |
+| `PORT` | `8003` | HTTP port the FastAPI app listens on. |
+| `MLFLOW_TRACKING_URI` | *(unset)* | If set and `mlflow` is installed, runs are logged to MLflow. |
+
+#### Run / Test / Debug commands
+```bash
+# Start the service (uvicorn) – uses the "pipeline" compose profile
+make ml               # uvicorn services.ml_service.main:app --host 0.0.0.0 --port 8003
+
+# Train baselines (synthetic data) – creates a JSON run log
+make ml-train        # uv run python -m ml_service.train_baselines --experiment anomaly-baselines --seed 42 --days 7
+
+# Quick sanity check – call the gateway proxy
+make anomalies       # curl http://localhost:8000/api/ml/anomalies?kpi=dlThroughputMbps&hours=24
+
+# Run unit tests
+uv run pytest services/ml-service
+
+# Direct health/readiness checks
+curl http://localhost:8003/healthz
+curl http://localhost:8003/readyz
+```
+
+#### Reading the score
+The JSON field `score` is the absolute robust Z‑score.  
+* **Red** badge in the console: `z ≥ 6`.  
+* **Orange** badge: `4 ≤ z < 6`.  
+* **Amber** badge: `3.5 ≤ z < 4`.  
+The `method` field tells whether the flag came from `zscore`, `cusum`, or `both`. The `direction` field (`high` / `low`) indicates whether the KPI is unusually high or low.
+
+#### Architecture diagram
+```mermaid
+flowchart LR
+    KPI["kpi-service"] --> ML["ml-service decomposition"]
+    ML --> Z["robust z + CUSUM"]
+    Z --> GW["api-gateway /api/ml"]
+    GW --> CON["console Anomalies panel"]
+    GW --> CH["KPI chart dots"]
+```
+
+---
+
 ## Planned Micro‑services (Phase 1 & 2 – PLANNED)
 
 *(Unchanged from previous weeks; retained for roadmap visibility.)*
@@ -348,10 +422,6 @@ flowchart LR
 ### 10. rag‑service
 * **Status:** PLANNED
 * **Purpose:** Semantic search over historical incidents and runbooks.
-
-### 11. ml‑service
-* **Status:** PLANNED
-* **Purpose:** Anomaly detection on telemetry.
 
 ### 12. mcp‑server (Internal)
 * **Status:** PLANNED
