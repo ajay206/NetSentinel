@@ -40,7 +40,7 @@ step "Smoke test through the gateway"
 
 cat <<MSG
 
-Demo ready. Open the console: http://localhost:5173 (sign in as operator / operator)
+Demo ready. Dashboard (noc-console container): http://localhost:5173 (sign in as operator / operator)
 Follow the "Demo path" strip: alarms -> KPI anomaly -> fault badge -> runbooks -> copilot.
 Logs: make logs S=<service>    Stop: make down
 MSG

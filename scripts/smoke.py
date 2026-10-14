@@ -37,8 +37,10 @@ class Smoke:
         poll_s: float = 3.0,
         sleep: Callable[[float], None] = time.sleep,
         clock: Callable[[], float] = time.monotonic,
+        console_url: str | None = None,
     ) -> None:
         self.client = client
+        self.console_url = console_url.rstrip("/") if console_url else None
         self.user = user
         self.password = password if password is not None else user
         self.wait_s = wait_s
@@ -221,8 +223,22 @@ class Smoke:
             raise RuntimeError(f"expected 401, got {resp.status_code}")
         return "401 as expected"
 
+    def step_console(self) -> str:
+        """The dashboard container serves the SPA and proxies /health to the gateway."""
+        page = self.client.get(f"{self.console_url}/")
+        if page.status_code != 200:
+            raise RuntimeError(f"dashboard returned {page.status_code}")
+        if 'id="root"' not in page.text:
+            raise RuntimeError("dashboard page has no #root element")
+        proxied = self.client.get(f"{self.console_url}/health")
+        if proxied.status_code != 200:
+            raise RuntimeError(f"dashboard /health proxy returned {proxied.status_code}")
+        return f"200 at {self.console_url} (proxy ok)"
+
     def run(self) -> bool:
         self._run("health", self.step_health)
+        if self.console_url:
+            self._run("console", self.step_console)
         self._run("login", self.step_login)
 
         if not self.token:
@@ -274,6 +290,11 @@ def main(argv: list[str] | None = None) -> int:
         default=os.environ.get("GATEWAY_URL", "http://localhost:8000"),
         help="Gateway base URL",
     )
+    parser.add_argument(
+        "--console-url",
+        default=os.environ.get("CONSOLE_URL", ""),
+        help="Dashboard URL to check (e.g. http://localhost:5173); empty = skip",
+    )
     parser.add_argument("--user", default="operator", help="Username")
     parser.add_argument("--wait", type=float, default=120.0, help="Max wait seconds for polling")
     parser.add_argument("--json", action="store_true", help="Output JSON instead of text report")
@@ -281,7 +302,9 @@ def main(argv: list[str] | None = None) -> int:
 
     client = make_client(args.base_url)
     try:
-        smoke = Smoke(client, user=args.user, wait_s=args.wait)
+        smoke = Smoke(
+            client, user=args.user, wait_s=args.wait, console_url=args.console_url or None
+        )
         all_ok = smoke.run()
         if args.json:
             print(json.dumps([asdict(c) for c in smoke.checks]))

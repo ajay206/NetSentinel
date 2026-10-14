@@ -126,6 +126,12 @@ class FakeGateway:
                 return httpx.Response(401, json={"detail": "Unauthorized"})
             return httpx.Response(200, json=self.copilot_response)
 
+        if request.url.host == "console" and method == "GET":
+            if path == "/":
+                return httpx.Response(200, text='<html><div id="root"></div></html>')
+            if path == "/health":
+                return httpx.Response(200, json={"services": []})
+
         return httpx.Response(404, json={"detail": "Not found"})
 
 
@@ -282,3 +288,17 @@ def test_polls_until_alarms_arrive() -> None:
     smoke = Smoke(client, wait_s=30, poll_s=3, sleep=sleep, clock=lambda: now["t"])
     assert smoke.run() is True
     assert calls["n"] == 3
+
+
+def test_smoke_console_check(client):
+    smoke = Smoke(client, user="operator", wait_s=0, poll_s=0, console_url="http://console/")
+    assert smoke.run() is True
+    assert [c.name for c in smoke.checks][:2] == ["health", "console"]
+    assert len(smoke.checks) == 10
+
+
+def test_smoke_console_down(client):
+    smoke = Smoke(client, user="operator", wait_s=0, poll_s=0, console_url="http://nope")
+    assert smoke.run() is False
+    failed = [c for c in smoke.checks if not c.ok]
+    assert [c.name for c in failed] == ["console"]

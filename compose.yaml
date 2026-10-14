@@ -333,6 +333,7 @@ services:
     environment:
       KAFKA_BOOTSTRAP: kafka:29092
       GATEWAY_URL: http://api-gateway:8000
+      CONSOLE_URL: http://noc-console
     mem_limit: 192m
     restart: "no"
 

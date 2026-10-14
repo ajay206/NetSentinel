@@ -27,7 +27,7 @@ Then open **http://localhost:5173** and sign in as `operator` / `operator`.
 | Command | What it does |
 |---|---|
 | `make demo` | Build + start all profiles, create topics, back-fill KPIs, play fibre_cut, run the smoke test |
-| `make smoke` | 9-check smoke test (inside the tools container) |
+| `make smoke` | Smoke test inside the tools container: 9 gateway checks + the dashboard (`noc-console` returns 200 and proxies `/health`) |
 | `make logs S=kpi-service` | Logs for one service (`F=1` to follow). Plain `docker compose logs <svc>` fails with "no such service" because of profiles |
 | `make ps` | Status of every container across profiles |
 | `make sim`, `make kpis`, `make analyze`, `make anomalies`, `make incidents`, `make token AS=viewer` | Run in the tools container (`docker compose --profile cli run --rm tools …`) |
@@ -446,5 +446,5 @@ PASS  fault              35 ms  faultType=fibre_cut
 PASS  runbooks           60 ms  ids=RB-FIB-001,RB-FIB-002,RB-TRN-003
 PASS  copilot          9500 ms  llm, 6 sources
 PASS  rbac                2 ms  401 as expected
-9/9 checks passed
+10/10 checks passed
 ```

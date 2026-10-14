@@ -295,7 +295,8 @@ Introduces the topology‑aware incident clustering service, its API, and the ne
 | demo/smoke/Makefile | Host steps moved into the tools container; `scripts/gw.py` (wait/token/call); `make logs S=`, `ps`, `reset-db`, `incidents`, `tools-build`; `(dev)` markers on host targets |
 | copilot | `AnalyzeRequest` accepts `siteId` (alias) and `site_id`; console sends `siteId`; contract regenerated |
 | mcp-server / copilot | FastMCP `transport_security` allows the `mcp-server` host (`MCP_ALLOWED_HOSTS`), fixing 421; copilot maps failed evidence tools to 503/502 instead of 404 |
-| docs | Docker-only prerequisites (+ memory note, WSL2), troubleshooting #51–58 |
+| dashboard | `noc-console` container (node build → nginx, proxies /api, /health, /ws to the gateway) on :5173 in the `ui` profile; smoke adds a `console` check (10 checks in the tools container) |
+| docs | Docker-only prerequisites (+ memory note, WSL2), services section for noc-console, troubleshooting #51–59 |
 
 ### Verification
 - ruff, pytest, vitest, console lint/typecheck/build green in a clean clone; `docker compose config` passes for all 512 profile combinations (compose v2.32 binary, no daemon); shellcheck clean.

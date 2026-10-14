@@ -381,3 +381,8 @@ Then refresh the console.
 - Cause: FastMCP's DNS-rebinding protection only allowed `localhost`, so calls to `http://mcp-server:8006/mcp` from the copilot container got 421. The copilot treated the failed alarm tool as "no evidence" (404).
 - Fixed: mcp-server allows `localhost:*`, `127.0.0.1:*` and `mcp-server:*` (override with `MCP_ALLOWED_HOSTS` / `MCP_ALLOWED_ORIGINS`, comma-separated). The copilot now returns **503** when mcp-server is unreachable and **502** when the alarm tool errors; 404 means the tool really returned no alarms.
 - Check: `make logs S=mcp-server` shows no `Invalid Host header`; `make analyze SITE=SITE-012` returns an answer.
+
+### 59. http://localhost:5173 shows nothing after `make demo`
+- Cause: the dashboard used to run only through host npm (`make console`).
+- Fixed: the `noc-console` container (profile `ui`) serves it. Check `make ps` and `make logs S=noc-console`. The smoke `console` check fails if the page or the `/health` proxy is down.
+- Blank page while the API calls fail: the gateway isn't ready yet (`make logs S=api-gateway`). nginx retries resolving `api-gateway` every 10 s.

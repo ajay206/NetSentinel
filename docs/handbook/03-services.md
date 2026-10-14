@@ -641,3 +641,18 @@ make incidents-peek   # consume the incidents topic
 make incident-eval    # run evaluation and write evals/rca_report.md
 ```
 The service uses 128 MiB memory and listens on port **8007**.
+
+## noc-console container (Fix 1)
+
+The dashboard runs as a container, so `make demo` serves it with no Node on the host.
+
+| Item | Value |
+|---|---|
+| Compose service | `noc-console`, profile `ui` (started by `make demo` and `make up-ui`) |
+| URL | http://localhost:5173 (container port 80) |
+| Image | `apps/noc-console/Dockerfile`: `node:20-alpine` runs `npm ci && npm run build`, then `nginx:1.27-alpine` serves `dist/` (multi-arch) |
+| Proxy | `apps/noc-console/nginx.conf` proxies `/api`, `/health` and `/ws` (WebSocket upgrade) to `api-gateway:8000`. Same origin, so no CORS. It uses Docker DNS with a variable upstream, so nginx starts even before the gateway does. SPA fallback serves `index.html`. |
+| Memory | 64 MB |
+| Checked by | the smoke `console` check (`CONSOLE_URL`, set to `http://noc-console` in the tools container): `/` must return 200 with `#root`, and `/health` must pass through the proxy |
+
+For UI development, stop the container (`docker compose --profile ui stop noc-console`) and run `make console` (Vite, needs Node).
