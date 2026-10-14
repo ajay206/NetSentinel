@@ -53,6 +53,8 @@ class Smoke:
         self.alarm: dict[str, Any] | None = None
         self.fault_type: str | None = None
         self.admin_token: str | None = None
+        self._tokens: dict[str, str] = {}  # reuse one token per user (fewer logins)
+        self.login_waits = 0
 
     def _run(self, name: str, fn: Callable[[], str]) -> None:
         start = self.clock()
@@ -103,16 +105,38 @@ class Smoke:
                 raise RuntimeError(f"services down: {', '.join(down)}")
             self.sleep(self.poll_s)
 
+    # The gateway allows LOGIN_RATE_PER_MIN (10) logins per IP per minute. Smoke logs in a few
+    # times (roles + password checks), so it reuses tokens and backs off on 429 (fix 2).
+    LOGIN_MAX_WAIT_S = float(os.environ.get("SMOKE_LOGIN_MAX_WAIT", "75"))
+
+    def _login(self, user: str, password: str) -> httpx.Response:
+        """POST /api/auth/login; on 429 sleep Retry-After (1-65 s), bounded by LOGIN_MAX_WAIT_S."""
+        waited = 0.0
+        while True:
+            resp = self.client.post(
+                "/api/auth/login", json={"username": user, "password": password}
+            )
+            if resp.status_code != 429:
+                return resp
+            try:
+                retry = float(resp.headers.get("Retry-After", "5"))
+            except ValueError:
+                retry = 5.0
+            retry = min(max(retry, 1.0), 65.0)
+            if waited + retry > self.LOGIN_MAX_WAIT_S:
+                return resp
+            self.sleep(retry)
+            waited += retry
+            self.login_waits += 1
+
     def step_login(self) -> str:
-        resp = self.client.post(
-            "/api/auth/login",
-            json={"username": self.user, "password": self.password},
-        )
+        resp = self._login(self.user, self.password)
         resp.raise_for_status()
         body = resp.json()
         self.token = body.get("accessToken")
         if not self.token:
             raise RuntimeError("no accessToken in response")
+        self._tokens[self.user] = self.token
         return "logged in"
 
     def step_alarms(self) -> str:
@@ -227,11 +251,16 @@ class Smoke:
 
     # --- Step 13b: server-side RBAC per role and the password-change flow ------------------
 
-    def _login_as(self, user: str, password: str) -> str:
-        resp = self.client.post("/api/auth/login", json={"username": user, "password": password})
+    def _login_as(self, user: str, password: str, reuse: bool = True) -> str:
+        if reuse and user in self._tokens:
+            return self._tokens[user]
+        resp = self._login(user, password)
         if resp.status_code != 200:
             raise RuntimeError(f"login as {user} returned {resp.status_code}")
-        return str(resp.json()["accessToken"])
+        token = str(resp.json()["accessToken"])
+        if reuse:
+            self._tokens[user] = token
+        return token
 
     @staticmethod
     def _bearer(token: str) -> dict[str, str]:
@@ -272,7 +301,7 @@ class Smoke:
         if r.status_code != 201:
             raise RuntimeError(f"create user returned {r.status_code}")
         try:
-            old = self._login_as(name, first)
+            old = self._login_as(name, first, reuse=False)
             r = self.client.post(
                 "/api/auth/password",
                 json={"currentPassword": first, "newPassword": second},
@@ -285,7 +314,7 @@ class Smoke:
                 raise RuntimeError("old token still works after the change")
             if self.client.get("/api/auth/me", headers=self._bearer(new)).status_code != 200:
                 raise RuntimeError("new token rejected")
-            r = self.client.post("/api/auth/login", json={"username": name, "password": first})
+            r = self._login(name, first)
             if r.status_code != 401:
                 raise RuntimeError(f"old password still accepted ({r.status_code})")
         finally:

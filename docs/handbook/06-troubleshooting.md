@@ -410,3 +410,8 @@ Then refresh the console.
 ### 65. Operator buttons are missing / API returns 403 "Requires role operator"
 - Viewers are read-only by design (role-permission matrix in `03-services.md`). An admin can change the role in Admin → User management; the user must sign in again.
 - `make smoke` runs `roles` (viewer 403 on incident actions, operator 403 on admin, admin 200) and `password` (a throwaway user changes its password, the old token gets 401, the user is disabled). If you changed the demo passwords, set `SMOKE_VIEWER_PASSWORD`, `SMOKE_OPERATOR_PASSWORD` and `SMOKE_ADMIN_PASSWORD`.
+
+### 66. `make smoke` fails `password: login as smoke.xxxxxx returned 429`
+- Cause: the gateway allows `LOGIN_RATE_PER_MIN` (default 10) logins per client IP per minute. Smoke, `make demo` (`gw.py token`) and any console sign-ins all count against it, and in compose they all come from the same Docker network.
+- Fixed in fix 2: smoke reuses one token per user (5 logins instead of 7). On 429 it waits for `Retry-After` (1–65 s per wait) and retries, for at most `SMOKE_LOGIN_MAX_WAIT` seconds in total (default 75). A smoke run may therefore take up to about a minute longer when the limiter is hot. The report still prints no tokens or passwords.
+- Still failing? Wait a minute and rerun. The limiter is enforced by the gateway, so the smoke/tools container cannot relax it. For a dev-only stack you can raise `LOGIN_RATE_PER_MIN` for the gateway in `.env`, but keep the default in production.

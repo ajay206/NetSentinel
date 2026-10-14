@@ -410,3 +410,51 @@ def test_password_check_fails_if_old_token_survives(client, fake_gateway):
     smoke._run("password", smoke.step_password)
     assert smoke.checks[-1].ok is False
     assert "old token still works" in smoke.checks[-1].detail
+
+
+# --- fix 2: login rate limit (429) during smoke --------------------------------------------
+
+
+class LimitedGateway(FakeGateway):
+    """FakeGateway whose login allows `limit` calls per window (like LOGIN_RATE_PER_MIN)."""
+
+    def __init__(self, limit: int):
+        super().__init__()
+        self.limit = limit
+        self.window_logins = 0
+        self.login_calls = 0
+
+    def handle_request(self, request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/api/auth/login":
+            self.login_calls += 1
+            if self.window_logins >= self.limit:
+                return httpx.Response(429, headers={"Retry-After": "7"}, json={"detail": "slow"})
+            self.window_logins += 1
+        return super().handle_request(request)
+
+
+def test_smoke_backs_off_on_login_429_and_reuses_tokens():
+    gw = LimitedGateway(limit=3)
+    sleeps: list[float] = []
+
+    def sleep(s: float) -> None:
+        sleeps.append(s)
+        gw.window_logins = 0  # the minute window rolls over while we wait
+
+    client = httpx.Client(transport=httpx.MockTransport(gw.handle_request), base_url="http://t")
+    smoke = Smoke(client, user="operator", wait_s=0, poll_s=0, sleep=sleep)
+    assert smoke.run() is True, [c for c in smoke.checks if not c.ok]
+    assert 7.0 in sleeps and smoke.login_waits >= 1  # honoured Retry-After
+    # operator, viewer, admin, throwaway, old-password check: the operator token is reused
+    assert gw.login_calls - smoke.login_waits == 5
+
+
+def test_smoke_login_backoff_is_bounded(monkeypatch):
+    gw = LimitedGateway(limit=0)  # every login is 429
+    sleeps: list[float] = []
+    client = httpx.Client(transport=httpx.MockTransport(gw.handle_request), base_url="http://t")
+    smoke = Smoke(client, user="operator", wait_s=0, poll_s=0, sleep=sleeps.append)
+    monkeypatch.setattr(smoke, "LOGIN_MAX_WAIT_S", 20.0)
+    smoke._run("login", smoke.step_login)
+    assert smoke.checks[-1].ok is False and "429" in smoke.checks[-1].detail
+    assert sum(sleeps) <= 20.0 and sleeps == [7.0, 7.0]
