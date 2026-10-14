@@ -3,9 +3,9 @@
 This guide walks you through setting up NetSentinel locally on a resource-constrained development environment like a MacBook Air M2 with 8 GB RAM.
 
 ## System Prerequisites
-* **Python:** `>=3.12` (installed via Homebrew or python.org)
-* **uv:** Fast Python package installer and workspace manager (`pip install uv`)
-* **Docker Desktop:** Configured with at least 4 GB RAM allocation
+* **Python:** 3.12 or 3.13 (not 3.15). Homebrew `python@3.15` has no `confluent-kafka` wheels.
+* **uv:** Fast Python package installer and workspace manager (`curl -LsSf https://astral.sh/uv/install.sh | sh`, then `source $HOME/.local/bin/env`)
+* **Docker Desktop:** App must be fully started (engine running). Allocate at least 4 GB RAM.
 * **Ollama (Optional for AI phases):** Running locally (`ollama serve`) with models like `llama3` or `mistral`.
 
 ## Step-by-Step Setup
@@ -20,7 +20,9 @@ This guide walks you through setting up NetSentinel locally on a resource-constr
 
 2. **Install Python Dependencies (uv):**
    ```bash
-   uv sync --all-extras --dev
+   source $HOME/.local/bin/env
+   uv python install 3.12
+   uv sync --all-extras --dev --python 3.12
    ```
 
 3. **Start Core Infrastructure:**
