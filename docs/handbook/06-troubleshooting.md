@@ -10,25 +10,14 @@
 * **Cause:** Insufficient Docker memory allocation or port conflict on 9092.
 * **Solution:** Ensure Docker Desktop has at least 4 GB RAM allocated. Check port availability (`lsof -i :9092`).
 
-### 3. `uv sync` fails building `confluent-kafka` (`librdkafka/rdkafka.h` not found)
-* **Cause:** `uv` picked Homebrew Python 3.15. There is no binary wheel, so it compiles C code and needs librdkafka headers.
-* **Solution:** Use 3.12 (repo pins `.python-version`). Remove the 3.15 venv and re-sync:
-  ```bash
-  source $HOME/.local/bin/env
-  rm -rf .venv
-  uv python install 3.12
-  uv sync --all-extras --dev --python 3.12
-  ```
-  Do not `brew install librdkafka` unless you intentionally want to compile against 3.15.
-
-### 4. `uv sync` or workspace package resolution issues
+### 3. `uv sync` or workspace package resolution issues
 * **Cause:** Outdated `uv` version or uninitialized workspace members.
-* **Solution:** Upgrade `uv` and re-run `uv sync --all-extras --dev --python 3.12`.
+* **Solution:** Upgrade `uv` (`pip install --upgrade uv`) and re-run `uv sync --all-extras --dev`.
 
-### 5. Docker: `Cannot connect to the Docker daemon` / `docker info` has Client but Server fails
-* **Cause:** Docker CLI is installed; the Docker Desktop **engine** is not running (`docker.sock` missing).
-* **Solution:** Open Docker Desktop from Applications and wait until it is idle. Confirm with `docker info` showing a **Server** section (not only Client). Then `make up-core`.
-
-### 6. Ruff or pre-commit hook failures
+### 4. Ruff or pre-commit hook failures
 * **Cause:** Code formatting or linting rules violated.
 * **Solution:** Run `make fmt` (`uv run ruff format .`) and `make lint` (`uv run ruff check .`) to automatically fix and check issues.
+
+### 5. Vite `ws proxy socket error: write EPIPE`
+* **Cause:** The Vite dev server's WebSocket HTTP proxy writes to a socket the browser already closed (React Strict Mode remount, HMR, reconnect).
+* **Solution:** The console opens `ws://127.0.0.1:8000/ws/alarms` directly in `npm run dev`. Restart `make console` after pulling. `/api` and `/health` still go through the Vite proxy. Override with `VITE_WS_URL` or `VITE_GATEWAY_URL` if the gateway is not on port 8000.

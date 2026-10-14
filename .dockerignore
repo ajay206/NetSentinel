@@ -1,0 +1,7 @@
+.venv
+**/.venv
+**/node_modules
+apps/noc-console/dist
+**/__pycache__
+.git
+.env

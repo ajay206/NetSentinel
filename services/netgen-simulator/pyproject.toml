@@ -1,0 +1,29 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "netgen-simulator"
+version = "0.1.0"
+description = "Kafka alarm simulator using netgen"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "netgen",
+    "aiokafka>=0.11",
+]
+
+[project.scripts]
+netgen-sim = "netgen_simulator.cli:main"
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0", "pytest-asyncio>=0.23", "pytest-mock>=3.12"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/netgen_simulator"]
+
+[tool.uv.sources]
+netgen = { workspace = true }
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
