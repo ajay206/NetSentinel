@@ -1,0 +1,93 @@
+asyncapi: '3.0.0'
+info:
+  title: NetSentinel Alarm Stream
+  version: '1.0.0'
+  description: AsyncAPI contract for alarm messages produced by netgen-simulator and consumed by the API gateway.
+servers:
+  production:
+    url: kafka:29092
+    protocol: kafka
+channels:
+  alarms.raw:
+    description: Raw alarm events emitted by the netgen-simulator.
+    subscribe:
+      message:
+        $ref: '#/components/messages/Alarm'
+    bindings:
+      kafka:
+        topic: alarms.raw
+        partitions: 1
+        replicas: 1
+components:
+  messages:
+    Alarm:
+      name: Alarm
+      title: Alarm
+      summary: Alarm event following TMF642‑like structure.
+      payload:
+        type: object
+        required:
+          - id
+          - href
+          - alarmType
+          - perceivedSeverity
+          - probableCause
+          - specificProblem
+          - alarmedObject
+          - siteId
+          - alarmRaisedTime
+          - state
+          - sourceSystemId
+        properties:
+          id:
+            type: string
+            format: uuid
+          href:
+            type: string
+          alarmType:
+            type: string
+          perceivedSeverity:
+            type: string
+            enum:
+              - critical
+              - major
+              - minor
+              - warning
+              - cleared
+          probableCause:
+            type: string
+          specificProblem:
+            type: string
+          alarmedObject:
+            type: object
+            required:
+              - id
+              - '@referredType'
+            properties:
+              id:
+                type: string
+              '@referredType':
+                type: string
+                enum:
+                  - Site
+          siteId:
+            type: string
+          alarmRaisedTime:
+            type: string
+            format: date-time
+          state:
+            type: string
+            enum:
+              - raised
+              - cleared
+          sourceSystemId:
+            type: string
+          '@type':
+            type: string
+            enum:
+              - Alarm
+  schemas:
+    # Additional schemas can be defined here
+    placeholder: {}
+  # Other components (securitySchemes, etc.) can be added later
+  # TBD: other topics such as alarms.processed, metrics.raw
