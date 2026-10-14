@@ -1,7 +1,7 @@
 import React from 'react';
 import { KpiCell, KpiSeries, KpiName, KPI_META } from '../types.kpi';
 import { formatIST } from '../lib/time';
-import { buildPath } from '../lib/chart';
+import { anomalyIndices, buildPath, pointPosition } from '../lib/chart';
 
 interface Props {
   cells: KpiCell[];
@@ -16,6 +16,8 @@ interface Props {
   onAggChange: (a: '15m' | '1h' | '1d') => void;
   hours: number;
   onHoursChange: (h: number) => void;
+  /** W6: anomaly timestamps from ml-service, drawn as red dots. */
+  anomalyTs?: string[];
 }
 
 export const KpiCharts: React.FC<Props> = ({
@@ -31,10 +33,14 @@ export const KpiCharts: React.FC<Props> = ({
   onAggChange,
   hours,
   onHoursChange,
+  anomalyTs = [],
 }) => {
   const values = series?.points.map(p => p[kpi]) ?? [];
 
   const { d, min, max } = buildPath(values, 600, 160);
+  const marks = anomalyIndices(series?.points.map((p) => p.ts) ?? [], anomalyTs)
+    .map((i) => pointPosition(values, i, 600, 160))
+    .filter((p): p is { x: number; y: number } => p !== null);
 
   const lastPoint = series?.points[series.points.length - 1];
   const lastValue = lastPoint ? lastPoint[kpi] : null;
@@ -43,7 +49,17 @@ export const KpiCharts: React.FC<Props> = ({
 
   return (
     <div className="bg-slate-900 border border-slate-700 rounded-lg p-3 text-slate-200">
-      <h2 className="text-slate-200 font-semibold mb-2">KPI charts</h2>
+      <div className="flex items-center gap-2 mb-2">
+        <h2 className="text-slate-200 font-semibold">KPI charts</h2>
+        {marks.length > 0 && (
+          <span
+            data-testid="anomaly-badge"
+            className="px-1.5 py-0.5 rounded text-xs bg-red-500/15 text-red-400"
+          >
+            {marks.length} anomal{marks.length === 1 ? 'y' : 'ies'}
+          </span>
+        )}
+      </div>
       <div className="flex flex-wrap gap-2 mb-4">
         <select
           className="bg-slate-800 text-slate-200 text-xs p-1 rounded"
@@ -117,6 +133,17 @@ export const KpiCharts: React.FC<Props> = ({
             aria-label={`${meta.label} for ${series.cellId}`}
           >
             <path d={d} fill="none" stroke="#38bdf8" strokeWidth="2" vectorEffect="non-scaling-stroke" />
+            {marks.map((m, i) => (
+              <circle
+                key={i}
+                data-testid="anomaly-mark"
+                cx={m.x}
+                cy={m.y}
+                r={4}
+                fill="#f87171"
+                stroke="#0f172a"
+              />
+            ))}
           </svg>
           <div className="flex justify-between text-xs text-slate-500 mt-1">
             <span>{formatIST(series.from)}</span>

@@ -79,3 +79,24 @@
 - [x] Documentation generated and passes `docs‑check`.  
 - [ ] Docker checks on Ajay's Mac (image size, startup time).  
 - [ ] End‑to‑end check (full stack) deferred to the final review step.
+
+## Step 6: Week 6 – ml-service statistical baselines and Anomalies panel
+**Date:** 2026-10-14  
+
+### Scope
+- Implement `services/ml-service` (FastAPI, STL‑like decomposition, robust Z‑score, CUSUM).  
+- Add optional MLflow JSON fallback logging.  
+- Expose health, readiness, and anomaly query endpoints.  
+- Create read‑only proxy in `api-gateway`.  
+- Build the “Anomalies” panel in `noc-console` (badge, score colours, direction arrows).  
+- Draw red anomaly dots on KPI charts.  
+- Provide synthetic data generation and evaluation scripts.  
+- Update documentation, ADR, Makefile targets, and test suites.
+
+### Verification
+- [x] **pytest** – all unit tests for baselines, hypothesis, injection, scoring, API, and gateway pass.  
+- [x] **ruff** – code style passes linting.  
+- [x] **Vitest / lint / typecheck / build** – front‑end panel and chart tests succeed.  
+- [x] **make docs-check** – documentation builds without errors.  
+- [ ] **Docker checks on Ajay's Mac** – pending due to local environment differences.  
+- [ ] **End‑to‑end check** – deferred to final review (full pipeline with real KPI data).
