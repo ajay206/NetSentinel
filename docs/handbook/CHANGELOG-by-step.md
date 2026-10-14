@@ -303,3 +303,12 @@ Introduces the topology‑aware incident clustering service, its API, and the ne
 - ruff, pytest, vitest, console lint/typecheck/build green in a clean clone; `docker compose config` passes for all 512 profile combinations (compose v2.32 binary, no daemon); shellcheck clean.
 - Each service's `uv sync --frozen --no-dev --package …` venv imports its app and has `uvicorn` on PATH.
 - **Mac checks pending:** images not built on the box (no Docker daemon); run `make demo` on Mac (arm64) and on Linux/WSL.
+
+### Fix 1 — (13) NOC console redesign, (14) alarm drawer runbooks
+- One 12-column layout grid with equal-height rows, a design-token theme (`theme.ts`) and severity chips.
+- New header (live status, user/role, IST clock) and KPI summary row. Every card has a title, a subtitle and an ⓘ tooltip.
+- Storm timeline rebuilt: labelled axes in IST, severity-stacked bars, legend, highlighted peak with a "Storm: N alarms at HH:MM IST, root SITE-xxx" annotation, and empty/loading/error states.
+- Incident board is now a table. Enriched feed columns renamed (Repeats, Root / symptom). Stale "Week 5" text removed.
+- Clicking an enriched alarm opens a detail drawer with alarm details, suggested runbooks (clickable, markdown preview) and SHAP. Esc closes it.
+- The auth fetch wrapper is installed before App mounts, so the first API calls carry the token.
+- Tests: timeline annotation/helpers, drawer runbooks; 127 Vitest tests pass.

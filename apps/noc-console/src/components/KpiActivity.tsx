@@ -102,9 +102,6 @@ export const KpiActivity: React.FC<Props> = ({ activity, status }) => {
                 );
               })}
             </div>
-            <p className="text-xs text-gray-500 mt-2">
-              Charts arrive with kpi-service — Week 5
-            </p>
           </div>
         </>
       )}

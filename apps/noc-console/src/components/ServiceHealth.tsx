@@ -1,4 +1,5 @@
 import React from 'react';
+import { CardHeader } from './ui/Card';
 import type { HealthResponse } from '../types';
 import { formatIST } from '../lib/time';
 
@@ -10,8 +11,8 @@ interface ServiceHealthProps {
 export const ServiceHealth: React.FC<ServiceHealthProps> = ({ health, isError }) => {
   if (isError || !health) {
     return (
-      <div className="bg-slate-900 border border-slate-700 rounded-lg p-4 h-full">
-        <h2 className="text-slate-200 font-semibold mb-3">Service Health</h2>
+      <div className="ns-card">
+        <CardHeader title="Service Health" subtitle="Is every backend service up?" />
         <div className="text-center py-8 text-slate-500">
           <p>Gateway unreachable</p>
           <p className="text-xs mt-1">Health endpoint not responding</p>
@@ -21,9 +22,12 @@ export const ServiceHealth: React.FC<ServiceHealthProps> = ({ health, isError })
   }
 
   return (
-    <div className="bg-slate-900 border border-slate-700 rounded-lg p-4 h-full">
-      <div className="flex items-center justify-between mb-3">
-        <h2 className="text-slate-200 font-semibold">Service Health</h2>
+    <div className="ns-card">
+      <CardHeader
+        title="Service Health"
+        subtitle="Is every backend service up?"
+        info="The API gateway polls each service's health endpoint."
+        actions={
         <span
           className={`px-2 py-0.5 text-xs rounded ${
             health.status === 'ok'
@@ -33,12 +37,13 @@ export const ServiceHealth: React.FC<ServiceHealthProps> = ({ health, isError })
         >
           {health.status.toUpperCase()}
         </span>
-      </div>
-      <div className="space-y-2">
+        }
+      />
+      <div className="ns-scroll grid grid-cols-1 gap-1.5 content-start">
         {health.services.map((svc) => (
           <div
             key={svc.name}
-            className="flex items-center justify-between p-2 bg-slate-800/50 rounded"
+            className="flex items-center justify-between px-2.5 py-1.5 bg-slate-800/50 rounded text-sm"
           >
             <div className="flex items-center space-x-2">
               <span

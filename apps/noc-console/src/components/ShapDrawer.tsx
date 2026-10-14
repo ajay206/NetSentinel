@@ -1,5 +1,6 @@
 import React from 'react';
 import { FaultBadge } from './FaultBadge';
+import { SeverityChip } from './ui/Card';
 import type { EnrichedAlarm } from '../types.enriched';
 import type { FaultExplanation, FaultPrediction } from '../types.fault';
 
@@ -10,6 +11,8 @@ interface ShapDrawerProps {
   isLoading: boolean;
   isError: boolean;
   onClose: () => void;
+  /** Suggested runbooks for this alarm, rendered at the top of the drawer. */
+  runbooks?: React.ReactNode;
 }
 
 /** W7: why the model picked this fault type (XGBoost TreeSHAP, top features). */
@@ -20,7 +23,14 @@ export const ShapDrawer: React.FC<ShapDrawerProps> = ({
   isLoading,
   isError,
   onClose,
+  runbooks,
 }) => {
+  React.useEffect(() => {
+    if (!alarm) return;
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [alarm, onClose]);
   if (!alarm) return null;
   const contributions = explanation?.contributions ?? [];
   const maxAbs = Math.max(1e-9, ...contributions.map((c) => Math.abs(c.shap)));
@@ -28,11 +38,12 @@ export const ShapDrawer: React.FC<ShapDrawerProps> = ({
   return (
     <aside
       role="dialog"
-      aria-label="Fault explanation"
-      className="fixed right-0 top-0 h-full w-96 bg-slate-900 border-l border-slate-700 p-4 z-50 overflow-y-auto text-slate-200"
+      aria-label="Alarm details"
+      data-testid="alarm-drawer"
+      className="fixed right-0 top-0 h-full w-full sm:w-[30rem] shadow-2xl bg-slate-900 border-l border-slate-700 p-4 z-50 overflow-y-auto text-slate-200"
     >
       <div className="flex items-center justify-between mb-3">
-        <h2 className="font-semibold">Why this fault?</h2>
+        <h2 className="font-semibold">Alarm details</h2>
         <button
           aria-label="Close"
           onClick={onClose}
@@ -42,14 +53,31 @@ export const ShapDrawer: React.FC<ShapDrawerProps> = ({
         </button>
       </div>
 
-      <div className="text-xs text-slate-400 mb-3 space-y-0.5">
-        <div>
-          <span className="text-slate-200">{alarm.siteId}</span> · {alarm.enrichment.region} ·{' '}
-          {alarm.perceivedSeverity}
-        </div>
-        <div>{alarm.specificProblem}</div>
-      </div>
+      <dl
+        className="grid grid-cols-[7rem_1fr] gap-x-3 gap-y-1 text-xs mb-4"
+        data-testid="alarm-details"
+      >
+        <dt className="text-slate-500">Problem</dt>
+        <dd className="text-slate-100">{alarm.specificProblem}</dd>
+        <dt className="text-slate-500">Site</dt>
+        <dd className="font-mono">{alarm.siteId}</dd>
+        <dt className="text-slate-500">Region</dt>
+        <dd>{alarm.enrichment.region ?? '—'}</dd>
+        <dt className="text-slate-500">Severity</dt>
+        <dd>
+          <SeverityChip severity={alarm.perceivedSeverity} />
+        </dd>
+        {alarm.probableCause && (
+          <>
+            <dt className="text-slate-500">Probable cause</dt>
+            <dd>{alarm.probableCause}</dd>
+          </>
+        )}
+      </dl>
 
+      {runbooks && <div className="mb-5">{runbooks}</div>}
+
+      <h3 className="font-semibold text-sm mb-2">Why this fault?</h3>
       <div className="flex items-center gap-2 mb-1">
         <FaultBadge prediction={prediction} isLoading={isLoading} isError={isError} />
       </div>

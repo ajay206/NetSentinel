@@ -126,9 +126,11 @@ describe('IncidentBoard', () => {
 
   it('displays severity chips with correct colors', () => {
     render(<IncidentBoard {...defaultProps} />);
-    expect(screen.getByTestId('severity-inc-critical')).toHaveClass('bg-red-500');
-    expect(screen.getByTestId('severity-inc-major')).toHaveClass('bg-orange-500');
-    expect(screen.getByTestId('severity-inc-cleared')).toHaveClass('bg-slate-500');
+    // Theme chips (src/theme.ts severityChip)
+    expect(screen.getByTestId('severity-inc-critical').firstChild).toHaveClass('text-red-300');
+    expect(screen.getByTestId('severity-inc-major').firstChild).toHaveClass('text-orange-300');
+    expect(screen.getByTestId('severity-inc-cleared').firstChild).toHaveClass('text-slate-400');
+    expect(screen.getByTestId('severity-inc-critical')).toHaveTextContent('Critical');
   });
 
   it('displays status badges', () => {
@@ -154,7 +156,7 @@ describe('IncidentBoard', () => {
   it('displays alarm count and site count', () => {
     render(<IncidentBoard {...defaultProps} />);
     expect(screen.getByText('2 alarms · 2 sites')).toBeInTheDocument();
-    expect(screen.getAllByText('1 alarms · 1 sites')).toHaveLength(2);
+    expect(screen.getAllByText('1 alarm · 1 site')).toHaveLength(2);
   });
 
   it('applies selected ring style', () => {

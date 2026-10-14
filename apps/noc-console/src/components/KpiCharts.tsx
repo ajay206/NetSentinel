@@ -1,4 +1,5 @@
 import React from 'react';
+import { CardHeader } from './ui/Card';
 import { KpiCell, KpiSeries, KpiName, KPI_META } from '../types.kpi';
 import { formatIST } from '../lib/time';
 import { anomalyIndices, buildPath, pointPosition } from '../lib/chart';
@@ -48,9 +49,9 @@ export const KpiCharts: React.FC<Props> = ({
   const meta = KPI_META[kpi];
 
   return (
-    <div className="bg-slate-900 border border-slate-700 rounded-lg p-3 text-slate-200">
+    <div className="ns-card text-slate-200">
       <div className="flex items-center gap-2 mb-2">
-        <h2 className="text-slate-200 font-semibold">KPI charts</h2>
+        <CardHeader title="KPI charts" subtitle="Trend of one KPI for one cell; red dots are anomalies." info="Pick a cell, KPI, aggregation and range. Data comes from kpi-service (TimescaleDB); anomaly marks come from ml-service." />
         {marks.length > 0 && (
           <span
             data-testid="anomaly-badge"

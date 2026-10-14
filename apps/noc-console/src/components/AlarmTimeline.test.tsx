@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { AlarmTimeline } from './AlarmTimeline';
+import { stormAnnotation, niceTicks, peakBucket } from '../lib/timeline';
 import type { TimelineResponse, TimelineBucket } from '../lib/timeline';
 
 const createBucket = (overrides: Partial<TimelineBucket> = {}): TimelineBucket => ({
@@ -38,12 +39,12 @@ describe('components/AlarmTimeline', () => {
 
   it('renders error state', () => {
     render(<AlarmTimeline isLoading={false} isError={true} />);
-    expect(screen.getByText('Timeline unavailable')).toBeInTheDocument();
+    expect(screen.getByText(/Timeline unavailable/)).toBeInTheDocument();
   });
 
   it('renders empty state', () => {
     render(<AlarmTimeline data={undefined} isLoading={false} isError={false} />);
-    expect(screen.getByText('No alarms yet — run a scenario (e.g. fibre_cut)')).toBeInTheDocument();
+    expect(screen.getByText('No alarms yet — run a scenario (e.g. make sim).')).toBeInTheDocument();
   });
 
   it('renders bars for each bucket', () => {
@@ -60,14 +61,11 @@ describe('components/AlarmTimeline', () => {
     // follows the newest bucket by default; scrub back to the first one
     fireEvent.change(slider, { target: { value: '0' } });
 
-    expect(screen.getByText('00:00:00 UTC')).toBeInTheDocument();
-    expect(screen.getByText('Total')).toBeInTheDocument();
-    expect(screen.getByText('5')).toBeInTheDocument();
+    // 00:00Z is 05:30 IST
+    expect(screen.getByTestId('timeline-selected')).toHaveTextContent('05:30 IST · 5 alarms');
 
     fireEvent.change(slider, { target: { value: '1' } });
-
-    expect(screen.getByText('00:01:00 UTC')).toBeInTheDocument();
-    expect(screen.getByText('15')).toBeInTheDocument();
+    expect(screen.getByTestId('timeline-selected')).toHaveTextContent('05:31 IST · 15 alarms');
   });
 
   it('shows burst badge when bucket is burst', () => {
@@ -86,5 +84,25 @@ describe('components/AlarmTimeline', () => {
     });
     render(<AlarmTimeline data={data} isLoading={false} isError={false} />);
     expect(screen.queryByText('Burst')).not.toBeInTheDocument();
+  });
+
+  it('annotates the storm peak with count, time and root site', () => {
+    render(
+      <AlarmTimeline data={createData()} isLoading={false} isError={false} rootSiteId="SITE-042" />,
+    );
+    expect(screen.getByTestId('storm-annotation')).toHaveTextContent(
+      'Storm: 15 alarms at 05:31 IST, root SITE-042',
+    );
+    expect(screen.getByTestId('timeline-legend')).toHaveTextContent(/Critical/);
+  });
+
+  it('timeline helpers pick the peak and nice ticks', () => {
+    const data = createData();
+    expect(peakBucket(data)?.bucket.total).toBe(15);
+    expect(peakBucket(data)?.index).toBe(1);
+    expect(stormAnnotation(data, null)).toMatch(/^Storm: 15 alarms at 05:31 IST/);
+    const ticks = niceTicks(15);
+    expect(ticks[0]).toBe(0);
+    expect(ticks[ticks.length - 1]).toBeGreaterThanOrEqual(15);
   });
 });

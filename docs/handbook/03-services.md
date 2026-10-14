@@ -656,3 +656,28 @@ The dashboard runs as a container, so `make demo` serves it with no Node on the 
 | Checked by | the smoke `console` check (`CONSOLE_URL`, set to `http://noc-console` in the tools container): `/` must return 200 with `#root`, and `/health` must pass through the proxy |
 
 For UI development, stop the container (`docker compose --profile ui stop noc-console`) and run `make console` (Vite, needs Node).
+
+### NOC console UI guide (Fix 1 redesign)
+
+The console uses one layout grid (12 columns, 16 px gutters, 24 px page padding) and one design-token theme (`apps/noc-console/src/theme.ts`). The theme sets spacing, card surfaces and the severity palette: critical red, major orange, minor yellow, warning sky and cleared slate. It is tested down to a 1280 px laptop. Below `lg` the panels stack in one column. Every card header has a title, a one-line subtitle and an ⓘ tooltip.
+
+What you see, top to bottom (described screenshot, 1440 px, synthetic data):
+
+1. **Header** (sticky). "NetSentinel · NOC Console" and a *Synthetic data* pill on the left. On the right: a live-status pill (Live / Connecting… / Offline), an IST clock, the user name with a role badge, and *Sign out*.
+2. **KPI summary row.** Five equal tiles: Active alarms (with critical count), Open incidents, Alarm compression (for example `15.3×`), KPI anomalies (24 h) and Services healthy (for example `5/6`).
+3. **Demo path.** The five fibre-cut steps, each turning green when it is done.
+4. **Alarm storm timeline** (left) **| Incident board** (right).
+   - The timeline shows alarms per minute as bars stacked by severity. The y axis is labelled "Alarms per minute" and the x axis "Time (IST)" in HH:MM.
+   - Under the chart: a legend, then a red banner such as *Storm: 42 alarms at 00:28 IST, root SITE-011*. The peak bar is outlined and labelled "Peak 42 @ 00:28".
+   - A scrub slider (only when there is more than one bucket) and a one-line summary of the selected minute with per-severity counts and a *Burst* badge.
+   - Empty state: "No alarms yet — run a scenario (e.g. make sim)." Loading and error states are shown too.
+   - The incident board is a table with severity chips, root site and region, size ("38 alarms · 1 site"), duration and status. Click a row to filter the alarm tables.
+5. **Live alarms** (wide) **| Service health** (narrow). Both are fixed height, and only their bodies scroll.
+6. **Enriched alarm feed** (full width). The columns include *Repeats* (— when the alarm is not repeated) and *Root / symptom*.
+   - **Click a row to open the alarm detail drawer** on the right. It shows the alarm details (problem, site, region, severity chip, probable cause).
+   - Below the details are the **Suggested runbooks** (title, id, section, score and fault type). Click one to read its markdown in place.
+   - Below that is the model's fault badge with "Why this fault?" SHAP bars.
+   - Close the drawer with ✕ or Esc.
+7. **Network map | KPI activity**, then **KPI charts | Anomalies**, then **Copilot** (full width).
+
+Why runbooks used to look missing: the runbook list was a separate panel at the bottom of the page. The fixed SHAP drawer that opened on alarm click covered it (small_s6), so clicking an alarm looked like nothing happened. Runbooks now live inside that drawer. The gateway route `/api/rag/search` does need the bearer token. The console adds it through `installAuthFetch`, which is now installed before the app mounts, so the very first queries are authenticated too.

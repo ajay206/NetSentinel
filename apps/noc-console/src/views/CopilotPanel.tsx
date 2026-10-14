@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { CardHeader } from '../components/ui/Card';
 import type { AnalyzeResponse, ToolCall } from "../types.copilot";
 
 const SITE_RE = /^SITE-\d{3}$/;
@@ -71,10 +72,15 @@ export const CopilotPanel: React.FC<CopilotPanelProps> = ({
 
   return (
     <div
-      className="bg-slate-900 border border-slate-700 rounded-lg p-4"
+      className="ns-card"
       data-testid="copilot-panel"
     >
-      <h3 className="text-slate-200 font-semibold mb-3">Copilot analyze</h3>
+      <CardHeader
+        as="h3"
+        title="Copilot analyze"
+        subtitle="A cited root-cause summary and next steps for one site."
+        info="Uses the local LLM (Ollama) with evidence from alarms, anomalies, the fault classifier and runbooks. Without an LLM it gives a deterministic summary."
+      />
       <form
         className="flex flex-wrap gap-2 items-center mb-3"
         onSubmit={(e) => {

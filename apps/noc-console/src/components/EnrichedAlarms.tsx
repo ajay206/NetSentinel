@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
+import { CardHeader, SeverityChip } from './ui/Card';
 import { formatIST } from '../lib/time';
-import { getSeverityStyles } from '../lib/severity';
 import type { EnrichedAlarm } from '../types.enriched';
 import type { ConnectionStatus } from '../hooks/useAlarmFeed';
 
@@ -30,9 +30,12 @@ export const EnrichedAlarms: React.FC<EnrichedAlarmsProps> = ({
   }, [alarms]);
 
   return (
-    <div className="bg-slate-900 border border-slate-700 rounded-lg p-3 flex flex-col">
-      <div className="flex items-center justify-between mb-3">
-        <h2 className="text-slate-200 font-semibold">Enriched alarm feed</h2>
+    <div className="ns-card">
+      <CardHeader
+        title="Enriched alarm feed"
+        subtitle="Alarms after de-duplication and topology enrichment. Click a row to diagnose it."
+        info="alarm-ingest adds the site name, region and equipment, merges duplicates (×N) and marks the root alarm of each correlated group (↳ points to the root site)."
+        actions={
         <div className="flex gap-2 text-xs" data-testid="enriched-summary">
           {status && (
             <span
@@ -53,70 +56,68 @@ export const EnrichedAlarms: React.FC<EnrichedAlarmsProps> = ({
             Groups {summary.groups}
           </span>
         </div>
-      </div>
+        }
+      />
       {alarms.length === 0 ? (
-        <div className="py-6 text-center text-slate-500">
+        <div className="flex flex-1 items-center justify-center py-8 text-sm text-slate-400">
           <p>Waiting for enriched alarms — run `make ingest` and `make sim`</p>
         </div>
       ) : (
-        <div className="max-h-96 overflow-y-auto">
+        <div className="ns-scroll">
           <table className="w-full text-xs">
             <thead>
-              <tr className="text-slate-500 border-b border-slate-700">
-                <th className="text-left py-1.5">Time (IST)</th>
-                <th className="text-left py-1.5">Severity</th>
-                <th className="text-left py-1.5">Site</th>
-                <th className="text-left py-1.5">Region</th>
-                <th className="text-left py-1.5">Node types</th>
-                <th className="text-left py-1.5">Problem</th>
-                <th className="text-left py-1.5">Dedup</th>
-                <th className="text-left py-1.5">Correlation</th>
+              <tr className="ns-thead">
+                <th className="py-2 pl-2 pr-3 font-medium">Time (IST)</th>
+                <th className="py-2 pr-3 font-medium">Severity</th>
+                <th className="py-2 pr-3 font-medium">Site</th>
+                <th className="py-2 pr-3 font-medium">Region</th>
+                <th className="py-2 pr-3 font-medium">Node types</th>
+                <th className="py-2 pr-3 font-medium">Problem</th>
+                <th className="py-2 pr-3 font-medium">Repeats</th>
+                <th className="py-2 pr-3 font-medium">Root / symptom</th>
               </tr>
             </thead>
             <tbody>
               {alarms.map((a) => {
-                const styles = getSeverityStyles(a.perceivedSeverity);
                 return (
                   <tr
                     key={a.dedup.key}
                     onClick={onSelect ? () => onSelect(a) : undefined}
                     aria-selected={selectedKey === a.dedup.key}
-                    className={`border-b border-slate-800 ${styles.rowBorder} hover:bg-slate-800/50 ${
+                    className={`border-b border-slate-800 hover:bg-slate-800/50 ${
                       onSelect ? 'cursor-pointer' : ''
                     } ${selectedKey === a.dedup.key ? 'bg-slate-800/70' : ''}`}
                   >
-                    <td className="py-1.5 pl-2 text-slate-400 font-mono">
+                    <td className="py-2 pl-2 pr-3 whitespace-nowrap text-slate-400 font-mono">
                       {formatIST(a.alarmRaisedTime)}
                     </td>
-                    <td className="py-1.5">
-                      <span className={`inline-flex px-1.5 rounded ${styles.badge}`}>
-                        {a.perceivedSeverity}
-                      </span>
+                    <td className="py-2 pr-3">
+                      <SeverityChip severity={a.perceivedSeverity} />
                     </td>
-                    <td className="py-1.5 text-slate-300">
+                    <td className="py-2 pr-3 text-slate-300">
                       <div>{a.siteId}</div>
                       {a.enrichment.siteName && (
                         <div className="text-slate-500">{a.enrichment.siteName}</div>
                       )}
                     </td>
-                    <td className="py-1.5 text-slate-300">{a.enrichment.region}</td>
-                    <td className="py-1.5 text-slate-400">
+                    <td className="py-2 pr-3 text-slate-300">{a.enrichment.region}</td>
+                    <td className="py-2 pr-3 text-slate-400">
                       {a.enrichment.nodeTypes.join(', ') || '—'}
                     </td>
-                    <td className="py-1.5 text-slate-400">
+                    <td className="py-2 pr-3 text-slate-400">
                       <div>{a.specificProblem}</div>
                       {selectedKey === a.dedup.key && selectedBadge}
                     </td>
-                    <td className="py-1.5">
+                    <td className="py-2 pr-3">
                       {a.dedup.count > 1 ? (
                         <span className="px-1.5 rounded bg-violet-500/15 text-violet-300">
                           ×{a.dedup.count}
                         </span>
                       ) : (
-                        <span className="text-slate-600">1</span>
+                        <span className="text-slate-600">—</span>
                       )}
                     </td>
-                    <td className="py-1.5">
+                    <td className="py-2 pr-3">
                       {a.correlation.role === 'root' && (
                         <span className="text-red-400 font-medium">root</span>
                       )}

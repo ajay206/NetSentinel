@@ -108,9 +108,8 @@ describe('App', () => {
     await waitFor(() => expect(screen.getAllByText(/IST/).length).toBeGreaterThan(0));
     // Network map renders the fixture site
     expect(document.querySelector('[data-site-id="SITE-001"]')).toBeInTheDocument();
-    // W8: runbooks panel is mounted and waits for an alarm selection
-    expect(screen.getByRole('heading', { name: 'Suggested runbooks' })).toBeInTheDocument();
-    expect(screen.getByText('Click an enriched alarm to see runbooks.')).toBeInTheDocument();
+    // Fix 1 (14): runbooks live in the alarm detail drawer, which opens only on alarm click
+    expect(screen.queryByTestId('alarm-drawer')).not.toBeInTheDocument();
     // W9: copilot panel replaces the placeholder
     expect(screen.getByRole('heading', { name: 'Copilot analyze' })).toBeInTheDocument();
   });
