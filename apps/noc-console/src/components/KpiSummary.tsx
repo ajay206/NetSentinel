@@ -31,7 +31,8 @@ export const KpiSummary: React.FC<KpiSummaryProps> = ({
   servicesUp,
   servicesTotal,
 }) => {
-  const allUp = servicesTotal > 0 && servicesUp === servicesTotal;
+  const healthUnknown = servicesTotal === 0;
+  const allUp = !healthUnknown && servicesUp === servicesTotal;
   const tiles: Tile[] = [
     {
       id: 'alarms',
@@ -52,7 +53,10 @@ export const KpiSummary: React.FC<KpiSummaryProps> = ({
     {
       id: 'compression',
       label: 'Alarm compression',
-      value: compressionRatio ? `${compressionRatio.toFixed(1)}×` : '—',
+      value:
+        compressionRatio != null && Number.isFinite(compressionRatio)
+          ? `${compressionRatio.toFixed(1)}×`
+          : '—',
       hint: 'Alarms per incident',
       info: 'How many alarms each incident replaces. Higher means less noise for the operator.',
       tone: 'text-slate-100',
@@ -69,9 +73,9 @@ export const KpiSummary: React.FC<KpiSummaryProps> = ({
       id: 'services',
       label: 'Services healthy',
       value: `${servicesUp}/${servicesTotal}`,
-      hint: allUp ? 'All systems go' : 'Check service health',
+      hint: healthUnknown ? 'Waiting for health' : allUp ? 'All systems go' : 'Check service health',
       info: 'Backend services reporting healthy to the API gateway.',
-      tone: allUp ? 'text-emerald-300' : 'text-amber-300',
+      tone: healthUnknown ? 'text-slate-100' : allUp ? 'text-emerald-300' : 'text-amber-300',
     },
   ];
 

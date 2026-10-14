@@ -79,7 +79,13 @@ export const ShapDrawer: React.FC<ShapDrawerProps> = ({
 
       <h3 className="font-semibold text-sm mb-2">Why this fault?</h3>
       <div className="flex items-center gap-2 mb-1">
-        <FaultBadge prediction={prediction} isLoading={isLoading} isError={isError} />
+        {/* Prediction and SHAP are separate API calls; don't hide a successful
+            classification when the explanation is still loading or failed. */}
+        <FaultBadge
+          prediction={prediction}
+          isLoading={!prediction && isLoading}
+          isError={!prediction && isError}
+        />
       </div>
       {prediction && (
         <div className="text-[11px] text-slate-500 mb-4">model {prediction.modelVersion}</div>
@@ -87,6 +93,8 @@ export const ShapDrawer: React.FC<ShapDrawerProps> = ({
 
       {isError ? (
         <p className="text-red-400 text-sm">ml-service unreachable — run make ml</p>
+      ) : isLoading && contributions.length === 0 ? (
+        <p className="text-slate-400 text-sm">Loading SHAP explanation…</p>
       ) : (
         <ul className="space-y-2" data-testid="shap-list">
           {contributions.map((c) => {

@@ -66,8 +66,10 @@ export const App: React.FC<AppProps> = ({ session, onLogout }) => {
 
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   // Follow the latest version of the selected alarm (dedup count can grow)
+  // Resolve against the visible (incident-filtered) feed so the drawer cannot
+  // stay open on an alarm the tables are no longer showing.
   const selected: EnrichedAlarm | null =
-    enrichedAlarms.find((a) => a.dedup.key === selectedKey) ?? null;
+    shownEnriched.find((a) => a.dedup.key === selectedKey) ?? null;
   const prediction = useFaultPrediction(selected);
   const explanation = useFaultExplanation(selected);
 
@@ -223,8 +225,8 @@ export const App: React.FC<AppProps> = ({ session, onLogout }) => {
         alarm={selected}
         prediction={prediction.data}
         explanation={explanation.data}
-        isLoading={prediction.isLoading || explanation.isLoading}
-        isError={prediction.isError || explanation.isError}
+        isLoading={explanation.isLoading}
+        isError={explanation.isError}
         onClose={() => selectAlarm(null)}
         runbooks={
           <RunbooksPanel
