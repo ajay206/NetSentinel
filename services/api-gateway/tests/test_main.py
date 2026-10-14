@@ -5,13 +5,29 @@ from __future__ import annotations
 import os
 from unittest.mock import AsyncMock
 
+import httpx
 import pytest
 from fastapi.testclient import TestClient
 
 # Set DISABLE_KAFKA before importing app
 os.environ["DISABLE_KAFKA"] = "1"
+os.environ["AUTH_DISABLED"] = "1"  # W11 auth is covered in test_auth.py
 
+import api_gateway.main as main  # noqa: E402
+from api_gateway import auth as gw_auth  # noqa: E402
 from api_gateway.main import app, enriched_hub, hub, kpi_activity  # noqa: E402
+
+
+@pytest.fixture(autouse=True)
+def no_phase1_services(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Phase 1 /healthz probes never touch real ports in tests."""
+
+    def refuse(request: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectError("refused", request=request)
+
+    monkeypatch.setattr(main, "health_transport", httpx.MockTransport(refuse))
+    # W11 auth has its own tests (test_auth.py); these cover the routes themselves
+    monkeypatch.setattr(gw_auth.settings, "disabled", True)
 
 
 @pytest.fixture(autouse=True)
@@ -51,8 +67,12 @@ def test_health_ok(monkeypatch: pytest.MonkeyPatch) -> None:
         assert response.status_code == 200
         data = response.json()
         assert data["status"] == "ok"
-        assert len(data["services"]) == 3
-        assert all(s["status"] == "up" for s in data["services"])
+        core = [s for s in data["services"] if s["tier"] == "core"]
+        assert len(core) == 3
+        assert all(s["status"] == "up" for s in core)
+        # W11: Phase 1 services are listed too (down here: nothing is listening)
+        names = {s["name"] for s in data["services"]}
+        assert {"alarm-ingest", "kpi-service", "ml-service", "rag-service"} <= names
         assert "checkedAt" in data
 
 

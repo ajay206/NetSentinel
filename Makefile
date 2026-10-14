@@ -1,4 +1,4 @@
-.PHONY: up-core up-tools up-ui down topics test lint fmt smoke sim sim-loop sim-docker gateway console-install console console-build console-lint console-test test-all ingest up-pipeline enriched-peek ingest-stats kpi-service kpi-stats kpi-query ml ml-train anomalies topology kpis kpis-follow kpis-peek docs-check ml-train-xgb up-rag rag rag-ingest rag-eval runbooks copilot up-copilot analyze ollama-pull mcp mcp-dev mcp-contract copilot-contract
+.PHONY: up-core up-tools up-ui down topics test lint fmt smoke sim sim-loop sim-docker gateway console-install console console-build console-lint console-test test-all ingest up-pipeline enriched-peek ingest-stats kpi-service kpi-stats kpi-query ml ml-train anomalies topology kpis kpis-follow kpis-peek docs-check ml-train-xgb up-rag rag rag-ingest rag-eval runbooks copilot up-copilot analyze ollama-pull mcp mcp-dev mcp-contract copilot-contract gateway-contract token
 
 up-core:
 	docker compose --profile core up -d
@@ -133,6 +133,14 @@ mcp-contract:
 
 copilot-contract:
 	uv run python scripts/gen_copilot_contract.py
+
+gateway-contract:
+	uv run python scripts/gen_gateway_auth_contract.py
+
+# W11: get a JWT from the gateway (demo users; synthetic data only)
+AS ?= operator
+token:
+	@curl -s -X POST localhost:8000/api/auth/login -H 'Content-Type: application/json' -d '{"username":"$(AS)","password":"$(AS)"}' | python3 -c 'import json,sys;print(json.load(sys.stdin)["accessToken"])'
 
 ollama-pull:
 	ollama pull qwen2.5:1.5b

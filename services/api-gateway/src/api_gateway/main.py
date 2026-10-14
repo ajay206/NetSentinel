@@ -28,6 +28,10 @@ from fastapi.responses import JSONResponse
 # netgen is a workspace dependency
 from netgen import build_topology
 
+from api_gateway.auth import AuthMiddleware
+from api_gateway.auth import router as auth_router
+from api_gateway.timeline import build_timeline
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s %(levelname)s %(name)s: %(message)s",
@@ -49,6 +53,16 @@ KPI_SERVICE_URL = os.getenv("KPI_SERVICE_URL", "http://localhost:8002").rstrip("
 ML_SERVICE_URL = os.getenv("ML_SERVICE_URL", "http://localhost:8003").rstrip("/")
 COPILOT_URL = os.getenv("COPILOT_URL", "http://localhost:8005").rstrip("/")
 RAG_SERVICE_URL = os.getenv("RAG_SERVICE_URL", "http://localhost:8004").rstrip("/")
+ALARM_INGEST_URL = os.getenv("ALARM_INGEST_URL", "http://localhost:8001").rstrip("/")
+# W11: Phase 1 services probed through the gateway for the health panel
+PHASE1_SERVICES = {
+    "alarm-ingest": lambda: ALARM_INGEST_URL,
+    "kpi-service": lambda: KPI_SERVICE_URL,
+    "ml-service": lambda: ML_SERVICE_URL,
+    "rag-service": lambda: RAG_SERVICE_URL,
+    "copilot-orchestrator": lambda: COPILOT_URL,
+}
+health_transport: httpx.AsyncBaseTransport | None = None
 # Tests swap this for an httpx.MockTransport
 kpi_transport: httpx.AsyncBaseTransport | None = None
 ml_transport: httpx.AsyncBaseTransport | None = None
@@ -100,6 +114,8 @@ class AlarmHub:
 
 hub = AlarmHub()
 enriched_hub = AlarmHub(message_type="enriched")
+# W11: slim (time, severity) history for the storm timeline; longer than the 200-alarm buffer
+timeline_events: deque[dict[str, Any]] = deque(maxlen=5000)
 
 
 class KpiActivity:
@@ -251,6 +267,12 @@ async def alarm_handler(alarm: dict[str, Any]) -> None:
 
 
 async def enriched_handler(alarm: dict[str, Any]) -> None:
+    timeline_events.append(
+        {
+            "alarmRaisedTime": alarm.get("alarmRaisedTime"),
+            "perceivedSeverity": alarm.get("perceivedSeverity"),
+        }
+    )
     await enriched_hub.publish(alarm)
 
 
@@ -286,6 +308,9 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# W11: auth first so CORS (added last = outermost) also decorates 401/403/429 responses
+app.include_router(auth_router)
+app.add_middleware(AuthMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=CORS_ORIGINS,
@@ -295,23 +320,43 @@ app.add_middleware(
 )
 
 
+async def check_http_service(name: str, base_url: str) -> dict[str, Any]:
+    """GET <service>/healthz with a short timeout; any failure reports the service as down."""
+    try:
+        async with httpx.AsyncClient(transport=health_transport, timeout=1.5) as client:
+            resp = await client.get(f"{base_url}/healthz")
+        if resp.status_code == 200:
+            return {"name": name, "status": "up", "tier": "phase1"}
+        return {
+            "name": name,
+            "status": "down",
+            "detail": f"HTTP {resp.status_code}",
+            "tier": "phase1",
+        }
+    except httpx.HTTPError:
+        return {"name": name, "status": "down", "detail": "unreachable", "tier": "phase1"}
+
+
 @app.get("/health")
 async def health() -> JSONResponse:
-    """Health check endpoint with dependency status."""
-    kafka_status, timescale_status = await asyncio.gather(check_kafka(), check_timescaledb())
+    """Health check: core dependencies decide the overall status; Phase 1 services are listed."""
+    kafka_status, timescale_status, *phase1 = await asyncio.gather(
+        check_kafka(),
+        check_timescaledb(),
+        *(check_http_service(n, url()) for n, url in PHASE1_SERVICES.items()),
+    )
 
-    services = [
-        {"name": "api-gateway", "status": "up"},
-        kafka_status,
-        timescale_status,
+    core = [
+        {"name": "api-gateway", "status": "up", "tier": "core"},
+        {**kafka_status, "tier": "core"},
+        {**timescale_status, "tier": "core"},
     ]
-
-    overall = "ok" if all(s["status"] == "up" for s in services[1:]) else "degraded"
+    overall = "ok" if all(s["status"] == "up" for s in core[1:]) else "degraded"
 
     return JSONResponse(
         {
             "status": overall,
-            "services": services,
+            "services": core + list(phase1),
             "checkedAt": datetime.now(UTC).isoformat(timespec="seconds").replace("+00:00", "Z"),
         }
     )
@@ -321,6 +366,14 @@ async def health() -> JSONResponse:
 async def recent_alarms() -> JSONResponse:
     """Return recent alarms."""
     return JSONResponse(hub.get_snapshot())
+
+
+@app.get("/api/alarms/timeline")
+async def alarm_timeline(bucketSeconds: int = 60) -> JSONResponse:  # noqa: N803 (API casing)
+    """W11: alarm-storm timeline (counts per bucket and severity) over recent enriched alarms."""
+    if not 10 <= bucketSeconds <= 3600:
+        return JSONResponse({"detail": "bucketSeconds must be 10..3600"}, status_code=422)
+    return JSONResponse(build_timeline(list(timeline_events), bucket_seconds=bucketSeconds))
 
 
 @app.get("/api/alarms/enriched/recent")

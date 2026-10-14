@@ -375,3 +375,51 @@ make mcp &                                  # or: make up-copilot (Docker)
 TOOLS=mcp MCP_URL=http://localhost:8006/mcp MCP_SERVICE_TOKEN=$MCP_SERVICE_TOKEN make copilot
 make analyze SITE=SITE-012
 ```
+
+## Gateway login and RBAC (W11)
+
+### Console login screen
+The web console shows a simple login form. In the demo build the following users exist:
+
+| User | Password | Role |
+|------|----------|------|
+| `viewer` | `viewer` | viewer |
+| `operator` | `operator` | operator |
+| `admin` | `admin` | admin |
+
+### Generating a token locally
+```bash
+make token AS=operator
+# prints a JWT signed with the current JWT_SECRET
+```
+
+### Example API calls
+
+```bash
+TOKEN=$(make -s token AS=viewer)
+curl -H "Authorization: Bearer $TOKEN" http://localhost:8000/api/alarms/timeline
+```
+
+```bash
+http :8000/api/kpi/healthz "Authorization:Bearer $TOKEN"
+```
+
+### Docker‑compose environment
+Add the following to `.env` (do **not** commit real secrets):
+
+```dotenv
+JWT_SECRET=<random, 32+ characters>
+GATEWAY_SERVICE_TOKEN=<random>
+```
+
+The compose file provides dev defaults for all other variables.
+
+### UI behaviour
+- A viewer sees the **Copilot “Analyze site”** button disabled, with the note *“Read-only: analyze needs the operator role.”*.
+- The **Alarm storm timeline** panel shows one bar per minute, stacked by severity. A scrub‑slider lets you move through the last 5 000 enriched alarms. When a bucket’s count ≥ max(5, peak/2) a **Burst** badge appears.
+
+### Generating a burst scenario
+```bash
+uv run netgen-sim run --seed 42 --scenario fibre_cut --speed 60x
+```
+The simulation injects a rapid series of alarms, causing the timeline to display a burst badge.

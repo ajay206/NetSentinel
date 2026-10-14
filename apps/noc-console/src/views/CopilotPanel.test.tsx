@@ -129,4 +129,16 @@ describe("CopilotPanel", () => {
     render(<CopilotPanel onAnalyze={vi.fn()} result={result} />);
     expect(screen.queryByTestId("tool-call-chips")).toBeNull();
   });
+
+  it("is read-only for viewers (W11 RBAC)", () => {
+    const onAnalyze = vi.fn();
+    render(
+      <CopilotPanel onAnalyze={onAnalyze} defaultSiteId="SITE-012" canAnalyze={false} />,
+    );
+    const button = screen.getByRole("button", { name: /analyze site/i });
+    expect(button).toBeDisabled();
+    expect(screen.getByRole("note")).toHaveTextContent(/operator role/i);
+    fireEvent.submit(button.closest("form")!);
+    expect(onAnalyze).not.toHaveBeenCalled();
+  });
 });

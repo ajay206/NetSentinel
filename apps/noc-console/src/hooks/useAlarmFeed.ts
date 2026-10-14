@@ -1,5 +1,6 @@
 import { useEffect, useReducer, useRef, useCallback } from 'react';
 import type { Alarm, WsMessage } from '../types';
+import { withToken } from '../lib/auth';
 
 export type ConnectionStatus = 'connecting' | 'open' | 'closed';
 
@@ -67,7 +68,7 @@ export function useAlarmFeed() {
   const connect = useCallback(() => {
     const proto = location.protocol === 'https:' ? 'wss' : 'ws';
     const url = `${proto}://${location.host}/ws/alarms`;
-    const ws = new WebSocket(url);
+    const ws = new WebSocket(withToken(url));
     wsRef.current = ws;
 
     ws.onopen = () => {

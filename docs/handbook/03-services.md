@@ -537,3 +537,65 @@ The **mcp-server** provides the internal MCP tool layer used by the Copilot orch
 
 ---  
 *All tool definitions are version‑controlled in `contracts/mcp/netsentinel-tools.json`.*
+
+## api-gateway auth, RBAC and timeline (W11)
+
+### Endpoints
+
+| Method | Path | Public? | Required role | Description |
+|--------|------|---------|---------------|-------------|
+| POST | `/api/auth/login` | Yes | – | Authenticate user, returns JWT |
+| GET | `/api/auth/me` | No | viewer | Returns claims of the current token |
+| GET | `/api/auth/users` | No | admin | List all configured users |
+| GET | `/api/alarms/timeline` | No | viewer | Returns aggregated alarm buckets (see timeline panel) |
+| GET | `/health` | Yes | – | Core health + Phase 1 services status |
+| GET | `/docs` | Yes | – | Swagger UI |
+| GET | `/openapi.json` | Yes | – | OpenAPI spec |
+| OPTIONS | `*` | Yes | – | CORS preflight |
+| POST | `/api/copilot/analyze` | No | operator | Trigger Copilot analysis |
+| (WebSocket) | `/ws/*?token=` | No | viewer | Real‑time streams, token via query |
+
+### `/health` payload (extended)
+
+`services` now lists the Phase 1 services too. Each entry has a `tier`; the overall `status`
+still depends only on the core tier (Kafka, TimescaleDB):
+
+```json
+{
+  "status": "ok",
+  "services": [
+    {"name": "api-gateway", "status": "up", "tier": "core"},
+    {"name": "kafka", "status": "up", "detail": "kafka:29092", "tier": "core"},
+    {"name": "timescaledb", "status": "up", "detail": "timescaledb:5432", "tier": "core"},
+    {"name": "alarm-ingest", "status": "up", "tier": "phase1"},
+    {"name": "rag-service", "status": "down", "detail": "unreachable", "tier": "phase1"}
+  ],
+  "checkedAt": "2026-10-14T12:00:00Z"
+}
+```
+
+### Environment variables
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `JWT_SECRET` | Yes in compose | random per process (warning) | HS256 secret for signing JWTs |
+| `JWT_TTL_SECONDS` | No | `28800` (8 h) | Token lifetime |
+| `GATEWAY_USERS` | No | – | `name:password:role,...` list |
+| `DEMO_USERS` | No | `1` | Enable demo users (`viewer/operator/admin`) |
+| `RATE_LIMIT_PER_MIN` | No | `600` | Max API calls per user per minute |
+| `LOGIN_RATE_PER_MIN` | No | `10` | Max login attempts per IP per minute |
+| `GATEWAY_SERVICE_TOKEN` | No | – | Token used by internal services |
+| `AUTH_DISABLED` | No | `0` | Disable all auth checks (test only) |
+| `ALARM_INGEST_URL` | No | `http://localhost:8001` | URL of the alarm ingest service |
+
+### Role matrix
+
+| Role | Accessible endpoints |
+|------|----------------------|
+| `viewer` | All `/api/*` (except admin/operator only), all `/ws/*`, `/health`, `/docs`, `/openapi.json` |
+| `operator` | All viewer endpoints **plus** `POST /api/copilot/analyze` |
+| `admin` | All viewer & operator endpoints **plus** `GET /api/auth/users` |
+
+### OpenAPI contract
+
+The gateway contract is stored at `contracts/openapi/api-gateway-auth.yaml`. It covers the auth endpoints and `/api/alarms/timeline`, with `x-required-role` per operation. Regenerate with `make gateway-contract`; a pytest drift test fails if it is stale.

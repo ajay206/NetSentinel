@@ -13,6 +13,8 @@ interface CopilotPanelProps {
   error?: Error | null;
   /** Click a cited runbook to open it in the runbooks panel. */
   onOpenRunbook?: (runbookId: string) => void;
+  /** W11 RBAC: analyze is operator-only at the gateway; viewers see a read-only panel. */
+  canAnalyze?: boolean;
 }
 
 const SourceChip: React.FC<{ id: string }> = ({ id }) => (
@@ -58,6 +60,7 @@ export const CopilotPanel: React.FC<CopilotPanelProps> = ({
   isPending = false,
   error,
   onOpenRunbook,
+  canAnalyze = true,
 }) => {
   const [siteId, setSiteId] = useState(defaultSiteId ?? "");
   const [window, setWindow] = useState("30m");
@@ -76,7 +79,8 @@ export const CopilotPanel: React.FC<CopilotPanelProps> = ({
         className="flex flex-wrap gap-2 items-center mb-3"
         onSubmit={(e) => {
           e.preventDefault();
-          if (valid && !isPending) onAnalyze(siteId.trim(), window);
+          if (valid && !isPending && canAnalyze)
+            onAnalyze(siteId.trim(), window);
         }}
       >
         <input
@@ -100,13 +104,19 @@ export const CopilotPanel: React.FC<CopilotPanelProps> = ({
         </select>
         <button
           type="submit"
-          disabled={!valid || isPending}
+          disabled={!valid || isPending || !canAnalyze}
+          title={canAnalyze ? undefined : "Requires the operator role"}
           className="bg-sky-600 hover:bg-sky-500 disabled:bg-slate-700 disabled:text-slate-500 text-white text-sm px-3 py-1 rounded"
         >
           {isPending ? "Analyzing…" : "Analyze site"}
         </button>
       </form>
 
+      {!canAnalyze && (
+        <p className="text-amber-300 text-xs mb-2" role="note">
+          Read-only: analyze needs the operator role.
+        </p>
+      )}
       {error && <p className="text-red-400 text-sm">{error.message}</p>}
       {!error && !result && !isPending && (
         <p className="text-slate-400 text-sm">

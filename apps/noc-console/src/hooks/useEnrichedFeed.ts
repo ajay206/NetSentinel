@@ -1,6 +1,7 @@
 import { useEffect, useReducer, useRef, useCallback } from 'react';
 import type { EnrichedAlarm, EnrichedWsMessage } from '../types.enriched';
 import type { ConnectionStatus } from './useAlarmFeed';
+import { withToken } from '../lib/auth';
 
 export interface EnrichedState {
   alarms: EnrichedAlarm[];
@@ -82,7 +83,7 @@ export function useEnrichedFeed() {
   const connect = useCallback(() => {
     const proto = location.protocol === 'https:' ? 'wss' : 'ws';
     const url = `${proto}://${location.host}/ws/enriched`;
-    const ws = new WebSocket(url);
+    const ws = new WebSocket(withToken(url));
     wsRef.current = ws;
 
     ws.onopen = () => {

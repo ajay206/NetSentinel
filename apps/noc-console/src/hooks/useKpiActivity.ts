@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import type { KpiActivity, KpiWsMessage } from '../types';
+import { withToken } from '../lib/auth';
 
 export type KpiConnectionStatus = 'connecting' | 'open' | 'closed';
 
@@ -27,7 +28,7 @@ export function useKpiActivity(): {
   const connect = useCallback(() => {
     const proto = location.protocol === 'https:' ? 'wss' : 'ws';
     const url = `${proto}://${location.host}/ws/kpis`;
-    const ws = new WebSocket(url);
+    const ws = new WebSocket(withToken(url));
     wsRef.current = ws;
 
     ws.onopen = () => {

@@ -22,8 +22,19 @@ import { useHealth } from './hooks/useHealth';
 import { useTopology } from './hooks/useTopology';
 import { useKpiActivity } from './hooks/useKpiActivity';
 import { worstSeverityBySite } from './lib/siteStatus';
+import { AlarmTimeline } from './components/AlarmTimeline';
+import { useTimeline } from './hooks/useTimeline';
+import { roleAtLeast, type Session } from './lib/auth';
 
-export const App: React.FC = () => {
+interface AppProps {
+  /** W11: set by AuthGate; without it (tests, AUTH_DISABLED) every control is enabled. */
+  session?: Session;
+  onLogout?: () => void;
+}
+
+export const App: React.FC<AppProps> = ({ session, onLogout }) => {
+  const canOperate = !session || roleAtLeast(session.role, 'operator');
+  const timeline = useTimeline();
   const { alarms, status: wsStatus } = useAlarmFeed();
   const { alarms: enrichedAlarms, status: enrichedStatus } = useEnrichedFeed();
   const { data: health, isError } = useHealth();
@@ -55,7 +66,7 @@ export const App: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-200 flex flex-col">
-      <Header wsStatus={wsStatus} />
+      <Header wsStatus={wsStatus} user={session} onLogout={onLogout} />
       <main className="flex-1 p-4 grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Row 1 */}
         <div className="lg:col-span-2">
@@ -79,6 +90,15 @@ export const App: React.FC = () => {
                 isError={prediction.isError}
               />
             }
+          />
+        </div>
+
+        {/* Row 1c: W11 alarm storm timeline */}
+        <div className="lg:col-span-3">
+          <AlarmTimeline
+            data={timeline.data}
+            isLoading={timeline.isLoading}
+            isError={timeline.isError}
           />
         </div>
 
@@ -116,6 +136,7 @@ export const App: React.FC = () => {
             isPending={copilot.isPending}
             error={copilot.error}
             onOpenRunbook={setRunbookId}
+            canAnalyze={canOperate}
           />
         </div>
       </main>
