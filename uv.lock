@@ -13,6 +13,7 @@ members = [
     "alarm-ingest",
     "api-gateway",
     "copilot-orchestrator",
+    "incident-service",
     "kpi-service",
     "mcp-server",
     "ml-service",
@@ -1137,6 +1138,36 @@ wheels = [
 ]
 
 [[package]]
+name = "incident-service"
+version = "0.1.0"
+source = { editable = "services/incident-service" }
+dependencies = [
+    { name = "aiokafka" },
+    { name = "fastapi" },
+    { name = "netgen" },
+    { name = "uvicorn", extra = ["standard"] },
+]
+
+[package.optional-dependencies]
+dev = [
+    { name = "httpx" },
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "aiokafka", specifier = ">=0.11" },
+    { name = "fastapi", specifier = ">=0.115" },
+    { name = "httpx", marker = "extra == 'dev'", specifier = ">=0.27" },
+    { name = "netgen", editable = "libs/netgen" },
+    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0" },
+    { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.23" },
+    { name = "uvicorn", extras = ["standard"], specifier = ">=0.30" },
+]
+provides-extras = ["dev"]
+
+[[package]]
 name = "iniconfig"
 version = "2.3.1"
 source = { registry = "https://pypi.org/simple" }
@@ -1691,6 +1722,7 @@ dev = [
     { name = "api-gateway" },
     { name = "copilot-orchestrator" },
     { name = "httpx" },
+    { name = "incident-service" },
     { name = "kpi-service" },
     { name = "mcp-server" },
     { name = "ml-service" },
@@ -1714,6 +1746,7 @@ dev = [
     { name = "api-gateway", editable = "services/api-gateway" },
     { name = "copilot-orchestrator", editable = "services/copilot-orchestrator" },
     { name = "httpx", specifier = ">=0.27" },
+    { name = "incident-service", editable = "services/incident-service" },
     { name = "kpi-service", editable = "services/kpi-service" },
     { name = "mcp-server", editable = "services/mcp-server" },
     { name = "ml-service", editable = "services/ml-service" },

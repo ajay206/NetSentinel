@@ -255,3 +255,26 @@ Finalised Phase 1, added a one‑command demo (`make demo`), a gateway‑only 
 - **Measured numbers** (see README): 215 pytest passes, 95 Vitest passes, lint clean.
 - **Mac checks pending:** Run `make demo` on a fresh clone, verify all five demo stages turn green, smoke test reports 9/9 PASS, and memory usage stays within the configured limits.
 - **Release gate:** ADR‑011 accepted; demo + smoke must pass before tagging `v0.1.0`.
+
+## Step 13 – W13 incident-service + incident board
+
+**Summary**  
+Introduces the topology‑aware incident clustering service, its API, and the new Incident board UI component.
+
+### Changes
+| Component | Change |
+|-----------|--------|
+| `services/incident-service` | New service (port 8007, `ops` profile, 128 MiB). Consumes `alarms.enriched`, publishes to `incidents`. |
+| AsyncAPI | Added `incidents` channel and Incident message schema (v0.3.0). |
+| Gateway | Proxy endpoints `/api/incidents` and `/api/incidents/{id}`; health list includes incident-service. |
+| Console | New “Incident board” card with severity chip, status, root site, alarm/site counts, duration, and stats line “N alarms → M incidents (R×)”. Click filters feeds; polls every 5 s. |
+| Makefile | Targets `incident`, `up-incident`, `incidents-peek`, `incident-eval`. Demo scripts now include `ops` profile. |
+| Tests | 21 pytest tests for incident-service, 2 gateway proxy tests, 121 vitest console tests (including IncidentBoard). |
+
+### Verification
+- **Synthetic evaluation** (`uv run incident-eval`):  
+  * Sequential faults – 397 alarms → 79 incidents, compression 5.03×, root match 100 %, purity 95 %, completeness 100 %, deterministic True.  
+  * Concurrent pairs – 48 incidents, compression 8.27×, root match 65 %, merged 9, deterministic True.  
+  * Concurrent with 60 s gap – 90 incidents, compression 4.41×, root match 65 %, split 1, merged 9.  
+- **Operational checks**: `/readyz` returns 200, Incident board displays cards, filters work, and restart yields identical incident sets.  
+- **Mac checks pending** – verify UI rendering on macOS browsers.

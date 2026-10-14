@@ -79,6 +79,7 @@ services:
       DISABLE_KAFKA: "0"
       ALARM_INGEST_URL: http://alarm-ingest:8001
       MCP_SERVER_URL: http://mcp-server:8006
+      INCIDENT_SERVICE_URL: http://incident-service:8007
       # W11: JWT/RBAC. Dev-only defaults; set real values in .env (never commit them)
       JWT_SECRET: ${JWT_SECRET:-dev-only-change-me-0123456789abcdefghij}
       GATEWAY_SERVICE_TOKEN: ${GATEWAY_SERVICE_TOKEN:-dev-only-service-token}
@@ -112,6 +113,31 @@ services:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request;urllib.request.urlopen('http://localhost:8001/healthz')\""]
+      interval: 10s
+      retries: 5
+    restart: unless-stopped
+
+  incident-service:
+    build:
+      context: .
+      dockerfile: services/incident-service/Dockerfile
+    profiles: ["ops"]
+    ports:
+      - "8007:8007"
+    environment:
+      KAFKA_BOOTSTRAP: kafka:29092
+      ENRICHED_TOPIC: alarms.enriched
+      INCIDENTS_TOPIC: incidents
+      TOPOLOGY_SEED: "42"
+      TOPOLOGY_FULL: "0"
+      INCIDENT_GAP_SECONDS: "300"
+      INCIDENT_MAX_HOPS: "4"
+    mem_limit: 128m
+    depends_on:
+      kafka:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request;urllib.request.urlopen('http://localhost:8007/healthz')\""]
       interval: 10s
       retries: 5
     restart: unless-stopped

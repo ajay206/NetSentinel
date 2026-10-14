@@ -27,6 +27,9 @@ import { useTimeline } from './hooks/useTimeline';
 import { DemoPath } from './components/DemoPath';
 import { demoStages } from './lib/demoPath';
 import { useAnomalyList } from './hooks/useAnomalies';
+import { IncidentBoard } from './views/IncidentBoard';
+import { useIncidents } from './hooks/useIncidents';
+import { alarmBelongsTo } from './lib/incidents';
 import { roleAtLeast, type Session } from './lib/auth';
 
 interface AppProps {
@@ -45,6 +48,19 @@ export const App: React.FC<AppProps> = ({ session, onLogout }) => {
   const { data: health, isError } = useHealth();
   const { data: topology, isLoading: topoLoading, isError: topoError } = useTopology();
   const { activity: kpiActivity, status: kpiStatus } = useKpiActivity();
+
+  // W13: selecting an incident filters both alarm feeds to its members
+  const incidents = useIncidents();
+  const [incidentId, setIncidentId] = useState<string | null>(null);
+  const incident = incidents.data?.items?.find((i) => i?.id === incidentId) ?? null;
+  const shownAlarms = useMemo(
+    () => alarms.filter((a) => alarmBelongsTo(incident, a)),
+    [alarms, incident],
+  );
+  const shownEnriched = useMemo(
+    () => enrichedAlarms.filter((a) => alarmBelongsTo(incident, a)),
+    [enrichedAlarms, incident],
+  );
 
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   // Follow the latest version of the selected alarm (dedup count can grow)
@@ -92,16 +108,27 @@ export const App: React.FC<AppProps> = ({ session, onLogout }) => {
 
         {/* Row 1 */}
         <div className="lg:col-span-2">
-          <LiveAlarms alarms={alarms} />
+          <LiveAlarms alarms={shownAlarms} />
         </div>
         <div>
           <ServiceHealth health={health} isError={isError} />
         </div>
 
+        {/* Row 1a: W13 incident board; selecting a card filters the feeds below */}
+        <div className="lg:col-span-3">
+          <IncidentBoard
+            data={incidents.data}
+            isLoading={incidents.isLoading}
+            isError={incidents.isError}
+            selectedId={incidentId}
+            onSelect={setIncidentId}
+          />
+        </div>
+
         {/* Row 1b: enriched feed from alarm-ingest (W4) */}
         <div className="lg:col-span-3">
           <EnrichedAlarms
-            alarms={enrichedAlarms}
+            alarms={shownEnriched}
             status={enrichedStatus}
             selectedKey={selectedKey}
             onSelect={(a) => selectAlarm(a.dedup.key)}

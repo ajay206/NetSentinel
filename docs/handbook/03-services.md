@@ -599,3 +599,45 @@ still depends only on the core tier (Kafka, TimescaleDB):
 ### OpenAPI contract
 
 The gateway contract is stored at `contracts/openapi/api-gateway-auth.yaml`. It covers the auth endpoints and `/api/alarms/timeline`, with `x-required-role` per operation. Regenerate with `make gateway-contract`; a pytest drift test fails if it is stale.
+
+## incident-service (W13)
+
+**Purpose**  
+Consumes the `alarms.enriched` stream, clusters alarms into topology‑aware incidents, and publishes a changelog of incident updates to the `incidents` Kafka topic.
+
+### API
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/healthz` | Liveness probe – always 200. |
+| GET | `/readyz` | Readiness probe – 200 only after Kafka connection is established; otherwise 503. |
+| GET | `/incidents` | List incidents. Query parameters: `status=open|cleared`, `limit=`. Returns `{items,total,stats{alarms,incidents,compressionRatio}}`. |
+| GET | `/incidents/{id}` | Retrieve a single incident; 404 if not found. |
+| GET | `/stats` | Service‑wide statistics (processed alarms, incidents, etc.). |
+
+### Environment variables
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `KAFKA_BOOTSTRAP` | Kafka bootstrap servers. | – |
+| `ENRICHED_TOPIC` | Source topic for enriched alarms. | `alarms.enriched` |
+| `INCIDENTS_TOPIC` | Destination topic for incident changelog. | `incidents` |
+| `INCIDENT_GAP_SECONDS` | Session‑window gap in seconds. | `300` |
+| `INCIDENT_MAX_HOPS` | Max topology hops for relation. | `4` |
+| `INCIDENT_MAX_KEEP` | Max incidents to retain (oldest pruned). | `500` |
+| `DISABLE_KAFKA` | If set, runs without Kafka (for tests). | – |
+| `TOPOLOGY_SEED` | Path to topology seed file. | – |
+
+### Running the service
+```bash
+# Local development
+uv run incident-service  # runs uvicorn on default port
+
+# Docker compose (ops profile)
+docker compose --profile ops up -d incident-service
+
+# Make targets
+make incident      # uvicorn locally
+make up-incident    # compose up with ops profile
+make incidents-peek   # consume the incidents topic
+make incident-eval    # run evaluation and write evals/rca_report.md
+```
+The service uses 128 MiB memory and listens on port **8007**.

@@ -328,3 +328,23 @@ Then refresh the console.
 ### 46. Demo path stuck on Fault badge
 - In the console, click a root alarm in the **Enriched Alarms** view to expand its details; the fault badge appears only after an alarm is selected.
 - Ensure the Copilot panel has finished processing; a loading spinner indicates the answer is still being generated.
+
+### 47. Incident board shows no cards
+- Verify that `incident-service` is running and `/readyz` returns 200.  
+- Check that the `incidents` topic exists and is being compacted.  
+- Ensure the console is polling `/api/incidents` (network tab) and receives a non‑empty `items` array.
+
+### 48. `/readyz` returns 503
+- Kafka broker may be unreachable; confirm `KAFKA_BOOTSTRAP` is correct and the broker is up.  
+- Look for logs indicating “Kafka connection failed”.  
+- If running locally without Kafka, set `DISABLE_KAFKA=1` to bypass the check.
+
+### 49. Two simultaneous faults appear as a single incident
+- This is expected when the faults are within `INCIDENT_GAP_SECONDS` and topology‑related (they merge per the clustering rules).  
+- Review the evaluation report: concurrent pairs scenario shows merged incidents.  
+- Future Phase 2 RCA will add link‑path evidence to split such cases.
+
+### 50. Incidents differ after a service restart
+- The service replays `alarms.enriched` from the earliest offset; if the topic retention or compaction removed earlier alarms, the replay will be incomplete.  
+- Check topic configuration (`cleanup.policy=compact,delete` and `retention.ms`).  
+- Ensure the same full alarm stream is available for replay.
