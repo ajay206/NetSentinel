@@ -1,7 +1,8 @@
 # 05 - Testing & CI/CD
 
 ## Testing Strategy
-* **Unit Tests:** Written using `pytest` located in `libs/*/tests/` and future `services/*/tests/`.
+* **Unit Tests:** Written using `pytest` located in `libs/*/tests/` and `services/*/tests/`. alarm-ingest tests (W4) run with `DISABLE_KAFKA=1` and a fake clock for dedup/correlation windows: `uv run pytest services/alarm-ingest -v`.
+* **Console tests:** Vitest (`make console-test`); W4 adds `EnrichedAlarms.test.tsx` and `applyEnrichedMessage.test.ts`.
 * **Linting & Formatting:** Enforced via `ruff` (`line-length = 100`, select `E, F, I, B, UP`).
 * **Pre-commit Hooks:** Enforce formatting, trailing whitespace fixes, and lint checks prior to commit (`uv run pre-commit install`).
 

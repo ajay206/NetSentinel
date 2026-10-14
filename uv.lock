@@ -8,6 +8,7 @@ resolution-markers = [
 
 [manifest]
 members = [
+    "alarm-ingest",
     "api-gateway",
     "netgen",
     "netgen-simulator",
@@ -45,6 +46,36 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/d6/a1/0af8a37849a4108ae227f46c4c62f6beab31863cf66ba318fb73b0be5b26/aiokafka-0.14.0-cp314-cp314-win32.whl", hash = "sha256:128127eb96dab98150b636bb5f480c80e15f02f82a118eec206a521c8cf7cf7c", size = 314107, upload-time = "2026-04-29T10:43:01.111Z" },
     { url = "https://files.pythonhosted.org/packages/fa/18/fb46c65f758900c71d0f1c73b7802720f99cabcb1f4a11676573f9bc1b8f/aiokafka-0.14.0-cp314-cp314-win_amd64.whl", hash = "sha256:aa385039aa9b235359319bbdcf48c9c86a75d81c9c547d645056d00361238903", size = 333320, upload-time = "2026-04-29T10:43:02.424Z" },
 ]
+
+[[package]]
+name = "alarm-ingest"
+version = "0.1.0"
+source = { editable = "services/alarm-ingest" }
+dependencies = [
+    { name = "aiokafka" },
+    { name = "fastapi" },
+    { name = "netgen" },
+    { name = "uvicorn", extra = ["standard"] },
+]
+
+[package.optional-dependencies]
+dev = [
+    { name = "httpx" },
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "aiokafka", specifier = ">=0.11" },
+    { name = "fastapi", specifier = ">=0.115" },
+    { name = "httpx", marker = "extra == 'dev'", specifier = ">=0.27" },
+    { name = "netgen", editable = "libs/netgen" },
+    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0" },
+    { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.23" },
+    { name = "uvicorn", extras = ["standard"], specifier = ">=0.30" },
+]
+provides-extras = ["dev"]
 
 [[package]]
 name = "annotated-doc"
@@ -749,6 +780,7 @@ source = { virtual = "." }
 
 [package.dev-dependencies]
 dev = [
+    { name = "alarm-ingest" },
     { name = "api-gateway" },
     { name = "httpx" },
     { name = "mypy" },
@@ -766,6 +798,7 @@ dev = [
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "alarm-ingest", editable = "services/alarm-ingest" },
     { name = "api-gateway", editable = "services/api-gateway" },
     { name = "httpx", specifier = ">=0.27" },
     { name = "mypy", specifier = ">=1.11.0" },

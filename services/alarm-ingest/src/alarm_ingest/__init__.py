@@ -1,0 +1,1 @@
+"""Alarm ingest service package."""

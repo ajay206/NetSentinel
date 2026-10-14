@@ -11,7 +11,7 @@ from fastapi.testclient import TestClient
 # Set DISABLE_KAFKA before importing app
 os.environ["DISABLE_KAFKA"] = "1"
 
-from api_gateway.main import app, hub, kpi_activity  # noqa: E402
+from api_gateway.main import app, enriched_hub, hub, kpi_activity  # noqa: E402
 
 
 @pytest.fixture(autouse=True)
@@ -240,3 +240,28 @@ def test_ws_kpis_first_message_type() -> None:
             assert "lastSample" in msg
             assert "averages" in msg
             assert "cellsReporting" in msg
+
+
+def test_enriched_ws_snapshot_and_recent() -> None:
+    """Enriched alarms are served on /ws/enriched and /api/alarms/enriched/recent."""
+    enriched_hub.recent.clear()
+    alarm = {"id": "e-1", "siteId": "S-1", "dedup": {"count": 2}, "enrichment": {"region": "North"}}
+    enriched_hub.recent.append(alarm)
+    client = TestClient(app)
+    assert client.get("/api/alarms/enriched/recent").json() == [alarm]
+    with client.websocket_connect("/ws/enriched") as ws:
+        msg = ws.receive_json()
+        assert msg == {"type": "snapshot", "alarms": [alarm]}
+    enriched_hub.recent.clear()
+
+
+async def test_enriched_hub_message_type() -> None:
+    ws = AsyncMock()
+    enriched_hub.clients.add(ws)
+    try:
+        await enriched_hub.publish({"id": "e-2"})
+        sent = ws.send_text.call_args.args[0]
+        assert '"type": "enriched"' in sent
+    finally:
+        enriched_hub.clients.discard(ws)
+        enriched_hub.recent.clear()

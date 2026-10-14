@@ -139,6 +139,33 @@ make kpis-follow
 
 **Memory note:** The KPI simulator adds roughly another 100 MiB when running in follow mode. Keep an eye on Docker memory; you may need to raise the allocation to **5 GB** if you run the full (`--full`) topology.
 
+## Week 4: alarm-ingest and the enriched alarm feed
+
+alarm-ingest reads `alarms.raw`, adds site/region/node types from the topology, counts repeats
+(dedup) and groups symptoms under a root alarm (correlation), then writes `alarms.enriched`.
+The gateway forwards it on `/ws/enriched` to the **Enriched alarm feed** panel.
+
+### Run it natively (lowest memory)
+
+```bash
+make up-core && make topics      # Kafka (+ TimescaleDB); topics include alarms.enriched
+make gateway                     # terminal 1, :8000
+make ingest                      # terminal 2, alarm-ingest on :8001
+make console                     # terminal 3, http://localhost:5173
+make sim                         # terminal 4, fibre-cut scenario
+make ingest-stats                # received / published / invalid / duplicates
+```
+
+### Or run alarm-ingest in Docker
+
+```bash
+make up-pipeline                 # core + alarm-ingest container (~160 MB)
+make enriched-peek               # print 5 enriched alarms from Kafka
+```
+
+Expected: during `make sim` the panel fills within a few seconds; the LOS rows at both ends of
+the cut show **root**, the access-site rows show **↳ <root site>**, and every time ends in IST.
+
 ### Documentation sanity‑check
 
 After the changes, run the documentation validation target:

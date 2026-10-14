@@ -1,5 +1,6 @@
 # Profiles and memory budget:
-# core services (~1.5 GB total), UI profile adds ~192 MB, Sim profile adds ~256 MB now.
+# core services (~1.5 GB total), UI profile adds ~192 MB, Sim profile adds ~256 MB,
+# Pipeline profile (alarm-ingest) adds ~160 MB.
 # The console runs natively on the host and is not containerized.
 services:
   kafka:
@@ -65,6 +66,7 @@ services:
       KAFKA_BOOTSTRAP: kafka:29092
       ALARM_TOPIC: alarms.raw
       KPI_TOPIC: kpis
+      ENRICHED_TOPIC: alarms.enriched
       TOPOLOGY_SEED: "42"
       TOPOLOGY_FULL: "0"
       TIMESCALE_HOST: timescaledb
@@ -78,6 +80,29 @@ services:
         required: false
       timescaledb:
         required: false
+    restart: unless-stopped
+
+  alarm-ingest:
+    build:
+      context: .
+      dockerfile: services/alarm-ingest/Dockerfile
+    profiles: ["pipeline"]
+    ports:
+      - "8001:8001"
+    environment:
+      KAFKA_BOOTSTRAP: kafka:29092
+      RAW_TOPIC: alarms.raw
+      ENRICHED_TOPIC: alarms.enriched
+      TOPOLOGY_SEED: "42"
+      TOPOLOGY_FULL: "0"
+    mem_limit: 160m
+    depends_on:
+      kafka:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request;urllib.request.urlopen('http://localhost:8001/healthz')\""]
+      interval: 10s
+      retries: 5
     restart: unless-stopped
 
   netgen-simulator:

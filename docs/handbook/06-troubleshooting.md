@@ -33,3 +33,50 @@
 ### 8. Mermaid diagram fails to render on GitHub  
 * **Cause:** Labels containing parentheses or other special characters are not quoted, causing the Mermaid parser to error.  
 * **Solution:** Quote any label with special characters, e.g., `UI["noc-console (React)"]`. After fixing, run `make docs-check` which invokes `@mermaid-js/mermaid-cli` to validate all Mermaid blocks. Ensure all relative markdown links and images resolve correctly.
+
+### 9. Enriched panel shows no data
+**Symptom**  
+The Enriched alarm feed in the NOC console is empty even though raw alarms are being produced.
+
+**Cause**  
+`api-gateway` is not subscribed to the `alarms.enriched` topic (environment variable `ENRICHED_TOPIC` missing or wrong) or the Kafka consumer failed to join the group.
+
+**Fix**  
+1. Verify `ENRICHED_TOPIC` is set to `alarms.enriched` in the gateway container env.  
+2. Check `make ingest-stats` (is `published` growing?) and the gateway log line `Kafka consumer started on topic alarms.enriched`.  
+3. Make sure alarm-ingest is running (`make ingest` or `make up-pipeline`) and that `make topics` created `alarms.enriched`. The gateway reads from `latest`, so start it before `make sim`.
+
+### 10. readyz returns 503
+**Symptom**  
+`GET /readyz` on `alarm-ingest` returns HTTP 503.
+
+**Cause**  
+The service cannot connect to the Kafka broker (network issue, broker down, or wrong `KAFKA_BOOTSTRAP`).
+
+**Fix**  
+* Ensure the Kafka container is running: `docker ps | grep kafka`.  
+* Verify the bootstrap address matches the compose network (`kafka:29092` inside compose, `localhost:9092` on the host).  
+* If you are running locally without Kafka, set `DISABLE_KAFKA=1` and restart the service.
+
+### 11. Duplicate alarms appear after restart
+**Symptom**  
+After restarting `alarm-ingest`, the console shows duplicate enriched alarms for the same event.
+
+**Cause**  
+In‑memory de‑duplication windows are cleared on restart, so the service re‑reads raw messages whose offsets were not yet committed (at-least-once, ADR-004).
+
+**Fix**  
+* Accept that duplicates are possible; downstream consumers are idempotent.  
+* For a production‑grade fix, persist the de‑dup state (e.g., Redis) in a future sprint.  
+* In the meantime, reduce the restart window or increase the de‑dup window size if duplicates are problematic.
+
+### 12. Unknown region displayed
+**Symptom**  
+Enriched alarms show `region: "Unknown"` even though the site exists in the topology.
+
+**Cause**  
+The topology seed does not contain the site ID, or the site ID in the raw alarm is malformed (e.g., extra whitespace).
+
+**Fix**  
+* Check the raw alarm `siteId` / `alarmedObject.id` for correct formatting.  
+* Make sure `TOPOLOGY_SEED` / `TOPOLOGY_FULL` are the same for the simulator, alarm-ingest and the gateway (default 42 / 0).
