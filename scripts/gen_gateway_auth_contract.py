@@ -32,6 +32,12 @@ ROLES = {
     "/api/incidents/{incident_id}/actions": "operator",
     "/api/alarms/actions": "operator",
     "/api/alarms/workflow": "viewer",
+    # Step 14
+    "/api/graph/impact": "viewer",
+    "/api/graph/summary": "viewer",
+    "/api/graph/queries": "viewer",
+    "/api/graph/queries/{name}": "viewer",
+    "/api/graph/reload": "admin",
 }
 PATHS = tuple(ROLES)
 

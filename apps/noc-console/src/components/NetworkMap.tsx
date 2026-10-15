@@ -7,7 +7,15 @@ type Props = {
   isLoading: boolean;
   isError: boolean;
   severityBySite: Record<string, PerceivedSeverity>;
+  /** Step 14: impact radius from the RCA graph panel (sites that lose service). */
+  impactedSiteIds?: ReadonlySet<string>;
+  /** Step 14: the simulated failure (drawn red). */
+  failedLinkId?: string | null;
+  failedSiteId?: string | null;
 };
+
+const IMPACT = '#f97316';
+const FAILED = '#ef4444';
 
 const severityColor: Record<PerceivedSeverity, string> = {
   critical: '#ef4444',
@@ -22,6 +30,9 @@ export const NetworkMap: React.FC<Props> = ({
   isLoading,
   isError,
   severityBySite,
+  impactedSiteIds,
+  failedLinkId = null,
+  failedSiteId = null,
 }) => {
   const viewBox = '0 0 600 380';
   const padding = 20; // px padding inside viewBox
@@ -41,13 +52,9 @@ export const NetworkMap: React.FC<Props> = ({
     const lonRange = maxLon - minLon || 1;
 
     return (lat: number, lon: number) => {
-      const x =
-        padding +
-        ((lon - minLon) / lonRange) * (600 - 2 * padding);
+      const x = padding + ((lon - minLon) / lonRange) * (600 - 2 * padding);
       // higher lat = up (smaller y)
-      const y =
-        padding +
-        ((maxLat - lat) / latRange) * (380 - 2 * padding);
+      const y = padding + ((maxLat - lat) / latRange) * (380 - 2 * padding);
       return { x, y };
     };
   }, [sites]);
@@ -90,15 +97,15 @@ export const NetworkMap: React.FC<Props> = ({
       const pB = projection(b.lat, b.lon);
       const isMicrowave = link.kind === 'microwave';
       const role = link.role;
-      const strokeWidth =
-        role === 'core' ? 2.5 : role === 'ring' ? 1.5 : 1;
+      const strokeWidth = role === 'core' ? 2.5 : role === 'ring' ? 1.5 : 1;
       const strokeColor =
         role === 'core'
           ? '#94a3b8' // slate-400
           : role === 'ring'
-          ? '#0284c7' // sky-700
-          : '#64748b'; // slate-600
-      const dashArray = isMicrowave ? '4 2' : undefined;
+            ? '#0284c7' // sky-700
+            : '#64748b'; // slate-600
+      const failed = link.linkId === failedLinkId;
+      const dashArray = failed ? '5 3' : isMicrowave ? '4 2' : undefined;
 
       return (
         <line
@@ -108,9 +115,10 @@ export const NetworkMap: React.FC<Props> = ({
           y1={pA.y}
           x2={pB.x}
           y2={pB.y}
-          stroke={strokeColor}
-          strokeWidth={strokeWidth}
+          stroke={failed ? FAILED : strokeColor}
+          strokeWidth={failed ? 3.5 : strokeWidth}
           strokeDasharray={dashArray}
+          data-failed={failed || undefined}
         />
       );
     });
@@ -138,13 +146,7 @@ export const NetworkMap: React.FC<Props> = ({
 
       const shape =
         site.kind === 'core' ? (
-          <rect
-            {...commonProps}
-            x={x - 5}
-            y={y - 5}
-            width={10}
-            height={10}
-          />
+          <rect {...commonProps} x={x - 5} y={y - 5} width={10} height={10} />
         ) : site.kind === 'hub' ? (
           <polygon
             {...commonProps}
@@ -156,24 +158,23 @@ export const NetworkMap: React.FC<Props> = ({
 
       return (
         <g key={site.siteId}>
+          {(impactedSiteIds?.has(site.siteId) || site.siteId === failedSiteId) && (
+            <circle
+              data-impacted={site.siteId}
+              cx={x}
+              cy={y}
+              r={10}
+              fill="none"
+              stroke={site.siteId === failedSiteId ? FAILED : IMPACT}
+              strokeWidth={2}
+              strokeDasharray="3 2"
+            />
+          )}
           {shape}
           <title>{title}</title>
           {sev === 'critical' && (
-            <circle
-              cx={x}
-              cy={y}
-              r={8}
-              fill="none"
-              stroke={fill}
-              strokeWidth={2}
-            >
-              <animate
-                attributeName="r"
-                from="8"
-                to="12"
-                dur="1s"
-                repeatCount="indefinite"
-              />
+            <circle cx={x} cy={y} r={8} fill="none" stroke={fill} strokeWidth={2}>
+              <animate attributeName="r" from="8" to="12" dur="1s" repeatCount="indefinite" />
               <animate
                 attributeName="opacity"
                 from="0.7"
@@ -218,12 +219,12 @@ export const NetworkMap: React.FC<Props> = ({
         subtitle="Sites coloured by their worst active alarm."
         info="Squares are core sites, diamonds hubs, circles access sites. Regions run north to south."
         actions={
-        <div className="flex items-center gap-3 text-xs text-slate-400">
-          <span>{counts?.sites ?? 0} sites</span>
-          <span>{counts?.nodes ?? 0} nodes</span>
-          <span>{counts?.cells ?? 0} cells</span>
-          <span>{counts?.links ?? 0} links</span>
-        </div>
+          <div className="flex items-center gap-3 text-xs text-slate-400">
+            <span>{counts?.sites ?? 0} sites</span>
+            <span>{counts?.nodes ?? 0} nodes</span>
+            <span>{counts?.cells ?? 0} cells</span>
+            <span>{counts?.links ?? 0} links</span>
+          </div>
         }
       />
 
@@ -249,11 +250,19 @@ export const NetworkMap: React.FC<Props> = ({
         </span>
         <span className="flex items-center gap-1">
           <svg className="w-4 h-4">
-            <line x1="0" y1="5" x2="10" y2="5" stroke="#64748b" strokeWidth="1" strokeDasharray="4 2" />
+            <line
+              x1="0"
+              y1="5"
+              x2="10"
+              y2="5"
+              stroke="#64748b"
+              strokeWidth="1"
+              strokeDasharray="4 2"
+            />
           </svg>
           Microwave
         </span>
-        {(['critical','major','minor','warning','cleared'] as const).map((sev) => (
+        {(['critical', 'major', 'minor', 'warning', 'cleared'] as const).map((sev) => (
           <span key={sev} className="flex items-center gap-1">
             <svg className="w-4 h-4">
               <circle cx="5" cy="5" r="4" fill={severityColor[sev]} />

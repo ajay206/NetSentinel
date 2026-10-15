@@ -50,6 +50,11 @@ def client(monkeypatch, memory_store_factory):
         httpx.MockTransport(lambda r: httpx.Response(200, json={"ok": True})),
         raising=False,
     )
+    monkeypatch.setattr(
+        main,
+        "topology_transport",
+        httpx.MockTransport(lambda r: httpx.Response(200, json={"ok": True, "loaded": {}})),
+    )
     c = TestClient(main.app)
     c.store = store  # type: ignore[attr-defined]
     c.seen = seen  # type: ignore[attr-defined]
@@ -78,6 +83,12 @@ MATRIX = [
     ("GET", "/api/admin/audit", None, "admin"),
     ("GET", "/api/admin/settings", None, "admin"),
     ("POST", "/api/admin/users/viewer/unlock", None, "admin"),
+    # Step 14 knowledge graph
+    ("GET", "/api/graph/impact?linkId=LNK-012", None, "viewer"),
+    ("GET", "/api/graph/summary", None, "viewer"),
+    ("GET", "/api/graph/queries", None, "viewer"),
+    ("POST", "/api/graph/queries/site_by_id", {"siteId": "SITE-001"}, "viewer"),
+    ("POST", "/api/graph/reload", None, "admin"),
 ]
 ROLES = ("viewer", "operator", "admin")
 
@@ -312,3 +323,10 @@ def test_pre_13b_tokens_without_tv_are_revoked(client):
         algorithm="HS256",
     )
     assert client.get("/api/auth/me", headers={"Authorization": f"Bearer {old}"}).status_code == 401
+
+
+def test_graph_reload_is_audited(client):
+    r = client.post("/api/graph/reload", headers=bearer(client, "admin"))
+    assert r.status_code == 200
+    audit = client.get("/api/admin/audit", headers=bearer(client, "admin")).json()
+    assert any(e["action"] == "graph.reload" and e["actor"] == "admin" for e in audit["items"])

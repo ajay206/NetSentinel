@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { Header } from './components/Header';
 import { LiveAlarms } from './components/LiveAlarms';
 import { EnrichedAlarms } from './components/EnrichedAlarms';
@@ -38,6 +38,8 @@ import { useAlarmAction, useAlarmWorkflow, useIncidentAction } from './hooks/use
 import { WorkflowActions } from './components/WorkflowActions';
 import { ChangePasswordDialog } from './components/ChangePasswordDialog';
 import { AdminDashboard } from './views/admin/AdminDashboard';
+import { RcaGraph } from './views/RcaGraph';
+import type { ImpactResult, ImpactTarget } from './types.graph';
 
 interface AppProps {
   /** W11: set by AuthGate; without it (tests, AUTH_DISABLED) every control is enabled. */
@@ -119,6 +121,19 @@ export const App: React.FC<AppProps> = ({ session, onLogout, onSessionChange }) 
   });
 
   const severityBySite = useMemo(() => worstSeverityBySite(alarms), [alarms]);
+  // Step 14: the RCA graph panel's answer drives the impact radius on the network map
+  const [impact, setImpact] = useState<{
+    target: ImpactTarget | null;
+    result: ImpactResult | null;
+  }>({ target: null, result: null });
+  const onImpact = useCallback(
+    (target: ImpactTarget | null, result: ImpactResult | null) => setImpact({ target, result }),
+    [],
+  );
+  const impactedSiteIds = useMemo(
+    () => new Set(impact.result?.impactedSites.map((s) => s.siteId) ?? []),
+    [impact.result],
+  );
 
   // Fix 1 redesign: headline numbers for the KPI summary row
   const summary = useMemo(() => {
@@ -259,6 +274,9 @@ export const App: React.FC<AppProps> = ({ session, onLogout, onSessionChange }) 
                 isLoading={topoLoading}
                 isError={topoError}
                 severityBySite={severityBySite}
+                impactedSiteIds={impactedSiteIds}
+                failedLinkId={impact.target?.type === 'link' ? impact.target.id : null}
+                failedSiteId={impact.target?.type === 'site' ? impact.target.id : null}
               />
             </div>
             <div className="lg:col-span-5">
@@ -271,6 +289,11 @@ export const App: React.FC<AppProps> = ({ session, onLogout, onSessionChange }) 
                 <KpiActivity activity={kpiActivity} status={kpiStatus} />
               </section>
             </div>
+          </div>
+
+          {/* Step 14: impact / RCA on the knowledge graph (highlights the map above) */}
+          <div className="lg:max-h-[420px]">
+            <RcaGraph topology={topology} onImpact={onImpact} />
           </div>
 
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">

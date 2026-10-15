@@ -57,6 +57,8 @@ RAG_SERVICE_URL = os.getenv("RAG_SERVICE_URL", "http://localhost:8004").rstrip("
 ALARM_INGEST_URL = os.getenv("ALARM_INGEST_URL", "http://localhost:8001").rstrip("/")
 MCP_SERVER_URL = os.getenv("MCP_SERVER_URL", "http://localhost:8006").rstrip("/")
 INCIDENT_SERVICE_URL = os.getenv("INCIDENT_SERVICE_URL", "http://localhost:8007").rstrip("/")
+# W14: topology-service (Neo4j knowledge graph), compose profile `graph`
+TOPOLOGY_SERVICE_URL = os.getenv("TOPOLOGY_SERVICE_URL", "http://localhost:8008").rstrip("/")
 # W11: Phase 1 services probed through the gateway for the health panel
 PHASE1_SERVICES = {
     "alarm-ingest": lambda: ALARM_INGEST_URL,
@@ -74,6 +76,7 @@ ml_transport: httpx.AsyncBaseTransport | None = None
 rag_transport: httpx.AsyncBaseTransport | None = None
 copilot_transport: httpx.AsyncBaseTransport | None = None
 incident_transport: httpx.AsyncBaseTransport | None = None
+topology_transport: httpx.AsyncBaseTransport | None = None
 
 # Topology generation settings
 TOPOLOGY_SEED = int(os.getenv("TOPOLOGY_SEED", "42"))
@@ -676,3 +679,72 @@ async def alarm_action_proxy(request: Request) -> JSONResponse:
     except (ValueError, AttributeError):
         return JSONResponse({"detail": "Invalid JSON"}, status_code=400)
     return await _workflow_call(request, "alarms/actions", key or "?")
+
+
+# --- W14: topology knowledge graph -------------------------------------------------------------
+
+_QUERY_NAME_RE = re.compile(r"^[a-z][a-z0-9_]{1,40}$")
+
+
+async def _topology_call(method: str, path: str, **kwargs: Any) -> JSONResponse:
+    try:
+        async with httpx.AsyncClient(transport=topology_transport, timeout=15.0) as client:
+            resp = await client.request(method, f"{TOPOLOGY_SERVICE_URL}/{path}", **kwargs)
+    except httpx.HTTPError as exc:
+        logger.warning("topology-service unreachable: %s", exc)
+        return JSONResponse(
+            {"detail": "topology-service unreachable (start the `graph` compose profile)"},
+            status_code=503,
+        )
+    try:
+        payload = resp.json()
+    except ValueError:
+        return JSONResponse({"detail": "topology-service returned non-JSON"}, status_code=502)
+    return JSONResponse(payload, status_code=resp.status_code)
+
+
+@app.get("/api/graph/impact")
+async def graph_impact(
+    linkId: str | None = None, siteId: str | None = None, nodeId: str | None = None
+) -> JSONResponse:
+    """Which sites and cells lose service if a link, site or node fails (viewer role)."""
+    params = {k: v for k, v in (("linkId", linkId), ("siteId", siteId), ("nodeId", nodeId)) if v}
+    return await _topology_call("GET", "graph/impact", params=params)
+
+
+@app.get("/api/graph/summary")
+async def graph_summary() -> JSONResponse:
+    """Node and relationship counts of the knowledge graph (viewer role)."""
+    return await _topology_call("GET", "graph/summary")
+
+
+@app.get("/api/graph/queries")
+async def graph_queries() -> JSONResponse:
+    """The named, read-only Cypher catalogue (viewer role)."""
+    return await _topology_call("GET", "graph/queries")
+
+
+@app.post("/api/graph/queries/{name}")
+async def graph_run_query(name: str, request: Request) -> JSONResponse:
+    """Run one named catalogue query with JSON params; no free-form Cypher (viewer role)."""
+    if not _QUERY_NAME_RE.match(name):
+        return JSONResponse({"detail": "unknown query"}, status_code=404)
+    body = await request.body()
+    if len(body) > 2_000:
+        return JSONResponse({"detail": "Request too large"}, status_code=413)
+    return await _topology_call(
+        "POST",
+        f"graph/queries/{name}",
+        content=body or b"{}",
+        headers={"Content-Type": "application/json"},
+    )
+
+
+@app.post("/api/graph/reload")
+async def graph_reload(request: Request) -> JSONResponse:
+    """Re-load the topology and runbooks into the graph (admin role, audited)."""
+    resp = await _topology_call("POST", "graph/reload")
+    if resp.status_code == 200:
+        user = auth_mod.current_user(request)
+        await auth_mod.store.audit(user["username"], "graph.reload", "topology", {})
+    return resp

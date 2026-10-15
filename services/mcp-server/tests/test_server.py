@@ -54,6 +54,20 @@ def handler(req: httpx.Request) -> httpx.Response:
         return httpx.Response(200, json={"results": [{"runbookId": "RB-FIB-001"}]})
     if path == "/runbooks/RB-FIB-001":
         return httpx.Response(200, json={"id": "RB-FIB-001", "markdown": "# Fibre cut"})
+    if path == "/api/graph/impact":
+        assert dict(req.url.params) == {"linkId": "LNK-012"}
+        return httpx.Response(
+            200,
+            json={
+                "target": {"type": "link", "id": "LNK-012"},
+                "impactedSites": [{"siteId": "SITE-010", "reason": "isolated", "cells": ["c1"]}],
+                "cellsLost": 1,
+                "sitesIsolated": 1,
+            },
+        )
+    if path == "/api/graph/queries/path_to_core":
+        assert json.loads(req.content) == {"siteId": "SITE-010"}
+        return httpx.Response(200, json={"query": "path_to_core", "rows": [{"hops": 2}]})
     return httpx.Response(404, json={"detail": "not found"})
 
 
@@ -67,7 +81,14 @@ def fake_backends():
 async def test_lists_exactly_the_phase1_tools():
     async with create_connected_server_and_client_session(mcp) as s:
         tools = {t.name: t for t in (await s.list_tools()).tools}
-    assert set(tools) == {"get_alarms", "kpi_anomalies", "search_runbooks", "predict_fault"}
+    assert set(tools) == {
+        "get_alarms",
+        "kpi_anomalies",
+        "search_runbooks",
+        "predict_fault",
+        "query_topology",
+    }
+    assert "required" not in tools["query_topology"].inputSchema
     assert tools["get_alarms"].inputSchema["required"] == ["site_id"]
     assert tools["search_runbooks"].inputSchema["required"] == ["query"]
     assert tools["predict_fault"].inputSchema["required"] == ["alarm"]
@@ -119,3 +140,36 @@ async def test_resource_and_prompt():
     assert res.contents[0].text == "# Fibre cut"
     assert prompts == {"analyze_site"}
     assert "SITE-010" in prompt.messages[0].content.text
+
+
+async def test_query_topology_impact_and_named_query():
+    async with create_connected_server_and_client_session(mcp) as s:
+        imp = await s.call_tool("query_topology", {"link_id": "LNK-012"})
+        named = await s.call_tool(
+            "query_topology", {"query": "path_to_core", "params": {"siteId": "SITE-010"}}
+        )
+    assert imp.structuredContent["impactedSites"][0]["siteId"] == "SITE-010"
+    assert named.structuredContent["rows"] == [{"hops": 2}]
+
+
+@pytest.mark.parametrize(
+    "args",
+    [
+        {},
+        {"link_id": "LNK-012", "site_id": "SITE-010"},
+        {"link_id": "LNK-012", "query": "path_to_core"},
+        {"link_id": "L12"},
+        {"query": "MATCH (n) DETACH DELETE n"},
+        {"query": "path_to_core", "params": {str(i): i for i in range(6)}},
+    ],
+)
+async def test_query_topology_rejects_bad_input(args):
+    async with create_connected_server_and_client_session(mcp) as s:
+        assert (await s.call_tool("query_topology", args)).isError
+
+
+async def test_query_topology_graph_profile_down():
+    backends.TRANSPORT = httpx.MockTransport(lambda r: httpx.Response(503, json={}))
+    async with create_connected_server_and_client_session(mcp) as s:
+        res = await s.call_tool("query_topology", {"site_id": "SITE-004"})
+    assert res.isError and "topology error: HTTP 503" in res.content[0].text

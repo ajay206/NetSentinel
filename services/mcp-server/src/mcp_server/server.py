@@ -37,6 +37,8 @@ mcp = FastMCP(
         "- kpi_anomalies: KPI anomalies for a site's cells\n"
         "- search_runbooks: search runbooks by query and fault type\n"
         "- predict_fault: predict fault type from an alarm\n"
+        "- query_topology: which cells lose service if a link/site/node fails, or a named "
+        "graph query\n"
         "- runbook://{runbook_id}: fetch runbook markdown\n"
         "- analyze_site prompt: guided site analysis workflow"
     ),
@@ -162,6 +164,61 @@ async def predict_fault(alarm: dict[str, Any]) -> dict[str, Any]:
     backends = Backends()
     try:
         return await backends.predict_fault(alarm)
+    except BackendError as exc:
+        # Raising makes FastMCP return isError=true, which clients treat as a failed call.
+        raise RuntimeError(exc.message) from exc
+
+
+TOPO_ID_PATTERNS = {
+    "link_id": re.compile(r"^LNK-\d{3}$"),
+    "site_id": SITE_ID_PATTERN,
+    "node_id": re.compile(r"^SITE-\d{3}-[A-Z0-9]{1,8}$"),
+}
+QUERY_NAME_PATTERN = re.compile(r"^[a-z][a-z0-9_]{1,40}$")
+
+
+@mcp.tool()
+async def query_topology(
+    link_id: str | None = None,
+    site_id: str | None = None,
+    node_id: str | None = None,
+    query: str | None = None,
+    params: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Ask the network knowledge graph (Neo4j, W14).
+
+    Give exactly one of link_id, site_id or node_id for an impact analysis ("which cells lose
+    service if LNK-012 fails?"), or query with params to run a named read-only catalogue query
+    (e.g. query="path_to_core", params={"siteId": "SITE-010"}).
+
+    Args:
+        link_id: Failed link (format: LNK-XXX)
+        site_id: Failed site (format: SITE-XXX)
+        node_id: Failed node (format: SITE-XXX-<node>)
+        query: Named query from GET /api/graph/queries
+        params: Parameters for the named query
+
+    Returns:
+        Impact result (impactedSites with cells, cellsLost, sitesIsolated) or {query, rows}
+    """
+    given = {
+        k: v for k, v in (("link_id", link_id), ("site_id", site_id), ("node_id", node_id)) if v
+    }
+    if bool(given) == bool(query) or len(given) > 1:
+        raise ValueError("give exactly one of link_id, site_id, node_id or query")
+    target = None
+    if given:
+        ((key, value),) = given.items()
+        if not TOPO_ID_PATTERNS[key].match(value):
+            raise ValueError(f"{key} has an invalid format")
+        param = {"link_id": "linkId", "site_id": "siteId", "node_id": "nodeId"}[key]
+        target = {param: value}
+    elif not QUERY_NAME_PATTERN.match(query or ""):
+        raise ValueError("query must be a catalogue name such as path_to_core")
+    if params is not None and (not isinstance(params, dict) or len(params) > 5):
+        raise ValueError("params must be a dict with at most 5 keys")
+    try:
+        return await Backends().query_topology(target, query, params or {})
     except BackendError as exc:
         # Raising makes FastMCP return isError=true, which clients treat as a failed call.
         raise RuntimeError(exc.message) from exc

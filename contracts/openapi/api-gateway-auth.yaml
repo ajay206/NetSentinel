@@ -473,6 +473,150 @@ paths:
       x-required-role: viewer
       security:
       - bearer: []
+  /api/graph/impact:
+    get:
+      summary: Graph Impact
+      description: Which sites and cells lose service if a link, site or node fails (viewer role).
+      operationId: graph_impact_api_graph_impact_get
+      parameters:
+      - name: linkId
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Linkid
+      - name: siteId
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Siteid
+      - name: nodeId
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Nodeid
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+        '401':
+          description: Missing, invalid or expired token
+        '403':
+          description: Role too low
+        '429':
+          description: Rate limited (Retry-After header)
+      x-required-role: viewer
+      security:
+      - bearer: []
+  /api/graph/summary:
+    get:
+      summary: Graph Summary
+      description: Node and relationship counts of the knowledge graph (viewer role).
+      operationId: graph_summary_api_graph_summary_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '401':
+          description: Missing, invalid or expired token
+        '403':
+          description: Role too low
+        '429':
+          description: Rate limited (Retry-After header)
+      x-required-role: viewer
+      security:
+      - bearer: []
+  /api/graph/queries:
+    get:
+      summary: Graph Queries
+      description: The named, read-only Cypher catalogue (viewer role).
+      operationId: graph_queries_api_graph_queries_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '401':
+          description: Missing, invalid or expired token
+        '403':
+          description: Role too low
+        '429':
+          description: Rate limited (Retry-After header)
+      x-required-role: viewer
+      security:
+      - bearer: []
+  /api/graph/queries/{name}:
+    post:
+      summary: Graph Run Query
+      description: Run one named catalogue query with JSON params; no free-form Cypher (viewer role).
+      operationId: graph_run_query_api_graph_queries__name__post
+      parameters:
+      - name: name
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Name
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+        '401':
+          description: Missing, invalid or expired token
+        '403':
+          description: Role too low
+        '429':
+          description: Rate limited (Retry-After header)
+      x-required-role: viewer
+      security:
+      - bearer: []
+  /api/graph/reload:
+    post:
+      summary: Graph Reload
+      description: Re-load the topology and runbooks into the graph (admin role, audited).
+      operationId: graph_reload_api_graph_reload_post
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '401':
+          description: Missing, invalid or expired token
+        '403':
+          description: Role too low
+        '429':
+          description: Rate limited (Retry-After header)
+      x-required-role: admin
+      security:
+      - bearer: []
 components:
   schemas:
     HTTPValidationError:
