@@ -1,4 +1,4 @@
-.PHONY: logs ps reset-db tools-build incidents up-core up-tools up-ui down topics test lint fmt smoke sim sim-loop sim-docker gateway console-install console console-build console-lint console-test test-all ingest up-pipeline enriched-peek ingest-stats kpi-service kpi-stats kpi-query ml ml-train anomalies topology kpis kpis-follow kpis-peek docs-check ml-train-xgb up-rag rag rag-ingest rag-eval runbooks copilot up-copilot analyze ollama-pull mcp mcp-dev mcp-contract copilot-contract gateway-contract token demo kafka-smoke incident up-incident incidents-peek incident-eval up-graph topo-load impact topology-contract rag-bench rag-bench-dev
+.PHONY: logs ps reset-db tools-build incidents up-core up-tools up-ui down topics test lint fmt smoke sim sim-loop sim-docker gateway console-install console console-build console-lint console-test test-all ingest up-pipeline enriched-peek ingest-stats kpi-service kpi-stats kpi-query ml ml-train anomalies topology kpis kpis-follow kpis-peek docs-check ml-train-xgb up-rag rag rag-ingest rag-eval runbooks copilot up-copilot analyze ollama-pull mcp mcp-dev mcp-contract copilot-contract gateway-contract token demo kafka-smoke incident up-incident incidents-peek incident-eval up-graph topo-load impact topology-contract rag-bench rag-bench-dev up-tickets ticket-migrate ticket-contract tickets
 
 # Targets marked (dev) run on the host and need uv / Node; everything else needs only Docker.
 
@@ -238,6 +238,21 @@ incidents-peek:
 # (dev) needs uv/Node on the host
 incident-eval:
 	uv run incident-eval --out evals/rca_report.md
+
+# Step 16: ticket-service (drafts + approvals + audit) on TimescaleDB
+up-tickets:
+	docker compose --profile ops up -d --build timescaledb ticket-service
+
+# `alembic upgrade head` inside the container (also runs on every start)
+ticket-migrate:
+	docker compose --profile ops exec -T ticket-service alembic upgrade head
+
+ticket-contract:
+	uv run python scripts/gen_ticket_contract.py
+
+# Approval queue via the gateway (needs TOKEN, e.g. TOKEN=$$(make -s token))
+tickets:
+	curl -s -H "Authorization: Bearer $(TOKEN)" localhost:8000/api/tickets; echo
 
 # Step 14: Neo4j knowledge graph + topology-service (~1 GB RAM)
 up-graph:

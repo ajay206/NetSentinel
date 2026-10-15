@@ -9,6 +9,7 @@ describe('rbac.can (Step 13b matrix)', () => {
     'copilot.analyze': [false, true, true],
     'incident.act': [false, true, true],
     'alarm.act': [false, true, true],
+    'ticket.approve': [false, true, true],
     'admin.users': [false, false, true],
     'admin.audit': [false, false, true],
     'admin.settings': [false, false, true],

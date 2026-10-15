@@ -259,3 +259,60 @@ def analyze_site(site_id: str, window: str = "30m") -> str:
         "steps: [{text, runbookId, section}]}. Never invent ids. "
         "Anomaly ids are ANOM-<cellId>-<kpi>-<ts>."
     )
+
+
+SEVERITIES = ("critical", "major", "minor", "warning")
+
+
+@mcp.tool()
+async def open_ticket_draft(
+    title: str,
+    site_id: str,
+    description: str = "",
+    severity: str = "major",
+    incident_id: str | None = None,
+    fault_type: str | None = None,
+    runbook_ids: list[str] | None = None,
+    source_ids: list[str] | None = None,
+) -> dict[str, Any]:
+    """Open a trouble-ticket DRAFT for human review (W16).
+
+    The draft lands in the operator approval queue with status "draft". This tool cannot
+    approve, reject or send anything: a human operator decides in the console.
+
+    Args:
+        title: Short summary (3-200 characters)
+        site_id: Affected site (format: SITE-XXX)
+        description: What happened and why (cite alarm / anomaly / runbook ids)
+        severity: critical | major | minor | warning
+        incident_id: Related incident (format: INC-XXXXXXXXXX), optional
+        fault_type: Predicted fault type, e.g. fibre_cut, optional
+        runbook_ids: Suggested runbooks (format: RB-XXX-NNN)
+        source_ids: Evidence ids the draft is based on
+
+    Returns:
+        The created draft (id TKT-..., status "draft", createdVia "mcp")
+    """
+    validate_site_id(site_id)
+    if not 3 <= len(title.strip()) <= 200:
+        raise ValueError("title must be 3-200 characters")
+    if severity not in SEVERITIES:
+        raise ValueError(f"severity must be one of {', '.join(SEVERITIES)}")
+    for rid in runbook_ids or []:
+        validate_runbook_id(rid)
+    draft: dict[str, Any] = {
+        "title": title.strip(),
+        "siteId": site_id,
+        "description": description[:4000],
+        "severity": severity,
+        "runbookIds": list(runbook_ids or [])[:10],
+        "sourceIds": list(source_ids or [])[:30],
+    }
+    if incident_id:
+        draft["incidentId"] = incident_id
+    if fault_type:
+        draft["faultType"] = fault_type
+    try:
+        return await Backends().open_ticket_draft(draft)
+    except BackendError as exc:
+        raise RuntimeError(exc.message) from exc

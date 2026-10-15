@@ -31,6 +31,9 @@ import { demoStages } from './lib/demoPath';
 import { useAnomalyList } from './hooks/useAnomalies';
 import { IncidentBoard } from './views/IncidentBoard';
 import { useIncidents } from './hooks/useIncidents';
+import { useTicketAudit, useTicketDecision, useTickets } from './hooks/useTickets';
+import { ApprovalQueue } from './views/ApprovalQueue';
+import type { TicketStatus } from './types.ticket';
 import { alarmBelongsTo } from './lib/incidents';
 import { saveSession, type Role, type Session } from './lib/auth';
 import { can } from './lib/rbac';
@@ -56,6 +59,7 @@ export const App: React.FC<AppProps> = ({ session, onLogout, onSessionChange }) 
   const canOperate = can(role, 'incident.act');
   const canCopilot = can(role, 'copilot.analyze');
   const isAdmin = can(role, 'admin.users');
+  const canApprove = can(role, 'ticket.approve');
   const [view, setView] = useState<'ops' | 'admin'>('ops');
   const [pwOpen, setPwOpen] = useState(false);
   const incidentAction = useIncidentAction();
@@ -74,6 +78,16 @@ export const App: React.FC<AppProps> = ({ session, onLogout, onSessionChange }) 
   const incidents = useIncidents();
   const [incidentId, setIncidentId] = useState<string | null>(null);
   const incident = incidents.data?.items?.find((i) => i?.id === incidentId) ?? null;
+  // W16: approval queue + audit trail; the incident board links to related drafts
+  const [ticketStatus, setTicketStatus] = useState<TicketStatus | 'all'>('draft');
+  const [ticketId, setTicketId] = useState<string | null>(null);
+  const tickets = useTickets(ticketStatus);
+  const allTickets = useTickets('all');
+  const ticketAudit = useTicketAudit(ticketId);
+  const decision = useTicketDecision();
+  const relatedDrafts = (allTickets.data?.items ?? []).filter(
+    (t) => incidentId !== null && t.incidentId === incidentId,
+  );
   const shownAlarms = useMemo(
     () => alarms.filter((a) => alarmBelongsTo(incident, a)),
     [alarms, incident],
@@ -222,23 +236,63 @@ export const App: React.FC<AppProps> = ({ session, onLogout, onSessionChange }) 
                 onSelect={setIncidentId}
                 selectedFooter={
                   incidentId ? (
-                    <WorkflowActions
-                      subject={`incident ${incidentId}`}
-                      workflow={incidents.data?.items.find((i) => i.id === incidentId)?.workflow}
-                      canAct={canOperate}
-                      currentUser={me}
-                      allowAssign
-                      isPending={incidentAction.isPending}
-                      error={incidentAction.error}
-                      onAction={(action, extra) =>
-                        incidentAction.mutate({ incidentId, action, ...extra })
-                      }
-                    />
+                    <>
+                      {relatedDrafts.length > 0 && (
+                        <div
+                          className="mb-2 flex flex-wrap items-center gap-1 text-xs"
+                          data-testid="related-drafts"
+                        >
+                          <span className="text-slate-400">Related tickets:</span>
+                          {relatedDrafts.map((t) => (
+                            <button
+                              key={t.id}
+                              type="button"
+                              className="font-mono text-sky-300 hover:underline"
+                              onClick={() => {
+                                setTicketStatus('all');
+                                setTicketId(t.id);
+                              }}
+                            >
+                              {t.id} ({t.status})
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                      <WorkflowActions
+                        subject={`incident ${incidentId}`}
+                        workflow={incidents.data?.items.find((i) => i.id === incidentId)?.workflow}
+                        canAct={canOperate}
+                        currentUser={me}
+                        allowAssign
+                        isPending={incidentAction.isPending}
+                        error={incidentAction.error}
+                        onAction={(action, extra) =>
+                          incidentAction.mutate({ incidentId, action, ...extra })
+                        }
+                      />
+                    </>
                   ) : null
                 }
               />
             </div>
           </div>
+
+          {/* Row: W16 approval queue (operators decide; viewers read) */}
+          <ApprovalQueue
+            tickets={tickets.data?.items}
+            isLoading={tickets.isLoading}
+            isError={tickets.isError}
+            status={ticketStatus}
+            onStatusChange={setTicketStatus}
+            selectedId={ticketId}
+            onSelect={setTicketId}
+            audit={ticketAudit.data?.entries}
+            auditLoading={ticketId !== null && ticketAudit.isLoading}
+            canApprove={canApprove}
+            onDecide={(id, d, note) => decision.mutate({ id, decision: d, note })}
+            isPending={decision.isPending}
+            error={decision.error}
+          />
 
           {/* Row: alarm tables (filtered by the selected incident) + service health */}
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">

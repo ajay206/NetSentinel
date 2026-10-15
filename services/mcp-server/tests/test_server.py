@@ -87,7 +87,10 @@ async def test_lists_exactly_the_phase1_tools():
         "search_runbooks",
         "predict_fault",
         "query_topology",
+        "open_ticket_draft",
     }
+    # W16: AI may draft but never decide; there is no approve/reject tool
+    assert not {n for n in tools if "approve" in n or "reject" in n}
     assert "required" not in tools["query_topology"].inputSchema
     assert tools["get_alarms"].inputSchema["required"] == ["site_id"]
     assert tools["search_runbooks"].inputSchema["required"] == ["query"]
@@ -194,3 +197,36 @@ async def test_search_mode_graph_is_forwarded_and_bad_mode_rejected():
     assert seen[0]["mode"] == "graph" and rb.structuredContent["mode"] == "graph"
     assert rb.structuredContent["results"][0]["nodeIds"] == ["SITE-010", "LNK-012"]
     assert bad.isError and len(seen) == 1
+
+
+async def test_open_ticket_draft_posts_a_draft_via_the_gateway():
+    seen = []
+    orig = backends.TRANSPORT
+
+    def h(r: httpx.Request) -> httpx.Response:
+        seen.append(r)
+        return httpx.Response(
+            201, json={"id": "TKT-0123456789", "status": "draft", "createdVia": "mcp"}
+        )
+
+    backends.TRANSPORT = httpx.MockTransport(h)
+    try:
+        async with create_connected_server_and_client_session(mcp) as s:
+            ok = await s.call_tool(
+                "open_ticket_draft",
+                {
+                    "title": "Fibre cut SITE-010",
+                    "site_id": "SITE-010",
+                    "runbook_ids": ["RB-FIB-001"],
+                },
+            )
+            bad = await s.call_tool("open_ticket_draft", {"title": "x", "site_id": "S-1"})
+            sev = await s.call_tool(
+                "open_ticket_draft", {"title": "abc", "site_id": "SITE-010", "severity": "p0"}
+            )
+    finally:
+        backends.TRANSPORT = orig
+    assert not ok.isError and ok.structuredContent["status"] == "draft"
+    assert seen[0].url.path == "/api/tickets/drafts" and seen[0].headers["x-ns-via"] == "mcp"
+    assert json.loads(seen[0].content)["runbookIds"] == ["RB-FIB-001"]
+    assert bad.isError and sev.isError and len(seen) == 1

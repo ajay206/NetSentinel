@@ -40,6 +40,14 @@ ROLES = {
     "/api/graph/reload": "admin",
     # Step 15
     "/api/graph/context/{entity_id}": "viewer",
+    # Step 16 (reads viewer; drafts operator or the MCP service token; decisions operator)
+    "/api/tickets": "viewer",
+    "/api/tickets/audit": "viewer",
+    "/api/tickets/audit/verify": "viewer",
+    "/api/tickets/{ticket_id}": "viewer",
+    "/api/tickets/{ticket_id}/audit": "viewer",
+    "/api/tickets/drafts": "operator",
+    "/api/tickets/{ticket_id}/{decision}": "operator",
 }
 PATHS = tuple(ROLES)
 

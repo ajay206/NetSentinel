@@ -440,3 +440,13 @@ Then refresh the console.
 
 ### 73. `retrieval_report.md` numbers differ from the PR
 - The report is measured, not fixed. The embedder (`EMBEDDER=hash` vs `fastembed`) and edits to runbooks or `data/eval/qa.jsonl` change it. Regenerate with `make rag-bench`. The reranker weights were tuned on this question set, so read the graph-category gain as optimistic.
+
+### 74. Approval queue says "ticket-service unavailable"
+- Start the `ops` profile (`make up-tickets`). ticket-service needs TimescaleDB (in `ops` since Step 16) and `POSTGRES_PASSWORD` in `.env`. `docker compose logs ticket-service` shows Alembic errors on start.
+
+### 75. ticket-service answers 401 "missing or invalid internal token"
+- The gateway and ticket-service must share `TICKET_SERVICE_TOKEN`. Set it once in `.env` and recreate both containers. Direct `curl` to :8009 without the header is refused on purpose: go through the gateway.
+
+### 76. Approve returns 403 / 409
+- 403: you are a viewer, or the call used the MCP service token, which may draft but never decide. 409: the ticket was already approved or rejected (by someone else, or with a stale `version`). Refresh the queue.
+- `GET /api/tickets/audit/verify` returning `ok: false` means someone edited an audit row directly in the database. Treat it as an incident; the log itself is never rewritten.
