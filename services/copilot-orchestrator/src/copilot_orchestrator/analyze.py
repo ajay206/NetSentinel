@@ -10,7 +10,7 @@ from typing import Any
 from pydantic import ValidationError
 
 from copilot_orchestrator.clients.llm import LLM
-from copilot_orchestrator.clients.upstream import ToolRecorder
+from copilot_orchestrator.clients.upstream import ToolRecorder, rag_mode
 from copilot_orchestrator.models import (
     AlarmRef,
     AnalyzeRequest,
@@ -29,6 +29,9 @@ from copilot_orchestrator.models import (
 from copilot_orchestrator.prompts.analyze import build_messages
 
 ANSWER_SCHEMA: dict[str, Any] = Answer.model_json_schema()
+
+
+_NODE_ID_RE = re.compile(r"SITE-\d{3}(-N\d{1,2}(-C\d{1,2})?)?|LNK-\d{3}")
 
 
 def _camel_words(value: str | None) -> str:
@@ -60,6 +63,7 @@ async def gather(
         query = " ".join(
             p
             for p in (
+                str(root.get("siteId") or req.site_id),  # entity for Graph RAG linking
                 root.get("specificProblem"),
                 _camel_words(root.get("probableCause")),
                 (fault_type or "").replace("_", " "),
@@ -72,6 +76,9 @@ async def gather(
                 title=r.get("title", ""),
                 section=r.get("section", ""),
                 snippet=r.get("snippet", ""),
+                nodeIds=[
+                    str(n) for n in (r.get("nodeIds") or [])[:6] if _NODE_ID_RE.fullmatch(str(n))
+                ],
             )
             for r in await upstream.runbooks(query, fault_type)
             if re.fullmatch(r"RB-[A-Z]{3}-\d{3}", str(r.get("runbookId", "")))
@@ -94,6 +101,8 @@ async def gather(
         anomalies=anomalies,
         fault=fault,
         runbooks=runbooks,
+        retrievalMode=rag_mode(),
+        graphNodes=list(dict.fromkeys(n for r in runbooks for n in r.nodeIds))[:8],
     )
     return ctx, raw_alarms
 
@@ -148,6 +157,15 @@ def fallback_answer(ctx: Context) -> Answer:
         )
         for an in ctx.anomalies[:2]
     ]
+    if ctx.graphNodes:  # Step 15: cite the topology the runbook choice rests on
+        # second claim, after the root alarm, so the 5-claim cap never drops it
+        evidence.insert(
+            1,
+            Claim(
+                text="Topology context (Graph RAG): " + ", ".join(ctx.graphNodes[:5]),
+                sources=ctx.graphNodes[:5],
+            ),
+        )
     steps = [
         Step(text=f"Follow {r.title} — {r.section}", runbookId=r.runbookId, section=r.section)
         for r in ctx.runbooks[:3]

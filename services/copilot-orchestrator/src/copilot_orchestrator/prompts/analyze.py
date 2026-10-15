@@ -44,9 +44,12 @@ def build_messages(ctx: Context, errors: list[str] | None = None) -> list[dict[s
                 "title": r.title,
                 "section": r.section,
                 "snippet": r.snippet,
+                "nodeIds": r.nodeIds,
             }
             for r in ctx.runbooks
         ],
+        # Step 15: graph node ids (sites / links / cells) are citable sources too
+        "graphNodes": ctx.graphNodes,
     }
 
     user_content = json.dumps(context_dump, separators=(",", ":"))

@@ -34,6 +34,8 @@ export interface AnalyzeResponse {
   errors: string[];
   sourceIds: string[];
   warnings: string[];
+  /** Step 15: how runbooks were retrieved and which graph nodes are citable. */
+  context?: { retrievalMode?: 'graph' | 'hybrid'; graphNodes?: string[] };
   /** W10: evidence calls (MCP tools, or direct HTTP when TOOLS=http). */
   toolCalls?: ToolCall[];
   durationMs: number;

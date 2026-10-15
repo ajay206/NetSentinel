@@ -1,4 +1,4 @@
-.PHONY: logs ps reset-db tools-build incidents up-core up-tools up-ui down topics test lint fmt smoke sim sim-loop sim-docker gateway console-install console console-build console-lint console-test test-all ingest up-pipeline enriched-peek ingest-stats kpi-service kpi-stats kpi-query ml ml-train anomalies topology kpis kpis-follow kpis-peek docs-check ml-train-xgb up-rag rag rag-ingest rag-eval runbooks copilot up-copilot analyze ollama-pull mcp mcp-dev mcp-contract copilot-contract gateway-contract token demo kafka-smoke incident up-incident incidents-peek incident-eval up-graph topo-load impact topology-contract
+.PHONY: logs ps reset-db tools-build incidents up-core up-tools up-ui down topics test lint fmt smoke sim sim-loop sim-docker gateway console-install console console-build console-lint console-test test-all ingest up-pipeline enriched-peek ingest-stats kpi-service kpi-stats kpi-query ml ml-train anomalies topology kpis kpis-follow kpis-peek docs-check ml-train-xgb up-rag rag rag-ingest rag-eval runbooks copilot up-copilot analyze ollama-pull mcp mcp-dev mcp-contract copilot-contract gateway-contract token demo kafka-smoke incident up-incident incidents-peek incident-eval up-graph topo-load impact topology-contract rag-bench rag-bench-dev
 
 # Targets marked (dev) run on the host and need uv / Node; everything else needs only Docker.
 
@@ -162,6 +162,18 @@ rag-ingest:
 # (dev) needs uv/Node on the host
 rag-eval:
 	uv run python -m rag_service.eval --mode all --k 3
+
+# Step 15: vector vs bm25 vs hybrid vs rerank vs Graph RAG -> evals/retrieval_report.md
+rag-bench:
+	docker compose --profile rag build rag-service
+	docker compose --profile rag run --rm --no-deps -e GRAPH_CONTEXT=local \
+		-v "$(CURDIR)/evals:/app/evals" --user "$$(id -u):$$(id -g)" rag-service \
+		python -m rag_service.bench --modes vector,bm25,hybrid,rerank,graph \
+		--out evals/retrieval_report.md
+
+# (dev) needs uv/Node on the host
+rag-bench-dev:
+	uv run python -m rag_service.bench --modes vector,hybrid,graph --out evals/retrieval_report.md
 
 # (dev) needs uv/Node on the host
 copilot:

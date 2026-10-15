@@ -526,6 +526,9 @@ def test_graph_proxy_end_to_end_with_real_topology_service(monkeypatch) -> None:
             assert client.get("/api/graph/impact").status_code == 400
             assert len(client.get("/api/graph/queries").json()["items"]) == 20
             assert client.post("/api/graph/queries/BAD-NAME", json={}).status_code == 404
+            ctx = client.get("/api/graph/context/LNK-012").json()
+            assert ctx["link"]["role"] == "access"
+            assert client.get("/api/graph/context/..%2Fadmin").status_code == 404
 
 
 def test_graph_proxy_down_is_503(monkeypatch) -> None:

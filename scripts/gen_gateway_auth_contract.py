@@ -38,6 +38,8 @@ ROLES = {
     "/api/graph/queries": "viewer",
     "/api/graph/queries/{name}": "viewer",
     "/api/graph/reload": "admin",
+    # Step 15
+    "/api/graph/context/{entity_id}": "viewer",
 }
 PATHS = tuple(ROLES)
 

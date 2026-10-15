@@ -617,6 +617,39 @@ paths:
       x-required-role: admin
       security:
       - bearer: []
+  /api/graph/context/{entity_id}:
+    get:
+      summary: Graph Context
+      description: 'Step 15: one-hop neighbourhood of a site, link, node or cell (viewer role).'
+      operationId: graph_context_api_graph_context__entity_id__get
+      parameters:
+      - name: entity_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Entity Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+        '401':
+          description: Missing, invalid or expired token
+        '403':
+          description: Role too low
+        '429':
+          description: Rate limited (Retry-After header)
+      x-required-role: viewer
+      security:
+      - bearer: []
 components:
   schemas:
     HTTPValidationError:

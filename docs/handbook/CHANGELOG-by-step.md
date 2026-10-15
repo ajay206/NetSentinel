@@ -352,3 +352,17 @@ Introduces the topology‑aware incident clustering service, its API, and the ne
   - an opt-in Neo4j integration test (`NEO4J_TEST_URI`);
   - Vitest: RcaGraph panel and map highlight;
   - smoke: `graph_impact` check.
+
+### Step 15 — Graph RAG with entity linking, reranker, retrieval benchmark and console graph citations (W15)
+- **rag-service:**
+  - `mode: "graph"` = entity linking (`entities.py`) + catalogue text-to-Cypher with a schema prompt (`text2cypher.py`) + neighbourhood expansion (`graph_rag.py`, `topology.py`) + feature reranker (`rerank.py`); `mode: "rerank"` is the ablation;
+  - results carry `nodeIds`/`matchedFacets` and the response a `graph` block;
+  - `python -m rag_service.bench` + `make rag-bench` (Docker) write `evals/retrieval_report.md`.
+- **Data:** `data/eval/qa.jsonl` grows to 150 questions (50 text, 50 paraphrases from a free model, 50 graph questions from `scripts/gen_qa_graph.py`).
+- **topology-service:** `GET /graph/context/{id}` on Neo4j and memory (identical shapes); gateway `/api/graph/context/{id}` needs viewer. Contracts regenerated.
+- **Copilot / MCP:** `RAG_MODE=graph` (default); the site id goes in the runbook query; graph nodes become citable sources, and the fallback answer cites them. MCP `search_runbooks` takes `mode`. Contracts regenerated.
+- **Console:** node-ID chips on suggested runbooks and copilot citations, plus a "retrieval mode: graph" badge (`components/NodeChips.tsx`).
+- **Compose:** rag-service `GRAPH_CONTEXT=http` + `TOPOLOGY_SERVICE_URL` (falls back to local); copilot `RAG_MODE: graph`. All 1024 profile combinations validate.
+- **Results (hash embedder):** graph-question hit@1 0.26 (hybrid) → 0.80 (graph); all-questions hit@1 0.733 → 0.900, MRR@5 0.815 → 0.921; p95 about 2.5 ms. Caveats are in the report and ADR-015.
+- **Docs:** ADR-015, `03-services.md`, `02-local-setup.md`, troubleshooting #71–73.
+- **Tests:** rag graph pipeline (linking, planner, rerank, API, bench), context endpoint (memory + opt-in Neo4j equality), gateway RBAC row, MCP mode, copilot end-to-end against the real rag-service, Vitest chips/badge; smoke: `graph_rag` check (works without the `graph` profile).

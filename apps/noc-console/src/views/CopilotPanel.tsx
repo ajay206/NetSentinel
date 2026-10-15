@@ -1,6 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { CardHeader } from '../components/ui/Card';
 import type { AnalyzeResponse, ToolCall } from "../types.copilot";
+import { RetrievalModeBadge } from "../components/NodeChips";
+
+const NODE_RE = /^(SITE-\d{3}(-N\d{1,2}(-C\d{1,2})?)?|LNK-\d{3})$/;
 
 const SITE_RE = /^SITE-\d{3}$/;
 const WINDOWS = ["15m", "30m", "60m", "120m"];
@@ -18,15 +21,25 @@ interface CopilotPanelProps {
   canAnalyze?: boolean;
 }
 
-const SourceChip: React.FC<{ id: string }> = ({ id }) => (
-  <span
-    className="inline-block font-mono text-[10px] bg-slate-700 text-slate-300 px-1.5 py-0.5 rounded mr-1 mb-1"
-    title={id}
-    data-testid="source-chip"
-  >
-    {id.length > 28 ? `${id.slice(0, 26)}…` : id}
-  </span>
-);
+/** Step 15: a cited graph node (site / link / cell) gets a teal node chip. */
+const SourceChip: React.FC<{ id: string; graphNodes: Set<string> }> = ({ id, graphNodes }) =>
+  graphNodes.has(id) && NODE_RE.test(id) ? (
+    <span
+      className="inline-block font-mono text-[10px] border bg-teal-950 border-teal-700 text-teal-200 px-1.5 py-0.5 rounded mr-1 mb-1"
+      title={`topology node ${id}`}
+      data-testid="node-chip"
+    >
+      ◆ {id}
+    </span>
+  ) : (
+    <span
+      className="inline-block font-mono text-[10px] bg-slate-700 text-slate-300 px-1.5 py-0.5 rounded mr-1 mb-1"
+      title={id}
+      data-testid="source-chip"
+    >
+      {id.length > 28 ? `${id.slice(0, 26)}…` : id}
+    </span>
+  );
 
 /** W10: one chip per evidence call; red when the tool failed. */
 export const ToolCallChips: React.FC<{ calls: ToolCall[] }> = ({ calls }) => (
@@ -69,6 +82,7 @@ export const CopilotPanel: React.FC<CopilotPanelProps> = ({
     if (defaultSiteId) setSiteId(defaultSiteId.toUpperCase());
   }, [defaultSiteId]);
   const valid = SITE_RE.test(siteId.trim());
+  const graphNodes = new Set(result?.context?.graphNodes ?? []);
 
   return (
     <div
@@ -160,6 +174,15 @@ export const CopilotPanel: React.FC<CopilotPanelProps> = ({
             )}
           </div>
 
+          {result.context?.retrievalMode && (
+            <div className="flex flex-wrap items-center gap-1" data-testid="copilot-graph">
+              <RetrievalModeBadge mode={result.context.retrievalMode} />
+              {[...graphNodes].map((n) => (
+                <SourceChip key={n} id={n} graphNodes={graphNodes} />
+              ))}
+            </div>
+          )}
+
           {result.toolCalls && result.toolCalls.length > 0 && (
             <ToolCallChips calls={result.toolCalls} />
           )}
@@ -185,7 +208,7 @@ export const CopilotPanel: React.FC<CopilotPanelProps> = ({
                   <div>{c.text}</div>
                   <div className="mt-1">
                     {c.sources.map((s) => (
-                      <SourceChip key={s} id={s} />
+                      <SourceChip key={s} id={s} graphNodes={graphNodes} />
                     ))}
                   </div>
                 </li>

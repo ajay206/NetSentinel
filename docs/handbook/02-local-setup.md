@@ -264,6 +264,16 @@ curl -s -XPOST localhost:8000/api/rag/search \
 
 The response contains the top‑3 runbook suggestions with titles, sections, snippets, scores, and predicted fault types.
 
+### 7. Graph RAG and the retrieval benchmark (Step 15)
+```bash
+curl -s -XPOST localhost:8000/api/rag/search -H "authorization: Bearer $TOKEN" \
+     -H 'content-type: application/json' \
+     -d '{"query":"SITE-010 LOS, which runbook?","mode":"graph"}'   # results carry nodeIds
+make rag-bench         # Docker only: vector/bm25/hybrid/rerank/graph -> evals/retrieval_report.md
+```
+
+`mode: "graph"` links ids and names in the query (SITE-010, LNK-012, "North-Hub-1", "the hub of SITE-010") to the topology. It reads the neighbourhood from topology-service when the `graph` profile is up; otherwise it uses the same seed-42 topology in-process, so it works with the `rag` profile alone. The copilot uses graph mode by default (`RAG_MODE`).
+
 ## Copilot with a local LLM (W9) – Setup
 
 ### Prerequisites

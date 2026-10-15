@@ -62,6 +62,12 @@ def select_site_alarms(
     return in_window[:limit]
 
 
+def rag_mode() -> str:
+    """Step 15: RAG_MODE=graph (default) uses Graph RAG; hybrid keeps the W8 retrieval."""
+    mode = os.getenv("RAG_MODE", "graph")
+    return mode if mode in ("graph", "hybrid") else "graph"
+
+
 class ToolRecorder:
     """Records one entry per evidence call so the console can show tool-call chips.
 
@@ -197,7 +203,7 @@ class Upstream(ToolRecorder):
             return None
 
     async def _runbooks(self, query: str, fault_type: str | None) -> list[dict[str, Any]]:
-        body = {"query": query[:500], "top_k": 3, "mode": "hybrid", "faultType": fault_type}
+        body = {"query": query[:500], "top_k": 3, "mode": rag_mode(), "faultType": fault_type}
         try:
             async with self._client() as c:
                 resp = await c.post(f"{self.rag_url}/search", json=body)

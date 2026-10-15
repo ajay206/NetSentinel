@@ -496,6 +496,24 @@ flowchart LR
 
 The service ingests the synthetic runbooks (42 markdown files under `data/runbooks`) by chunking each `##` section, generating deterministic chunk IDs, and storing vectors in Qdrant with cosine distance.  Re‑ingest is idempotent because Qdrant point IDs are derived from `uuid5(chunk_id)`.
 
+### Graph RAG (Step 15, W15)
+
+`POST /search` with `mode: "graph"` (also `rerank`, the reranker without graph context) runs this pipeline (ADR-015):
+
+1. **Entity linking** (`entities.py`): site/link/node/cell ids, aliases (`L-12`, `site 9`), site names and relations ("the hub of SITE-010" → its parent), at most 3 entities.
+2. **Text-to-Cypher** (`text2cypher.py`): the planner picks one of 10 catalogue queries from topology-service (Step 14) with a schema prompt. It never writes Cypher. The default `RulePlanner` is deterministic; `LlmPlanner` validates the LLM's choice and falls back to the rules.
+3. **Neighbourhood expansion** (`graph_rag.py`, `topology.py`): the entity's site, parent hub, links and alarms. These come from `GET /graph/context/{id}` on topology-service (`GRAPH_CONTEXT=http`, compose) or the in-process netgen topology (`local`, the default; also the fallback when topology-service is down).
+4. **Rerank** (`rerank.py`, `features-v1`): the hybrid pool of 12 is reranked by the base score, topology facets (access/hub/core, microwave, link vs cell) and term overlap.
+
+Each result adds `nodeIds` (graph nodes to cite) and `matchedFacets`. The response adds `graph {entities, nodes, facets, summary, source, plan, reranker, elapsedMs}`. The benchmark is in `evals/retrieval_report.md` (`make rag-bench`), with the questions in `data/eval/qa.jsonl` (150: text / paraphrase / graph).
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `GRAPH_CONTEXT` | `local` (compose: `http`) | `local` = in-process seed-42 topology, `http` = topology-service with local fallback, `off` = no graph |
+| `TOPOLOGY_SERVICE_URL` | `http://topology-service:8008` | Used when `GRAPH_CONTEXT=http` |
+
+The copilot (`RAG_MODE=graph`, default) prefixes the runbook query with the site id. It carries `nodeIds` into `context.graphNodes`, which are citable `sourceIds`; the fallback answer adds a "Topology context (Graph RAG)" claim. MCP `search_runbooks` takes `mode` (`hybrid` | `graph`).
+
 ## copilot-orchestrator (W9)
 
 The **copilot-orchestrator** service provides the AI‑driven analysis for Step 9 of the NetSentinel demo.
@@ -721,6 +739,7 @@ On the small topology LNK-012 is SITE-004 → SITE-010 (access), so the answer i
 | GET | `/readyz` | 200 once the graph is connected and loaded, else 503 `{error}` |
 | GET | `/graph/summary` | `{backend, counts{sites,nodes,cells,links,alarms,runbooks}}` |
 | GET | `/graph/impact?linkId=LNK-012` (or `siteId=`, `nodeId=`; exactly one) | `{target, impactedSites[{siteId,kind,reason,cells}], cellsLost, sitesIsolated, backend, elapsedMs}`; 400 bad/missing id, 404 unknown element, 503 not ready |
+| GET | `/graph/context/{id}` | Step 15: neighbourhood of a site/link/node/cell for Graph RAG: `{id, type, site, node, link, parent, children, links, alarms, backend}`; 400 bad id, 404 unknown. Works on both backends; gateway `/api/graph/context/{id}` needs viewer |
 | GET | `/graph/queries` | Catalogue: `[{name, description, params}]` |
 | POST | `/graph/queries/{name}` | Body = params; returns `{name, rows}`. `hops` clamped 1–4, `limit` 1–100. 404 unknown, 400 missing param, 501 on the memory backend |
 | POST | `/graph/reload` | Re-load topology + runbooks; returns `{loaded, backend}` |

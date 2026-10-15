@@ -2676,6 +2676,8 @@ version = "0.1.0"
 source = { editable = "services/rag-service" }
 dependencies = [
     { name = "fastapi" },
+    { name = "httpx" },
+    { name = "netgen" },
     { name = "numpy" },
     { name = "qdrant-client" },
     { name = "rank-bm25" },
@@ -2691,6 +2693,8 @@ embed = [
 requires-dist = [
     { name = "fastapi", specifier = ">=0.115" },
     { name = "fastembed", marker = "extra == 'embed'", specifier = ">=0.4" },
+    { name = "httpx", specifier = ">=0.27" },
+    { name = "netgen", editable = "libs/netgen" },
     { name = "numpy", specifier = ">=1.26" },
     { name = "qdrant-client", specifier = ">=1.12" },
     { name = "rank-bm25", specifier = ">=0.2.2" },

@@ -67,7 +67,7 @@ components:
       properties:
         query: {type: string, minLength: 1, maxLength: 500}
         top_k: {type: integer, minimum: 1, maximum: 10, default: 3}
-        mode: {type: string, enum: [vector, bm25, hybrid], default: hybrid}
+        mode: {type: string, enum: [vector, bm25, hybrid, rerank, graph], default: hybrid, description: 'Step 15: rerank = hybrid + feature reranker; graph = Graph RAG (entity linking + neighbourhood expansion + rerank)'}
         faultType:
           type: [string, 'null']
           description: Soft boost (x1.2) for runbooks of this fault type, e.g. the W7 prediction. Not a filter.
@@ -81,6 +81,26 @@ components:
         results:
           type: array
           items: {$ref: '#/components/schemas/RunbookHit'}
+        graph:
+          description: Step 15, graph mode only (null otherwise)
+          nullable: true
+          type: object
+          properties:
+            entities:
+              type: array
+              items:
+                type: object
+                properties: {id: {type: string}, type: {type: string}, mention: {type: string}, via: {type: string}}
+            nodes: {type: array, items: {type: string}}
+            facets: {type: array, items: {type: string}}
+            summary: {type: array, items: {type: string}, description: One neighbourhood summary string per linked entity}
+            source: {type: string, description: "local | topology-service | local (topology-service unavailable)"}
+            plan:
+              nullable: true
+              type: object
+              properties: {query: {type: string}, params: {type: object, additionalProperties: true}, planner: {type: string}}
+            reranker: {type: string}
+            elapsedMs: {type: number}
     RunbookHit:
       type: object
       required: [runbookId, title, section, snippet, score, faultType]
@@ -91,6 +111,8 @@ components:
         snippet: {type: string, description: First 240 chars of the best-matching section}
         score: {type: number, description: Cosine (vector), BM25 score, or RRF score (hybrid)}
         faultType: {type: string}
+        nodeIds: {type: array, items: {type: string}, description: 'Step 15: graph nodes behind the hit (graph mode), citable by the copilot'}
+        matchedFacets: {type: array, items: {type: string}}
     RunbookDoc:
       type: object
       required: [id, title, faultType, tags, markdown]

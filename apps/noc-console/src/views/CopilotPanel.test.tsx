@@ -142,3 +142,31 @@ describe("CopilotPanel", () => {
     expect(onAnalyze).not.toHaveBeenCalled();
   });
 });
+
+describe("CopilotPanel graph citations (Step 15)", () => {
+  it("shows the retrieval mode and node-ID chips for cited graph nodes", () => {
+    const graph: AnalyzeResponse = {
+      ...result,
+      answer: {
+        ...result.answer,
+        evidence: [
+          ...result.answer.evidence,
+          { text: "Topology context (Graph RAG): SITE-010, LNK-012", sources: ["SITE-010", "LNK-012"] },
+        ],
+      },
+      sourceIds: [...result.sourceIds, "SITE-010", "LNK-012", "SITE-004"],
+      context: { retrievalMode: "graph", graphNodes: ["SITE-010", "LNK-012", "SITE-004"] },
+    };
+    render(<CopilotPanel onAnalyze={vi.fn()} result={graph} />);
+    expect(screen.getByTestId("retrieval-mode")).toHaveTextContent("retrieval mode: graph");
+    const chips = screen.getAllByTestId("node-chip").map((c) => c.textContent);
+    expect(chips).toEqual(["◆ SITE-010", "◆ LNK-012", "◆ SITE-004", "◆ SITE-010", "◆ LNK-012"]);
+    expect(screen.getAllByTestId("source-chip").map((c) => c.textContent)).toEqual(["alm-root-0001"]);
+  });
+
+  it("shows no graph indicator for older responses without context", () => {
+    render(<CopilotPanel onAnalyze={vi.fn()} result={result} />);
+    expect(screen.queryByTestId("retrieval-mode")).toBeNull();
+    expect(screen.queryByTestId("node-chip")).toBeNull();
+  });
+});

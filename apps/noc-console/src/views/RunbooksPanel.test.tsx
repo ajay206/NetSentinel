@@ -86,7 +86,7 @@ describe('RunbooksPanel', () => {
         doc={mockDoc}
         docLoading={false}
         onClosePreview={onClosePreview}
-      />
+      />,
     );
 
     expect(screen.getByRole('heading', { name: 'Link Failure Recovery' })).toBeInTheDocument();
@@ -110,7 +110,7 @@ describe('RunbooksPanel', () => {
         selectedId="rb-001"
         doc={mockDoc}
         docLoading={true}
-      />
+      />,
     );
     expect(screen.getByText('Loading runbook…')).toBeInTheDocument();
   });
@@ -136,5 +136,27 @@ describe('MarkdownPreview', () => {
     expect(screen.getByText('Item 1')).toBeInTheDocument();
     expect(screen.getByText('Item 2')).toBeInTheDocument();
     expect(screen.getByText('Paragraph text.')).toBeInTheDocument();
+  });
+});
+
+describe('RunbooksPanel graph citations (Step 15)', () => {
+  it('renders node-ID chips per hit and the retrieval mode indicator', () => {
+    const hits: RunbookHit[] = [
+      { ...mockHits[0], nodeIds: ['SITE-010', 'LNK-012', 'SITE-004'], matchedFacets: ['access'] },
+      mockHits[1],
+    ];
+    render(<RunbooksPanel alarmLabel="LOS @ SITE-010" hits={hits} mode="graph" />);
+    expect(screen.getByTestId('retrieval-mode')).toHaveTextContent('retrieval mode: graph');
+    expect(screen.getAllByTestId('node-chips')).toHaveLength(1);
+    expect(screen.getAllByTestId('node-chip').map((c) => c.textContent)).toEqual([
+      '◆ SITE-010',
+      '◆ LNK-012',
+      '◆ SITE-004',
+    ]);
+  });
+
+  it('hides the indicator without results', () => {
+    render(<RunbooksPanel alarmLabel="LOS @ SITE-010" hits={[]} mode="graph" />);
+    expect(screen.queryByTestId('retrieval-mode')).toBeNull();
   });
 });

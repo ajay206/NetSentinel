@@ -192,6 +192,20 @@ class FakeGateway:
         if path == "/api/rag/search" and method == "POST":
             if not self._check_auth(request):
                 return httpx.Response(401, json={"detail": "Unauthorized"})
+            body = json.loads(request.content or b"{}")
+            if body.get("mode") == "graph":
+                hits = [
+                    dict(r, nodeIds=["SITE-010", "LNK-012"]) for r in self.runbooks_data["results"]
+                ]
+                return httpx.Response(
+                    200,
+                    json={
+                        **self.runbooks_data,
+                        "mode": "graph",
+                        "results": hits,
+                        "graph": {"source": "local", "nodes": ["SITE-010"]},
+                    },
+                )
             return httpx.Response(200, json=self.runbooks_data)
 
         if path == "/api/copilot/analyze" and method == "POST":
@@ -228,7 +242,7 @@ def test_smoke_all_pass(client, monkeypatch):
     smoke = Smoke(client, user="operator", wait_s=0, poll_s=0)
     result = smoke.run()
     assert result is True
-    assert len(smoke.checks) == 12
+    assert len(smoke.checks) == 13
     assert all(c.ok for c in smoke.checks)
 
 
@@ -322,7 +336,7 @@ def test_main_text_output(monkeypatch, mock_transport, capsys):
     exit_code = main(["--base-url", "http://test", "--wait", "0"])
     assert exit_code == 0
     captured = capsys.readouterr()
-    assert "12/12 checks passed" in captured.out
+    assert "13/13 checks passed" in captured.out
     assert "secret-token-xyz" not in captured.out
 
 
@@ -372,7 +386,7 @@ def test_smoke_console_check(client):
     smoke = Smoke(client, user="operator", wait_s=0, poll_s=0, console_url="http://console/")
     assert smoke.run() is True
     assert [c.name for c in smoke.checks][:2] == ["health", "console"]
-    assert len(smoke.checks) == 13
+    assert len(smoke.checks) == 14
 
 
 def test_smoke_console_down(client):

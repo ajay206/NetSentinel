@@ -350,6 +350,7 @@ export const App: React.FC<AppProps> = ({ session, onLogout, onSessionChange }) 
             doc={runbookDoc.data}
             docLoading={runbookDoc.isLoading}
             onClosePreview={() => setRunbookId(null)}
+            mode={runbookSearch.data?.mode ?? null}
           />
         }
       />

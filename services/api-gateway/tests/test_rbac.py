@@ -89,6 +89,7 @@ MATRIX = [
     ("GET", "/api/graph/queries", None, "viewer"),
     ("POST", "/api/graph/queries/site_by_id", {"siteId": "SITE-001"}, "viewer"),
     ("POST", "/api/graph/reload", None, "admin"),
+    ("GET", "/api/graph/context/SITE-010", None, "viewer"),
 ]
 ROLES = ("viewer", "operator", "admin")
 

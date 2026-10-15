@@ -429,4 +429,14 @@ Then refresh the console.
 
 ### 70. Impact answer looks wrong or stale after switching to the 60-site topology
 - The graph is rebuilt from `TOPOLOGY_SEED` / `TOPOLOGY_FULL` (or `TOPOLOGY_FILE`) on every start in one transaction, and `make topo-load` rebuilds it on demand. Set `TOPOLOGY_FULL: "1"` for topology-service *and* incident-service so they agree. Link IDs differ between the small (14 links) and full (77 links) topologies, so LNK-012 is a different link in each.
-- Named queries return 501 on `GRAPH_BACKEND=memory`; only `/graph/impact` and `/graph/summary` work without Neo4j.
+- Named queries return 501 on `GRAPH_BACKEND=memory`; only `/graph/impact`, `/graph/summary` and `/graph/context` work without Neo4j.
+
+### 71. Runbook results have no node chips / "retrieval mode: hybrid"
+- Node chips need `mode: "graph"` and an entity in the query. The console adds the alarm's site id; check that the alarm has a `siteId`. Free text with no site/link id or site name links nothing, and graph mode then returns hybrid results with empty `nodeIds`.
+- For the copilot, check `RAG_MODE` (compose: `graph`). `hybrid` turns graph citations off.
+
+### 72. Graph RAG response says `source: "local (topology-service unavailable)"`
+- `GRAPH_CONTEXT=http` could not reach `TOPOLOGY_SERVICE_URL` (the `graph` profile is off), so rag-service used its in-process seed-42 topology. Answers are the same for the default topology. If topology-service runs `TOPOLOGY_FULL=1`, start the `graph` profile or the ids will not match.
+
+### 73. `retrieval_report.md` numbers differ from the PR
+- The report is measured, not fixed. The embedder (`EMBEDDER=hash` vs `fastembed`) and edits to runbooks or `data/eval/qa.jsonl` change it. Regenerate with `make rag-bench`. The reranker weights were tuned on this question set, so read the graph-category gain as optimistic.

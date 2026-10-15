@@ -2,6 +2,7 @@ import React from 'react';
 import { CardHeader } from '../components/ui/Card';
 import type { RunbookDoc, RunbookHit } from '../types.runbook';
 import { MarkdownPreview } from '../components/MarkdownPreview';
+import { NodeChips, RetrievalModeBadge } from '../components/NodeChips';
 
 interface RunbooksPanelProps {
   alarmLabel?: string | null;
@@ -13,6 +14,8 @@ interface RunbooksPanelProps {
   doc?: RunbookDoc;
   docLoading?: boolean;
   onClosePreview?: () => void;
+  /** Step 15: retrieval mode reported by rag-service ("graph" = Graph RAG). */
+  mode?: string | null;
 }
 
 /** W8: top-3 runbooks for the selected alarm (hybrid BM25 + vector search in rag-service). */
@@ -26,6 +29,7 @@ export const RunbooksPanel: React.FC<RunbooksPanelProps> = ({
   doc,
   docLoading = false,
   onClosePreview,
+  mode = null,
 }) => {
   let body: React.ReactNode;
   if (!alarmLabel) {
@@ -61,6 +65,7 @@ export const RunbooksPanel: React.FC<RunbooksPanelProps> = ({
                       <span className="font-mono">{hit.runbookId}</span> · {hit.section}
                     </div>
                     <div className="text-sm text-slate-400 line-clamp-2 mt-1">{hit.snippet}</div>
+                    <NodeChips ids={hit.nodeIds} />
                   </div>
                   <div className="flex flex-col items-end gap-1 flex-shrink-0">
                     <span className="text-xs font-mono text-slate-300 bg-slate-700 px-2 py-0.5 rounded">
@@ -85,10 +90,13 @@ export const RunbooksPanel: React.FC<RunbooksPanelProps> = ({
         as="h3"
         title="Suggested runbooks"
         subtitle="Repair procedures that match the selected alarm."
-        info="Hybrid keyword + vector search over the runbook library, boosted by the predicted fault type."
+        info="Graph RAG: hybrid keyword + vector search, expanded with the alarm's topology neighbourhood (site, links, parent hub) and reranked. Chips show the graph nodes behind each hit."
         actions={
-          <span className="text-xs text-slate-500 truncate max-w-[12rem]">
-            {alarmLabel ?? 'select an alarm'}
+          <span className="flex items-center gap-2">
+            {alarmLabel && hits.length > 0 && <RetrievalModeBadge mode={mode} />}
+            <span className="text-xs text-slate-500 truncate max-w-[12rem]">
+              {alarmLabel ?? 'select an alarm'}
+            </span>
           </span>
         }
       />

@@ -290,6 +290,15 @@ components:
             $ref: '#/components/schemas/RunbookRef'
           type: array
           title: Runbooks
+        retrievalMode:
+          type: string
+          title: Retrievalmode
+          default: hybrid
+        graphNodes:
+          items:
+            type: string
+          type: array
+          title: Graphnodes
       additionalProperties: false
       type: object
       required:
@@ -323,6 +332,11 @@ components:
         snippet:
           type: string
           title: Snippet
+        nodeIds:
+          items:
+            type: string
+          type: array
+          title: Nodeids
       additionalProperties: false
       type: object
       required:

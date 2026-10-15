@@ -92,6 +92,33 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /graph/context/{entity_id}:
+    get:
+      summary: Context
+      description: 'Step 15: one-hop neighbourhood of a site, link, node or cell (Graph RAG expansion).'
+      operationId: context_graph_context__entity_id__get
+      parameters:
+      - name: entity_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Entity Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                title: Response Context Graph Context  Entity Id  Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /graph/queries:
     get:
       summary: List Queries
