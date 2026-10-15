@@ -398,3 +398,12 @@ Introduces the topology‑aware incident clustering service, its API, and the ne
   - topology write-back (memory + Neo4j); gateway RBAC rows;
   - Vitest: chat, trace and App flows;
   - smoke: `agents` check.
+
+## Step 18: llm-gateway, model router and guardrails (W18)
+
+- **New service `llm-gateway`** (port 8010, `copilot` profile, internal only): ordered model routes (local `ollama:qwen2.5:1.5b` first, `cloud:stub` until Phase 3), per-route timeouts, circuit breaker, prompt-injection guard (400 `prompt_injection`), PII redaction (regex engine by default, optional Presidio), and per-caller tokens with rpm, concurrency and prompt-size limits. Endpoints `/v1/complete`, `/v1/stats`, `/health`.
+- **copilot-orchestrator** now calls models only through `GatewayLLM` (`LLM=gateway`); `OllamaLLM` and `OLLAMA_*` were removed. `/analyze` returns `llm {route, latencyMs, redactions, blocked}`; the W17 RCA trace step shows `llm:<route>` with the gateway latency.
+- **Console:** model-route chip, "PII redacted" marker and "guard blocked" chip in the Copilot panel.
+- **CI:** `scripts/check_llm_calls.py` fails on direct model calls outside the gateway.
+- **Evals:** `evals/redteam.jsonl`, 48 cases (18 injection, 18 PII, 12 tricky benign); all pass.
+- **Docs:** ADR-018, `03-services.md`, `02-local-setup.md`, troubleshooting #80–82; contracts `llm-gateway.yaml` (new) and `copilot-orchestrator.yaml` regenerated.

@@ -15,6 +15,7 @@ members = [
     "copilot-orchestrator",
     "incident-service",
     "kpi-service",
+    "llm-gateway",
     "mcp-server",
     "ml-service",
     "netgen",
@@ -1605,6 +1606,34 @@ wheels = [
 ]
 
 [[package]]
+name = "llm-gateway"
+version = "0.1.0"
+source = { editable = "services/llm-gateway" }
+dependencies = [
+    { name = "fastapi" },
+    { name = "httpx" },
+    { name = "pydantic" },
+    { name = "uvicorn", extra = ["standard"] },
+]
+
+[package.optional-dependencies]
+dev = [
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "fastapi", specifier = ">=0.115" },
+    { name = "httpx", specifier = ">=0.27" },
+    { name = "pydantic", specifier = ">=2.7" },
+    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0" },
+    { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.23" },
+    { name = "uvicorn", extras = ["standard"], specifier = ">=0.30" },
+]
+provides-extras = ["dev"]
+
+[[package]]
 name = "loguru"
 version = "0.7.3"
 source = { registry = "https://pypi.org/simple" }
@@ -2140,6 +2169,7 @@ dev = [
     { name = "httpx" },
     { name = "incident-service" },
     { name = "kpi-service" },
+    { name = "llm-gateway" },
     { name = "mcp-server" },
     { name = "ml-service" },
     { name = "mypy" },
@@ -2166,6 +2196,7 @@ dev = [
     { name = "httpx", specifier = ">=0.27" },
     { name = "incident-service", editable = "services/incident-service" },
     { name = "kpi-service", editable = "services/kpi-service" },
+    { name = "llm-gateway", editable = "services/llm-gateway" },
     { name = "mcp-server", editable = "services/mcp-server" },
     { name = "ml-service", editable = "services/ml-service" },
     { name = "mypy", specifier = ">=1.11.0" },

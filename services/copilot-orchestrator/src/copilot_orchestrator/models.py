@@ -121,6 +121,17 @@ class ToolCall(BaseModel):
     transport: Literal["mcp", "http"]
 
 
+class LlmRoute(BaseModel):
+    """What llm-gateway did for this answer (W18 model-route chip)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    route: str | None = Field(description="e.g. ollama:qwen2.5:1.5b; null if blocked/unavailable")
+    latencyMs: float = 0
+    redactions: int = Field(0, description="PII items stripped before the model / in logs")
+    blocked: list[str] = Field(default_factory=list, description="guard reasons if blocked")
+
+
 class AnalyzeResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -129,6 +140,7 @@ class AnalyzeResponse(BaseModel):
     answer: Answer
     generatedBy: Literal["llm", "fallback"]
     model: str | None
+    llm: LlmRoute | None = None
     attempts: int
     errors: list[str]
     context: Context

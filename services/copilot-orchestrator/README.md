@@ -15,7 +15,7 @@ Simple copilot service that gathers evidence from upstream services, queries a l
 | `GATEWAY_URL` | `http://localhost:8000` | API Gateway base URL |
 | `ML_SERVICE_URL` | `http://localhost:8003` | ML Service base URL |
 | `RAG_SERVICE_URL` | `http://localhost:8004` | RAG Service base URL |
-| `OLLAMA_URL` | `http://localhost:11434` | Ollama base URL |
-| `OLLAMA_MODEL` | `qwen2.5:1.5b` | Ollama model name |
-| `LLM` | `ollama` | LLM backend: `ollama`, `mock-fallback`, or `off` |
+| `LLM_GATEWAY_URL` | `http://localhost:8010` | llm-gateway base URL (Step 18: the only path to a model) |
+| `LLM_GATEWAY_TOKEN` | unset | Caller token registered in llm-gateway `LLM_GATEWAY_CALLERS` |
+| `LLM` | `gateway` | `gateway`, or `off` (deterministic fallback only) |
 | `PORT` | `8005` | Server port |

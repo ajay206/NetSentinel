@@ -14,7 +14,7 @@ from fastapi import Depends, FastAPI, Header, HTTPException
 from pydantic import BaseModel, ConfigDict, Field
 
 from copilot_orchestrator.analyze import analyze
-from copilot_orchestrator.clients.llm import LLM, OffLLM, OllamaLLM
+from copilot_orchestrator.clients.llm import LLM, GatewayLLM, OffLLM
 from copilot_orchestrator.clients.mcp_client import McpUpstream
 from copilot_orchestrator.clients.upstream import ToolRecorder, Upstream
 from copilot_orchestrator.graph import trigger
@@ -82,12 +82,12 @@ async def get_upstream() -> AsyncIterator[ToolRecorder]:
 
 
 def get_llm() -> LLM:
-    if os.getenv("LLM", "ollama") == "off":
+    if os.getenv("LLM", "gateway") == "off":
         return OffLLM()
-    return OllamaLLM(
-        url=os.getenv("OLLAMA_URL", "http://localhost:11434"),
-        model=os.getenv("OLLAMA_MODEL", "qwen2.5:1.5b"),
-        timeout=float(os.getenv("LLM_TIMEOUT_S", "60")),
+    return GatewayLLM(
+        url=os.getenv("LLM_GATEWAY_URL", "http://localhost:8010"),
+        token=os.getenv("LLM_GATEWAY_TOKEN") or None,
+        timeout=float(os.getenv("LLM_TIMEOUT_S", "90")),
     )
 
 

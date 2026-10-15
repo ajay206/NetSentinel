@@ -5,9 +5,10 @@ info:
   version: 0.2.0
   description: Simple (non-LangGraph) analyze flow (W9). Evidence (alarms, KPI anomalies, fault type,
     runbooks) is gathered through mcp-server tools over MCP (W10, TOOLS=mcp) or directly over HTTP (TOOLS=http).
-    A local Ollama model (qwen2.5:1.5b) writes a JSON answer that is validated with Pydantic plus citation
-    checks, retried up to 3 times, else a deterministic fallback is returned. toolCalls lists every evidence
-    call. Exposed via the gateway as POST /api/copilot/analyze. Generated from the FastAPI app.
+    A local model, reached only via llm-gateway (W18), writes a JSON answer that is validated with Pydantic
+    plus citation checks, retried up to 3 times, else a deterministic fallback is returned. toolCalls
+    lists every evidence call. Exposed via the gateway as POST /api/copilot/analyze. Generated from the
+    FastAPI app.
 paths:
   /healthz:
     get:
@@ -235,6 +236,10 @@ components:
           - type: string
           - type: 'null'
           title: Model
+        llm:
+          anyOf:
+          - $ref: '#/components/schemas/LlmRoute'
+          - type: 'null'
         attempts:
           type: integer
           title: Attempts
@@ -438,6 +443,35 @@ components:
           title: Detail
       type: object
       title: HTTPValidationError
+    LlmRoute:
+      properties:
+        route:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Route
+          description: e.g. ollama:qwen2.5:1.5b; null if blocked/unavailable
+        latencyMs:
+          type: number
+          title: Latencyms
+          default: 0
+        redactions:
+          type: integer
+          title: Redactions
+          description: PII items stripped before the model / in logs
+          default: 0
+        blocked:
+          items:
+            type: string
+          type: array
+          title: Blocked
+          description: guard reasons if blocked
+      additionalProperties: false
+      type: object
+      required:
+      - route
+      title: LlmRoute
+      description: What llm-gateway did for this answer (W18 model-route chip).
     RunRequest:
       properties:
         incidentId:

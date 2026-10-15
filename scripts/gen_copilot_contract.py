@@ -19,8 +19,9 @@ def main() -> None:
     spec["info"]["description"] = (
         "Simple (non-LangGraph) analyze flow (W9). Evidence (alarms, KPI anomalies, fault type, "
         "runbooks) is gathered through mcp-server tools over MCP (W10, TOOLS=mcp) or directly "
-        "over HTTP (TOOLS=http). A local Ollama model (qwen2.5:1.5b) writes a JSON answer that is "
-        "validated with Pydantic plus citation checks, retried up to 3 times, else a "
+        "over HTTP (TOOLS=http). A local model, reached only via llm-gateway (W18), writes a "
+        "JSON answer "
+        "that is validated with Pydantic plus citation checks, retried up to 3 times, else a "
         "deterministic fallback is returned. toolCalls lists every evidence call. Exposed via "
         "the gateway as POST /api/copilot/analyze. Generated from the FastAPI app."
     )
