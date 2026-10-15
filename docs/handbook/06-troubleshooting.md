@@ -478,9 +478,13 @@ Then refresh the console.
 ### 85. `ssl` assert fails while building an image
 - The Dockerfile asserts OpenSSL ≥ 3.5. Make sure the base is `python:3.12-slim-trixie`, not plain `slim` or bookworm, and that no cached old base image is used (`docker compose build --pull`).
 
-## Mac test run errors (Oct 15, 2026)
+## Errors we hit and how we fixed them
 
-### 86. Agent and PQC curl calls return `{"detail": "Missing bearer token"}`
+Real failures from Mac test runs, closed PRs and reviews (through 15 Oct 2026). The numbered catalogue above stays the source of truth: this section groups the ones we actually hit. Where a write-up already exists, the entry is short and links to it.
+
+### Setup
+
+#### 86. Agent and PQC curl calls return `{"detail": "Missing bearer token"}`
 **Symptom**  
 `{"detail": "Missing bearer token"}`
 
@@ -493,27 +497,7 @@ export TOKEN=$(make -s token AS=operator)
 make agent-runs TOKEN=$TOKEN
 ```
 
-### 87. Login with operator/operator123 returns `Invalid credentials`
-**Symptom**  
-`Invalid credentials`
-
-**Cause**  
-The demo password is `operator`, not `operator123` (or the user has already changed it).
-
-**Fix**  
-Sign in as `operator` / `operator`. If the password was changed, use the new password (or reset it as admin).
-
-### 88. Token parse fails with `KeyError: 'access_token'`
-**Symptom**  
-`KeyError: 'access_token'`
-
-**Cause**  
-The login response field is `accessToken`, not `access_token`.
-
-**Fix**  
-Read `accessToken` from the JSON (e.g. `jq -r .accessToken`) or use `make token AS=operator`.
-
-### 89. `make token` says `login as as failed: HTTP 401`
+#### 89. `make token` says `login as as failed: HTTP 401`
 **Symptom**  
 `login as as failed: HTTP 401`
 
@@ -525,7 +509,7 @@ Read `accessToken` from the JSON (e.g. `jq -r .accessToken`) or use `make token 
 make token AS=operator
 ```
 
-### 90. `No rule to make target pqc-status` / `help`
+#### 90. `No rule to make target pqc-status` / `help`
 **Symptom**  
 `No rule to make target 'pqc-status'` or `No rule to make target 'help'`
 
@@ -535,7 +519,134 @@ Those targets do not exist.
 **Fix**  
 Use `pqc-init`, `pqc-probe`, `pqc-verify`, `pqc-tamper`, `pqc-bench`, or `GET /api/security/pqc` with a token.
 
-### 91. Copilot run shows `llm-gateway 503: no route available: ollama...=ConnectError / circuit-open` and `generatedBy=fallback`
+#### 92. `make: ollama: No such file or directory` / `exit 127`
+**Symptom**  
+`make: ollama: No such file or directory` / `exit 127`
+
+**Cause**  
+Ollama is not installed on the host.
+
+**Fix**  
+Same as #91: `brew install ollama` (or the ollama.com app), `ollama serve &`, `make ollama-pull`.
+
+#### 93. Run reports `kgWriteBack: write-back failed (graph profile off?)` and `query_topology` `ok:false`
+**Symptom**  
+`kgWriteBack: write-back failed (graph profile off?)` and `query_topology` `ok:false`
+
+**Cause**  
+The `graph` profile (Neo4j + topology-service) is not running.
+
+**Fix**  
+```bash
+make up-graph && make topo-load
+```
+See also #67, #72, #78.
+
+#### 95. macOS screenshot names contain special spaces
+**Symptom**  
+`cp` / git / `docs-check` fail on files named like `Screenshot 2026-10-15 at 2.18.01 PM.png` (narrow no-break space `U+202F` or a non-breaking space from macOS Screenshot.app).
+
+**Cause**  
+macOS inserts special spaces in default screenshot filenames.
+
+**Fix**  
+Rename before copying into the repo, e.g. `mv Screenshot*.png netsentinel-mac-run.png`.
+
+#### 96. `uv sync` on Mac tries to build `confluent-kafka` from source
+**Symptom**  
+`uv sync` fails compiling `confluent-kafka` (missing librdkafka / compiler) on Homebrew Python 3.15.
+
+**Cause**  
+Wheels are published for 3.12–3.14; 3.15 forced a source build. Fixed in W1 (`requires-python = ">=3.12,<3.15"` and `.python-version` 3.12).
+
+**Fix**  
+Use Python 3.12 (`uv python pin 3.12`). The Docker-only demo does not need a host `uv sync` (#54).
+
+#### 97. Vite `ws proxy socket error: write EPIPE`
+**Symptom**  
+`ws proxy socket error: write EPIPE` in `npm run dev` / `make console`.
+
+**Cause**  
+The Vite HTTP proxy was still writing after the browser closed the WebSocket (React Strict Mode remount, HMR, reconnect). Fixed in the W2 follow-up: the alarm feed connects to `ws://127.0.0.1:8000/ws/alarms` directly.
+
+**Fix**  
+Restart `make console` after pull. `/api` and `/health` still go through the Vite proxy.
+
+Also hit, already documented:
+- compose rejects `depends_on` without a `condition` — #51
+- container `failed to create directory /home/appuser/.cache/uv` — #52
+- kpi-service `PoolClosed` / auth fails for user `"postgres"` — #53
+- host `uv sync` fails building xgboost — #54
+- `docker compose logs <svc>` says "no such service" — #55
+- `ssl` assert fails while building an image — #85
+- `make demo` times out waiting for `/readyz` — #42
+- TimescaleDB `POSTGRES_PASSWORD` / missing `.env` — #1
+- Kafka exits or is unhealthy — #2
+
+### Auth
+
+#### 87. Login with operator/operator123 returns `Invalid credentials`
+**Symptom**  
+`Invalid credentials`
+
+**Cause**  
+The demo password is `operator`, not `operator123` (or the user has already changed it).
+
+**Fix**  
+Sign in as `operator` / `operator`. If the password was changed, use the new password or reset it as admin. See #64.
+
+#### 88. Token parse fails with `KeyError: 'access_token'`
+**Symptom**  
+`KeyError: 'access_token'`
+
+**Cause**  
+The login response field is `accessToken`, not `access_token`.
+
+**Fix**  
+Read `accessToken` from the JSON (e.g. `jq -r .accessToken`) or use `make token AS=operator`.
+
+#### Login loop because `login()` never saved the session
+**Symptom**  
+After a successful sign-in the console returns to the login page; `/api` calls are 401 and `/ws` is 403.
+
+**Cause**  
+`login()` returned the session without calling `saveSession()`, so the fetch wrapper sent no Bearer token.
+
+**Fix**  
+Fixed in #14: `login()` calls `saveSession(session)`. See #60 (and #37 if `JWT_SECRET` changed across a gateway restart).
+
+#### 98. Google "password found in a breach" popup for demo passwords
+**Symptom**  
+Chrome / Google Password Manager shows "password found in a breach" (or similar) for `operator` / `viewer` / `admin`.
+
+**Cause**  
+The seeded demo passwords are short and public. The warning is harmless for this synthetic stack.
+
+**Fix**  
+Ignore it, or change the password via **Change password** in the profile menu (then set `SMOKE_*_PASSWORD` if you still run smoke). See #64.
+
+#### 99. bcrypt 72-byte limit and password-change attempts not counting toward lockout
+**Symptom**  
+`POST /api/auth/password` (or admin create/reset) returned **500** `ValueError` for a password over 72 bytes; repeated wrong `currentPassword` never locked the account.
+
+**Cause**  
+Policy allowed 128 characters, but bcrypt 5 raises above 72 bytes. Wrong current passwords on change were not counted as login failures.
+
+**Fix**  
+Fixed in the #15 review: policy rejects `>72` bytes on gateway and console; a wrong `currentPassword` now counts toward the same lockout as login (401 then 423). See #61.
+
+Also hit, already documented:
+- login 423 "Account locked" — #61
+- everyone signed out after password / role change — #62
+- login 503 "User store not ready" — #63
+- 403 "Requires role operator" — #38, #65
+- WebSocket close 4401 — #41
+- internal services 401 from the gateway — #40
+- 429 Too Many Requests on login — #39 and #66
+
+### Copilot / LLM
+
+#### 91. Copilot run shows `llm-gateway 503: no route available: ollama...=ConnectError / circuit-open` and `generatedBy=fallback`
 **Symptom**  
 `llm-gateway 503: no route available: ollama...=ConnectError / circuit-open` and `generatedBy=fallback`
 
@@ -548,30 +659,9 @@ brew install ollama   # or install the app from ollama.com
 ollama serve &
 make ollama-pull
 ```
+See also #28, #80, #83.
 
-### 92. `make: ollama: No such file or directory` / `exit 127`
-**Symptom**  
-`make: ollama: No such file or directory` / `exit 127`
-
-**Cause**  
-Ollama is not installed.
-
-**Fix**  
-Same as #91: `brew install ollama` (or the ollama.com app), `ollama serve &`, `make ollama-pull`.
-
-### 93. Run reports `kgWriteBack: write-back failed (graph profile off?)` and `query_topology` `ok:false`
-**Symptom**  
-`kgWriteBack: write-back failed (graph profile off?)` and `query_topology` `ok:false`
-
-**Cause**  
-The `graph` profile (Neo4j + topology-service) is not running, so KG write-back and topology queries fail.
-
-**Fix**  
-```bash
-make up-graph && make topo-load
-```
-
-### 94. SITE-010 run status is `failed` with 'no evidence'
+#### 94. SITE-010 run status is `failed` with 'no evidence'
 **Symptom**  
 SITE-010 run status `failed` with 'no evidence'
 
@@ -579,5 +669,91 @@ SITE-010 run status `failed` with 'no evidence'
 Expected when a site has no alarms in the window.
 
 **Fix**  
-Try `SITE-005` (or another site that has alarms in the current window).
+Try `SITE-005` (or another site that has alarms in the current window). See #29.
+
+#### Copilot analyze returned 422 because the console sent `siteId`
+**Symptom**  
+`POST /analyze` (or `make smoke` copilot check) returned **422**.
+
+**Cause**  
+`AnalyzeRequest` only accepted `site_id` (`extra=forbid`); the console, smoke and `make analyze` send `siteId`.
+
+**Fix**  
+Fixed in #14: `siteId` is an alias (`site_id` still works). See #56.
+
+#### Copilot 404: MCP returned 421 `Invalid Host header` for `mcp-server:8006`
+**Symptom**  
+Copilot 404 "No alarms" while alarms exist; mcp-server logs `421 Invalid Host header`.
+
+**Cause**  
+FastMCP's DNS-rebinding protection only allowed `localhost`, so calls to `http://mcp-server:8006/mcp` were refused.
+
+**Fix**  
+Fixed in #14: `allowed_hosts` includes `localhost:*`, `127.0.0.1:*` and `mcp-server:*` (`MCP_ALLOWED_HOSTS`). Copilot now returns 503/502 for tool transport errors. See #58.
+
+Also hit, already documented:
+- panel always "fallback (no LLM)" — #28
+- copilot answers always fallback since Step 18 — #80
+- PQC panel llm-gateway unreachable / fallback after Step 21 — #83
+- "guard blocked · override" on a normal alarm — #81
+- run stays `awaiting_approval` — #77
+- Ticket draft FAILED / KG write-back failed — #78
+- no runs on new incidents — #79
+- 404 no alarms for this site (real empty window) — #29
+- citation / hallucinated IDs — #31
+- mcp-server unavailable / 401 / missing token — #32–#34
+
+### Dashboard
+
+#### `http://localhost:5173` showed nothing because `make demo` did not start the console
+**Symptom**  
+`http://localhost:5173` is blank after `make demo`.
+
+**Cause**  
+The dashboard used to run only via host npm (`make console`).
+
+**Fix**  
+Fixed in #14: the `noc-console` nginx container (`ui` profile) serves it. See #59 (port already in use: #57).
+
+#### 100. Alarm-storm timeline and layout were hard to read; suggested runbooks were hidden
+**Symptom**  
+Storm timeline and 12-column layout were hard to read; suggested runbooks were not visible on an alarm.
+
+**Cause**  
+The first console layout did not expose runbooks in context, and the timeline lacked axes, legend and empty/error states.
+
+**Fix**  
+Fixed in #14 (enterprise redesign + alarm details drawer): click an enriched alarm for details, runbooks and SHAP. Esc closes the drawer.
+
+Also hit, already documented:
+- map panel empty (no SVG) — #5
+- KPI "no data" / stale badge / empty charts — #6, #7, #13
+- enriched panel empty — #9
+- anomalies panel empty / ml-service unreachable — #17, #18
+- suggested runbooks "rag-service unavailable" — #24
+- SHAP drawer 503 — #22
+- incident board empty — #47
+- approval queue "ticket-service unavailable" — #74
+
+### CI / smoke
+
+#### Smoke failed 11/12 on a password check with `429 Too Many Requests`
+**Symptom**  
+`make smoke` fails `password: login as smoke.xxxxxx returned 429` (11/12).
+
+**Cause**  
+`LOGIN_RATE_PER_MIN` (default 10) counts smoke, `make demo` and console logins from the same Docker network IP.
+
+**Fix**  
+Fixed in #16: smoke reuses one token per user and backs off on `Retry-After` (`SMOKE_LOGIN_MAX_WAIT`, default 75 s). See #66.
+
+Also hit, already documented:
+- smoke copilot 422 (`siteId`) — #56
+- smoke copilot 404 from MCP 421 — #58
+- smoke `kpi_anomaly` / copilot "no runbook citations" — #43, #44
+- CI "direct LLM call outside llm-gateway" — #82
+- contract drift after a tool change — #35
+- ruff / pre-commit failures — #4
+- Mermaid fails to render on GitHub — #8
+- `retrieval_report.md` numbers differ from the PR — #73
 

@@ -426,3 +426,9 @@ Built straight after Step 18; Steps 19–20 (TelcoGPT-mini) moved to the next ph
 - **Scope:** Handbook troubleshooting #86–94 from a Mac test run (empty `TOKEN`, demo password, `accessToken`, `make token AS=…`, missing PQC Make targets, host Ollama, graph profile off, SITE-010 no-evidence). Short Ollama prerequisite note in `02-local-setup.md`.
 - **Verification:** docs-only; `make docs-check` if available.
 
+## Docs: Errors we hit and how we fixed them
+
+- **Date:** 2026-10-15
+- **Scope:** Replaced the Mac-only heading with **Errors we hit and how we fixed them** in `06-troubleshooting.md`. Kept #86–94; added #95–100 (screenshot names, confluent-kafka / Python 3.15, Vite EPIPE, Google breach popup, bcrypt 72-byte + password-change lockout, console redesign / drawer). Grouped by setup, auth, copilot/LLM, dashboard, CI/smoke. Linked existing catalogue entries (#14/#15/#16 fixes and #1–#85) instead of repeating them.
+- **Verification:** docs-only.
+
