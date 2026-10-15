@@ -11,6 +11,7 @@ gives the same answers with a breadth-first search, for tests and for running wi
 
 from __future__ import annotations
 
+import re
 import time
 from collections import deque
 from dataclasses import dataclass, field
@@ -56,6 +57,7 @@ class Graph(Protocol):
     async def impact(self, target_type: TargetType, target_id: str) -> ImpactResult: ...
     async def run_named(self, name: str, params: dict[str, Any]) -> list[dict[str, Any]]: ...
     async def add_alarm(self, alarm: dict[str, Any]) -> None: ...
+    async def context(self, entity_id: str) -> dict[str, Any]: ...
 
 
 def _order(impacted: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -63,6 +65,34 @@ def _order(impacted: list[dict[str, Any]]) -> list[dict[str, Any]]:
     for s in impacted:
         s["cells"] = sorted(s["cells"])
     return sorted(impacted, key=lambda s: (rank[s["reason"]], s["siteId"]))
+
+
+# --------------------------------------------------------------------------- entity context
+# Step 15: one-hop neighbourhood of a site / link / node / cell, used by rag-service Graph RAG
+# (entity linking -> neighbourhood expansion). Same shape from both backends.
+
+SITE_RE = re.compile(r"^SITE-\d{3}$")
+LINK_RE = re.compile(r"^LNK-\d{3}$")
+NODE_RE = re.compile(r"^SITE-\d{3}-N\d{1,2}$")
+CELL_RE = re.compile(r"^SITE-\d{3}-N\d{1,2}-C\d{1,2}$")
+
+
+def entity_type(entity_id: str) -> str | None:
+    for kind, rx in (("cell", CELL_RE), ("node", NODE_RE), ("site", SITE_RE), ("link", LINK_RE)):
+        if rx.match(entity_id):
+            return kind
+    return None
+
+
+def _site_view(s: dict[str, Any]) -> dict[str, Any]:
+    return {"siteId": s["siteId"], "name": s["name"], "kind": s["kind"], "region": s["region"]}
+
+
+def _finish(ctx: dict[str, Any]) -> dict[str, Any]:
+    ctx["children"] = sorted(ctx.get("children") or [])
+    ctx["links"] = sorted(ctx.get("links") or [], key=lambda x: x["linkId"])
+    ctx["alarms"] = sorted(ctx.get("alarms") or [])[:10]
+    return ctx
 
 
 # --------------------------------------------------------------------------- in-memory
@@ -105,6 +135,51 @@ class MemoryGraph:
 
     async def run_named(self, name: str, params: dict[str, Any]) -> list[dict[str, Any]]:
         raise NotImplementedError("named Cypher queries need GRAPH_BACKEND=neo4j")
+
+    async def context(self, entity_id: str) -> dict[str, Any]:
+        t = self._t()
+        etype = entity_type(entity_id)
+        sites = {s["siteId"]: s for s in t.sites}
+        ctx: dict[str, Any] = {"id": entity_id, "type": etype, "site": None, "node": None}
+        ctx["link"] = None
+        site_id: str | None = None
+        if etype == "link":
+            link = next((x for x in t.links if x["linkId"] == entity_id), None)
+            if link is None:
+                raise UnknownTarget(entity_id)
+            ctx["link"] = {
+                **{k: link[k] for k in ("linkId", "a", "b", "kind", "role")},
+                "aKind": sites[link["a"]]["kind"],
+                "bKind": sites[link["b"]]["kind"],
+            }
+            ctx.update(parent=None, children=[], links=[], alarms=[])
+            return _finish(ctx)
+        if etype == "site":
+            site_id = entity_id if entity_id in sites else None
+        elif etype in ("node", "cell"):
+            node_id = entity_id if etype == "node" else entity_id.rsplit("-", 1)[0]
+            for s in t.sites:
+                for n in s["nodes"]:
+                    if n["nodeId"] == node_id and (etype == "node" or entity_id in n["cells"]):
+                        site_id = s["siteId"]
+                        ctx["node"] = {"nodeId": n["nodeId"], "kind": n["kind"]}
+        if site_id is None:
+            raise UnknownTarget(entity_id)
+        ctx["site"] = _site_view(sites[site_id])
+        ctx["parent"] = t.parent.get(site_id)
+        ctx["children"] = [c for c, p in t.parent.items() if p == site_id]
+        ctx["links"] = [
+            {
+                "linkId": x["linkId"],
+                "peer": x["b"] if x["a"] == site_id else x["a"],
+                "kind": x["kind"],
+                "role": x["role"],
+            }
+            for x in t.links
+            if site_id in (x["a"], x["b"])
+        ]
+        ctx["alarms"] = [a for a, v in self.alarms.items() if v.get("siteId") == site_id]
+        return _finish(ctx)
 
     async def impact(self, target_type: TargetType, target_id: str) -> ImpactResult:
         start = time.perf_counter()
@@ -235,6 +310,36 @@ SET a.siteId = $siteId, a.severity = $severity, a.specificProblem = $specificPro
 MERGE (a)-[:RAISED_ON]->(s)
 """
 
+# Step 15: entity context (neighbourhood expansion for Graph RAG)
+CTX_LINK = """
+MATCH (a:Site)-[l:LINK {linkId: $linkId}]->(b:Site)
+RETURN {linkId: l.linkId, a: a.siteId, b: b.siteId, kind: l.kind, role: l.role,
+        aKind: a.kind, bKind: b.kind} AS link
+"""
+CTX_SITE_OF_SITE = "MATCH (s:Site {siteId: $id}) RETURN s.siteId AS siteId, null AS node"
+CTX_SITE_OF_NODE = """
+MATCH (s:Site)-[:HAS_NODE]->(n:Node {nodeId: $id})
+RETURN s.siteId AS siteId, {nodeId: n.nodeId, kind: n.kind} AS node
+"""
+CTX_SITE_OF_CELL = """
+MATCH (s:Site)-[:HAS_NODE]->(n:Node)-[:HAS_CELL]->(:Cell {cellId: $id})
+RETURN s.siteId AS siteId, {nodeId: n.nodeId, kind: n.kind} AS node
+"""
+CTX_SITE = """
+MATCH (s:Site {siteId: $siteId})
+OPTIONAL MATCH (p:Site)-[:PARENT_OF]->(s)
+WITH s, head(collect(p.siteId)) AS parent
+OPTIONAL MATCH (s)-[:PARENT_OF]->(c:Site)
+WITH s, parent, collect(DISTINCT c.siteId) AS children
+OPTIONAL MATCH (s)-[l:LINK]-(peer:Site)
+WITH s, parent, children,
+     collect(DISTINCT {linkId: l.linkId, peer: peer.siteId, kind: l.kind, role: l.role}) AS links
+OPTIONAL MATCH (a:Alarm)-[:RAISED_ON]->(s)
+RETURN {siteId: s.siteId, name: s.name, kind: s.kind, region: s.region} AS site, parent,
+       children, [x IN links WHERE x.linkId IS NOT NULL] AS links,
+       collect(DISTINCT a.alarmId) AS alarms
+"""
+
 # The impact query: sites (other than the failed one) with no LINK path to a working core
 # site that avoids the failed link / site. Bounded path length keeps it cheap on this graph.
 IMPACT_ISOLATED = f"""
@@ -337,6 +442,36 @@ class Neo4jGraph:
             raise ValueError(f"missing parameters: {', '.join(missing)}")
         return await self._rows(q.cypher, **{p: params[p] for p in q.params})
 
+    async def context(self, entity_id: str) -> dict[str, Any]:
+        etype = entity_type(entity_id)
+        ctx: dict[str, Any] = {"id": entity_id, "type": etype, "site": None, "node": None}
+        ctx["link"] = None
+        if etype == "link":
+            rows = await self._rows(CTX_LINK, linkId=entity_id)
+            if not rows:
+                raise UnknownTarget(entity_id)
+            ctx["link"] = rows[0]["link"]
+            ctx.update(parent=None, children=[], links=[], alarms=[])
+            return _finish(ctx)
+        if etype not in ("site", "node", "cell"):
+            raise UnknownTarget(entity_id)
+        cypher = {"site": CTX_SITE_OF_SITE, "node": CTX_SITE_OF_NODE, "cell": CTX_SITE_OF_CELL}
+        rows = await self._rows(cypher[etype], id=entity_id)
+        if not rows:
+            raise UnknownTarget(entity_id)
+        ctx["node"] = rows[0].get("node")
+        site_id = rows[0]["siteId"]
+        rows = await self._rows(CTX_SITE, siteId=site_id)
+        r = rows[0]
+        ctx.update(
+            site=r["site"],
+            parent=r["parent"],
+            children=r["children"],
+            links=r["links"],
+            alarms=r["alarms"],
+        )
+        return _finish(ctx)
+
     async def impact(self, target_type: TargetType, target_id: str) -> ImpactResult:
         start = time.perf_counter()
         impacted: list[dict[str, Any]] = []
@@ -363,4 +498,12 @@ class Neo4jGraph:
         return ImpactResult(target_type, target_id, _order(impacted), "neo4j", _ms(start))
 
 
-__all__ = ["CATALOGUE", "Graph", "ImpactResult", "MemoryGraph", "Neo4jGraph", "UnknownTarget"]
+__all__ = [
+    "CATALOGUE",
+    "Graph",
+    "entity_type",
+    "ImpactResult",
+    "MemoryGraph",
+    "Neo4jGraph",
+    "UnknownTarget",
+]

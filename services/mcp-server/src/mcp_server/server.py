@@ -126,7 +126,7 @@ async def kpi_anomalies(site_id: str, hours: int = 1) -> dict[str, Any]:
 
 @mcp.tool()
 async def search_runbooks(
-    query: str, fault_type: str | None = None, top_k: int = 3
+    query: str, fault_type: str | None = None, top_k: int = 3, mode: str = "hybrid"
 ) -> dict[str, Any]:
     """Search runbooks by query and optional fault type.
 
@@ -134,19 +134,23 @@ async def search_runbooks(
         query: Search query (1-500 characters)
         fault_type: Optional fault type filter
         top_k: Number of results to return (1-10)
+        mode: hybrid (default) or graph (Step 15 Graph RAG: links site/link/cell ids in the
+            query to the topology; results carry nodeIds for citations)
 
     Returns:
         Dict with query and results list
     """
     validate_query(query)
     validate_top_k(top_k)
+    if mode not in ("hybrid", "graph"):
+        raise ValueError("mode must be hybrid or graph")
     backends = Backends()
     try:
-        results = await backends.search_runbooks(query, fault_type, top_k)
+        results = await backends.search_runbooks(query, fault_type, top_k, mode)
     except BackendError as exc:
         # Raising makes FastMCP return isError=true, which clients treat as a failed call.
         raise RuntimeError(exc.message) from exc
-    return {"query": query, "results": results}
+    return {"query": query, "mode": mode, "results": results}
 
 
 @mcp.tool()

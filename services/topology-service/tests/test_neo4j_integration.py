@@ -51,6 +51,12 @@ async def test_neo4j_matches_memory_and_is_fast(small):
         p50 = statistics.median(timings)
         print(f"neo4j impact p50={p50:.1f} ms max={max(timings):.1f} ms n={len(timings)}")
         assert p50 < 100
+        # Step 15: entity context is identical on both backends
+        ids = [x["siteId"] for x in topo.sites] + [x["linkId"] for x in topo.links]
+        ids += [n["nodeId"] for x in topo.sites for n in x["nodes"]][:20]
+        ids += [x["nodes"][0]["cells"][0] for x in topo.sites][:10]
+        for eid in ids:
+            assert await neo.context(eid) == await mem.context(eid), eid
         # every catalogue query runs (smoke params)
         params = {
             "siteId": "SITE-004",

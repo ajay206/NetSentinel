@@ -11,7 +11,8 @@ export function useRunbookSearch(query: string | null, faultType?: string | null
         body: JSON.stringify({
           query,
           top_k: 3,
-          mode: 'hybrid',
+          // Step 15: Graph RAG (site id in the query is linked to the topology)
+          mode: 'graph',
           faultType: faultType ?? null,
         }),
       });

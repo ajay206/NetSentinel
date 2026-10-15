@@ -295,6 +295,10 @@ services:
       RUNBOOKS_DIR: /app/data/runbooks
       # "fastembed" = bge-small-en-v1.5: needs the embed extra and ~512m mem_limit
       EMBEDDER: hash
+      # Step 15 Graph RAG: graph context from topology-service (profile "graph"); when it is
+      # not running, rag-service falls back to the in-process seed-42 topology (same shape)
+      GRAPH_CONTEXT: http
+      TOPOLOGY_SERVICE_URL: http://topology-service:8008
     mem_limit: 256m
     depends_on:
       qdrant:
@@ -317,6 +321,8 @@ services:
       GATEWAY_SERVICE_TOKEN: ${GATEWAY_SERVICE_TOKEN:-dev-only-service-token}
       ML_SERVICE_URL: http://ml-service:8003
       RAG_SERVICE_URL: http://rag-service:8004
+      # Step 15: graph (Graph RAG, node-ID citations) | hybrid (W8 retrieval)
+      RAG_MODE: graph
       # Ollama runs natively on the Mac (Metal); "off" = deterministic fallback answers only
       OLLAMA_URL: http://host.docker.internal:11434
       OLLAMA_MODEL: qwen2.5:1.5b

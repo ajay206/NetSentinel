@@ -1,5 +1,6 @@
 export function buildRunbookQuery(
   alarm: {
+    siteId?: string | null;
     specificProblem?: string | null;
     probableCause?: string | null;
     alarmType?: string | null;
@@ -8,9 +9,14 @@ export function buildRunbookQuery(
       siteKind?: string | null;
     };
   },
-  faultType?: string | null
+  faultType?: string | null,
 ): string {
   const parts: string[] = [];
+
+  // Step 15: the site id is the entity Graph RAG links to the topology
+  if (alarm.siteId) {
+    parts.push(alarm.siteId);
+  }
 
   if (alarm.specificProblem) {
     parts.push(alarm.specificProblem);

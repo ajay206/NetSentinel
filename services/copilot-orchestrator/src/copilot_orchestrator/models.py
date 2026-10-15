@@ -55,6 +55,8 @@ class RunbookRef(BaseModel):
     title: str
     section: str
     snippet: str
+    # Step 15 Graph RAG: graph nodes (sites / links / cells) that support this runbook
+    nodeIds: list[str] = Field(default_factory=list)
 
 
 class Context(BaseModel):
@@ -66,6 +68,9 @@ class Context(BaseModel):
     anomalies: list[AnomalyRef]
     fault: dict[str, Any] | None
     runbooks: list[RunbookRef]
+    # Step 15: "graph" when runbooks came from Graph RAG; graph nodes are citable sources
+    retrievalMode: str = "hybrid"
+    graphNodes: list[str] = Field(default_factory=list)
 
     def source_ids(self) -> set[str]:
         ids: set[str] = set()
@@ -75,6 +80,7 @@ class Context(BaseModel):
             ids.add(an.id)
         for r in self.runbooks:
             ids.add(r.runbookId)
+        ids.update(self.graphNodes)
         return ids
 
 

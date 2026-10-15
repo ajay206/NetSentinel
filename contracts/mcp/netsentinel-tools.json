@@ -175,6 +175,11 @@
             "default": 3,
             "title": "Top K",
             "type": "integer"
+          },
+          "mode": {
+            "default": "hybrid",
+            "title": "Mode",
+            "type": "string"
           }
         },
         "required": [

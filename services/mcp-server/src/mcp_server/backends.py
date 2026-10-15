@@ -167,14 +167,14 @@ class Backends:
                 self._raise_backend_error("ml", exc)
 
     async def search_runbooks(
-        self, query: str, fault_type: str | None, top_k: int
+        self, query: str, fault_type: str | None, top_k: int, mode: str = "hybrid"
     ) -> list[dict[str, Any]]:
         """Search runbooks via RAG service."""
         url = f"{self.rag_service_url}/search"
         payload: dict[str, Any] = {
             "query": query[:500],
             "top_k": top_k,
-            "mode": "hybrid",
+            "mode": mode,
         }
         if fault_type:
             payload["faultType"] = fault_type

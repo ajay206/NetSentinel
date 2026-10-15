@@ -712,6 +712,17 @@ async def graph_impact(
     return await _topology_call("GET", "graph/impact", params=params)
 
 
+_ENTITY_RE = re.compile(r"^(SITE-\d{3}(-N\d{1,2}(-C\d{1,2})?)?|LNK-\d{3})$")
+
+
+@app.get("/api/graph/context/{entity_id}")
+async def graph_context(entity_id: str) -> JSONResponse:
+    """Step 15: one-hop neighbourhood of a site, link, node or cell (viewer role)."""
+    if not _ENTITY_RE.match(entity_id):
+        return JSONResponse({"detail": "unknown entity"}, status_code=404)
+    return await _topology_call("GET", f"graph/context/{entity_id}")
+
+
 @app.get("/api/graph/summary")
 async def graph_summary() -> JSONResponse:
     """Node and relationship counts of the knowledge graph (viewer role)."""

@@ -14,6 +14,8 @@ dependencies = [
     "qdrant-client>=1.12",
     "rank-bm25>=0.2.2",
     "numpy>=1.26",
+    "httpx>=0.27",
+    "netgen",
 ]
 
 [project.optional-dependencies]
@@ -21,6 +23,9 @@ embed = ["fastembed>=0.4"]
 
 [project.scripts]
 rag-ingest = "rag_service.ingest:main"
+
+[tool.uv.sources]
+netgen = { workspace = true }
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/rag_service"]

@@ -209,6 +209,23 @@ class Smoke:
                 ids.append(str(rid))
         return f"ids={','.join(ids)}"
 
+    def step_graph_rag(self) -> str:
+        """Step 15: Graph RAG links SITE-010 and cites graph nodes (works without Neo4j)."""
+        resp = self.client.post(
+            "/api/rag/search",
+            json={"query": "SITE-010 loss of signal, which runbook?", "top_k": 3, "mode": "graph"},
+            headers=self._auth_headers(),
+        )
+        resp.raise_for_status()
+        body = resp.json()
+        if body.get("mode") != "graph" or not body.get("graph"):
+            raise RuntimeError("rag-service did not answer in graph mode")
+        nodes = sorted({n for r in body.get("results", []) for n in r.get("nodeIds", [])})
+        if "SITE-010" not in nodes:
+            raise RuntimeError(f"SITE-010 not among cited graph nodes {nodes}")
+        top = body["results"][0].get("runbookId")
+        return f"top={top} nodes={','.join(nodes[:4])} ({body['graph'].get('source')})"
+
     def step_copilot(self) -> str:
         if not self.token:
             raise RuntimeError("no token")
@@ -373,7 +390,15 @@ class Smoke:
         self._run("login", self.step_login)
 
         if not self.token:
-            for name in ("alarms", "timeline", "kpi_anomaly", "fault", "runbooks", "copilot"):
+            for name in (
+                "alarms",
+                "timeline",
+                "kpi_anomaly",
+                "fault",
+                "runbooks",
+                "graph_rag",
+                "copilot",
+            ):
                 self.checks.append(Check(name=name, ok=False, detail="skipped: no token", ms=0))
         else:
             self._run("alarms", self.step_alarms)
@@ -381,18 +406,19 @@ class Smoke:
             self._run("kpi_anomaly", self.step_kpi_anomaly)
 
             if not self.alarm:
-                for name in ("fault", "runbooks", "copilot"):
+                for name in ("fault", "runbooks", "graph_rag", "copilot"):
                     self.checks.append(Check(name=name, ok=False, detail="skipped: no alarm", ms=0))
             else:
                 self._run("fault", self.step_fault)
 
                 if not self.fault_type:
-                    for name in ("runbooks", "copilot"):
+                    for name in ("runbooks", "graph_rag", "copilot"):
                         self.checks.append(
                             Check(name=name, ok=False, detail="skipped: no fault_type", ms=0)
                         )
                 else:
                     self._run("runbooks", self.step_runbooks)
+                    self._run("graph_rag", self.step_graph_rag)
                     self._run("copilot", self.step_copilot)
 
         self._run("rbac", self.step_rbac)

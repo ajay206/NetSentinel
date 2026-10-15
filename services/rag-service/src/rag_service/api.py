@@ -13,10 +13,12 @@ from pydantic import BaseModel, Field
 
 from .chunking import chunk_runbook
 from .embed import get_embedder
+from .graph_rag import GraphRetriever
 from .ingest import ingest
 from .runbooks import load_runbooks
 from .search import Retriever
 from .store import VectorStore
+from .topology import get_topology
 
 logger = logging.getLogger("rag-service")
 
@@ -26,7 +28,9 @@ _RUNBOOK_ID_RE = re.compile(r"^RB-[A-Z]{3}-\d{3}$")
 class SearchRequest(BaseModel):
     query: str = Field(..., min_length=1, max_length=500)
     top_k: int = Field(default=3, ge=1, le=10)
-    mode: Literal["vector", "bm25", "hybrid"] = "hybrid"
+    # Step 15: "graph" = Graph RAG (entity linking + topology context + rerank); "rerank" =
+    # hybrid + reranker without the graph (benchmark ablation)
+    mode: Literal["vector", "bm25", "hybrid", "rerank", "graph"] = "hybrid"
     faultType: str | None = None
 
 
@@ -37,6 +41,33 @@ class SearchResult(BaseModel):
     snippet: str
     score: float
     faultType: str
+    # Step 15 (graph mode): graph nodes that support this hit, and the facets that matched
+    nodeIds: list[str] = Field(default_factory=list)
+    matchedFacets: list[str] = Field(default_factory=list)
+
+
+class GraphEntity(BaseModel):
+    id: str
+    type: str
+    mention: str
+    via: str
+
+
+class GraphPlan(BaseModel):
+    query: str
+    params: dict
+    planner: str
+
+
+class GraphContext(BaseModel):
+    entities: list[GraphEntity]
+    nodes: list[str]
+    facets: list[str]
+    summary: list[str]
+    source: str
+    plan: GraphPlan | None
+    reranker: str
+    elapsedMs: float
 
 
 class SearchResponse(BaseModel):
@@ -44,6 +75,7 @@ class SearchResponse(BaseModel):
     mode: str
     embedder: str
     results: list[SearchResult]
+    graph: GraphContext | None = None
 
 
 def build_state(app: FastAPI) -> None:
@@ -57,6 +89,9 @@ def build_state(app: FastAPI) -> None:
         runbooks = load_runbooks(runbooks_dir)
         chunks = [c for rb in runbooks for c in chunk_runbook(rb)]
         app.state.retriever = Retriever(store, embedder, chunks)
+        app.state.graph_retriever = GraphRetriever(
+            app.state.retriever, {rb.id: rb for rb in runbooks}, get_topology()
+        )
         app.state.embedder = embedder
         app.state.chunks = chunks
         app.state.runbooks = {rb.id: rb for rb in runbooks}
@@ -110,27 +145,36 @@ def search(request: SearchRequest) -> SearchResponse:
     """Sync on purpose: embedding is CPU-bound, so FastAPI runs it in the threadpool."""
     if not getattr(app.state, "ready", False):
         raise HTTPException(status_code=503, detail="not ready")
-    results = app.state.retriever.search(
-        request.query,
-        top_k=request.top_k,
-        mode=request.mode,
-        fault_type=request.faultType,
-    )
+    if request.mode in ("graph", "rerank"):
+        res = app.state.graph_retriever.search(
+            request.query, top_k=request.top_k, mode=request.mode, fault_type=request.faultType
+        )
+        results = [_result(g.hit, node_ids=g.node_ids, matched=g.matched_facets) for g in res.hits]
+        graph = GraphContext(**res.graph) if res.graph else None
+    else:
+        hits = app.state.retriever.search(
+            request.query, top_k=request.top_k, mode=request.mode, fault_type=request.faultType
+        )
+        results, graph = [_result(h) for h in hits], None
     return SearchResponse(
         query=request.query,
         mode=request.mode,
         embedder=app.state.embedder.name,
-        results=[
-            SearchResult(
-                runbookId=h.runbook_id,
-                title=h.title,
-                section=h.section,
-                snippet=h.snippet,
-                score=round(h.score, 4),
-                faultType=h.fault_type,
-            )
-            for h in results
-        ],
+        results=results,
+        graph=graph,
+    )
+
+
+def _result(h, node_ids: list[str] | None = None, matched: list[str] | None = None):
+    return SearchResult(
+        runbookId=h.runbook_id,
+        title=h.title,
+        section=h.section,
+        snippet=h.snippet,
+        score=round(h.score, 4),
+        faultType=h.fault_type,
+        nodeIds=node_ids or [],
+        matchedFacets=matched or [],
     )
 
 

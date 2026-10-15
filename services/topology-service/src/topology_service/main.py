@@ -23,7 +23,7 @@ from typing import Any
 from fastapi import FastAPI, HTTPException, Response
 
 from . import queries
-from .graph import Graph, MemoryGraph, Neo4jGraph, TargetType, UnknownTarget
+from .graph import Graph, MemoryGraph, Neo4jGraph, TargetType, UnknownTarget, entity_type
 from .load import read_runbooks, resolve_topology
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -170,6 +170,19 @@ async def impact(
     except UnknownTarget as exc:
         raise HTTPException(status_code=404, detail=f"Unknown {target_type} {exc}") from exc
     return result.to_dict()
+
+
+@app.get("/graph/context/{entity_id}")
+async def context(entity_id: str) -> dict[str, Any]:
+    """Step 15: one-hop neighbourhood of a site, link, node or cell (Graph RAG expansion)."""
+    _require_ready()
+    if entity_type(entity_id) is None:
+        raise HTTPException(status_code=400, detail="expected SITE-xxx, LNK-xxx, a node or cell id")
+    try:
+        ctx = await graph.context(entity_id)
+    except UnknownTarget as exc:
+        raise HTTPException(status_code=404, detail=f"unknown {entity_id}") from exc
+    return {**ctx, "backend": graph.kind}
 
 
 @app.get("/graph/queries")

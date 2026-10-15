@@ -173,3 +173,24 @@ async def test_query_topology_graph_profile_down():
     async with create_connected_server_and_client_session(mcp) as s:
         res = await s.call_tool("query_topology", {"site_id": "SITE-004"})
     assert res.isError and "topology error: HTTP 503" in res.content[0].text
+
+
+async def test_search_mode_graph_is_forwarded_and_bad_mode_rejected():
+    seen = []
+    orig = backends.TRANSPORT
+
+    def h(r: httpx.Request) -> httpx.Response:
+        seen.append(json.loads(r.content))
+        res = [{"runbookId": "RB-FIB-001", "nodeIds": ["SITE-010", "LNK-012"]}]
+        return httpx.Response(200, json={"results": res})
+
+    backends.TRANSPORT = httpx.MockTransport(h)
+    try:
+        async with create_connected_server_and_client_session(mcp) as s:
+            rb = await s.call_tool("search_runbooks", {"query": "SITE-010 LOS", "mode": "graph"})
+            bad = await s.call_tool("search_runbooks", {"query": "x", "mode": "cypher"})
+    finally:
+        backends.TRANSPORT = orig
+    assert seen[0]["mode"] == "graph" and rb.structuredContent["mode"] == "graph"
+    assert rb.structuredContent["results"][0]["nodeIds"] == ["SITE-010", "LNK-012"]
+    assert bad.isError and len(seen) == 1

@@ -20,6 +20,8 @@ COPY pyproject.toml uv.lock README.md ./
 COPY libs ./libs
 COPY services ./services
 COPY data/runbooks ./data/runbooks
+# Step 15: the retrieval benchmark set (make rag-bench)
+COPY data/eval ./data/eval
 
 RUN uv sync --frozen --no-dev --package rag-service
 

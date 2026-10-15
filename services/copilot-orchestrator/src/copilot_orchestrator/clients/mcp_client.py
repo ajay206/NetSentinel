@@ -12,7 +12,7 @@ from typing import Any
 from mcp import ClientSession
 from mcp.client.streamable_http import streamablehttp_client
 
-from copilot_orchestrator.clients.upstream import ToolRecorder
+from copilot_orchestrator.clients.upstream import ToolRecorder, rag_mode
 
 CALL_TIMEOUT = timedelta(seconds=float(os.getenv("MCP_CALL_TIMEOUT_S", "15")))
 
@@ -107,7 +107,8 @@ class McpUpstream(ToolRecorder):
 
     async def _runbooks(self, query: str, fault_type: str | None) -> list[dict[str, Any]]:
         data = await self._call(
-            "search_runbooks", {"query": query[:500], "fault_type": fault_type, "top_k": 3}
+            "search_runbooks",
+            {"query": query[:500], "fault_type": fault_type, "top_k": 3, "mode": rag_mode()},
         )
         return list((data or {}).get("results", []))
 
