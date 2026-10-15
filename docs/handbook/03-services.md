@@ -811,6 +811,30 @@ Run: `make up-graph` (compose), `make impact LINK=LNK-012` (through the gateway 
 
 **MCP:** `open_ticket_draft(title, site_id, description?, severity?, incident_id?, fault_type?, runbook_ids?, source_ids?)` creates a draft through the gateway. There is deliberately no approve tool. **Console:** the **Approval queue** panel (`views/ApprovalQueue.tsx`) shows the status filter, approve/reject with a note (read-only for viewers) and the audit trail side panel. Selecting an incident on the Incident board lists its related tickets. Contract: `contracts/openapi/ticket-service.yaml` (`make ticket-contract`).
 
+## llm-gateway: model router and guardrails (Step 18, W18)
+
+Every LLM call goes through `services/llm-gateway` (port 8010, `copilot` profile, internal
+only). No other service may talk to Ollama or a cloud LLM; CI runs `scripts/check_llm_calls.py`
+to enforce it (ADR-018).
+
+| Concern | Behaviour | Config |
+|---|---|---|
+| Router | ordered routes, local SLM first, `cloud:stub` until Phase 3 | `LLM_ROUTES=ollama:qwen2.5:1.5b,cloud:stub` |
+| Timeouts / breaker | per-route timeout; circuit opens after N failures, half-open after cooldown | `LLM_TIMEOUT_S`, `LLM_BREAKER_FAILURES`, `LLM_BREAKER_COOLDOWN_S` |
+| Injection guard | non-system turns checked; hit = 400 `prompt_injection`, copilot falls back | rules in `guard.py` |
+| PII redaction | typed placeholders before the model, in completions and logs | `PII_ENGINE=regex\|presidio`, `LLM_REDACT_PROMPTS` |
+| Callers | bearer token per caller, rpm limit (429), concurrency, max prompt (413) | `LLM_GATEWAY_CALLERS=name:token:rpm`, `LLM_CALLER_CONCURRENCY`, `LLM_MAX_PROMPT_CHARS` |
+
+Endpoints: `POST /v1/complete`, `GET /v1/stats` (active route, circuits, counters, redacted
+types, `devBanner`), `GET /health`. Contract: `contracts/openapi/llm-gateway.yaml`.
+The copilot uses `GatewayLLM` (`LLM=gateway`, `LLM_GATEWAY_URL`, `LLM_GATEWAY_TOKEN`).
+`/analyze` responses carry `llm {route, latencyMs, redactions, blocked}`, which the console
+shows as the **model-route chip**, a **PII redacted** marker and a **guard blocked** chip.
+The W17 trace view's RCA step lists `llm:<route>` with the gateway latency.
+
+Red-team set: `evals/redteam.jsonl`, run with `make llm-gateway-redteam`
+(`uv run pytest services/llm-gateway -k redteam`).
+
 ## noc-console container (Fix 1)
 
 The dashboard runs as a container, so `make demo` serves it with no Node on the host.

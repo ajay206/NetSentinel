@@ -21,6 +21,7 @@ from copilot_orchestrator.models import (
     Claim,
     Context,
     LLMError,
+    LlmRoute,
     NoEvidence,
     RunbookRef,
     Step,
@@ -223,6 +224,11 @@ async def llm_answer(
     return answer, "llm", attempts, errors
 
 
+def _model_name(llm: LLM) -> str:
+    last = getattr(llm, "last", None)
+    return (last or {}).get("route") or llm.name
+
+
 async def analyze(
     req: AnalyzeRequest, upstream: ToolRecorder, llm: LLM, max_attempts: int = 3
 ) -> AnalyzeResponse:
@@ -238,7 +244,8 @@ async def analyze(
         window=req.window,
         answer=answer,
         generatedBy=generated_by,
-        model=llm.name if generated_by == "llm" else None,
+        model=_model_name(llm) if generated_by == "llm" else None,
+        llm=LlmRoute(**llm.last) if getattr(llm, "last", None) else None,
         attempts=attempts,
         errors=errors,
         context=ctx,

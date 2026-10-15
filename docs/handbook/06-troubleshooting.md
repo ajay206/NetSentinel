@@ -459,3 +459,12 @@ Then refresh the console.
 
 ### 79. No runs start on new incidents
 - Check `AGENT_TRIGGER=kafka`, and that incident-service (`ops`) publishes to `incidents` (`KAFKA_BOOTSTRAP`). Only the first message for an incident id counts as `incident.created`; incidents that existed before copilot started are skipped.
+
+### 80. Copilot answers are always "fallback" since Step 18
+- The copilot no longer calls Ollama directly. Check that `llm-gateway` is healthy, that `LLM_GATEWAY_TOKEN` matches the token in `LLM_GATEWAY_CALLERS` (else 401), and look at `/v1/stats`: an `open` circuit means Ollama failed repeatedly, so wait for the cooldown or fix `OLLAMA_URL`.
+
+### 81. "guard blocked · override" chip on a normal alarm
+- The injection guard matched untrusted text. Add the line to `evals/redteam.jsonl` as `benign`, tighten the rule in `guard.py` and rerun `make llm-gateway-redteam`. The answer is still the deterministic, cited fallback.
+
+### 82. CI fails on "direct LLM call outside llm-gateway"
+- `scripts/check_llm_calls.py` found an Ollama/cloud LLM URL or `OLLAMA_URL` outside `services/llm-gateway`. Route the call through `GatewayLLM` (`POST /v1/complete`) instead.

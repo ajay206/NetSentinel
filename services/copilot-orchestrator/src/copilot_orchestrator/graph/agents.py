@@ -175,12 +175,13 @@ async def rca(state: RunState, config: RunnableConfig) -> dict[str, Any]:
     ctx = Context.model_validate(state["ctx"])
     answer, generated_by, attempts, errors = await llm_answer(ctx, llm)
     impact = await actions.impact(state["site_id"])
+    last = getattr(llm, "last", None) or {}
     calls = [
         {
-            "name": f"llm:{llm.name}",
+            "name": f"llm:{last.get('route') or llm.name}",
             "ok": generated_by == "llm",
-            "durationMs": 0,
-            "transport": "llm",
+            "durationMs": int(last.get("latencyMs") or 0),
+            "transport": "llm-gateway" if last else "llm",
         }
     ]
     calls += actions.calls[before_a:]

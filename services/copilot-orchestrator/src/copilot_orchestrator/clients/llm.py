@@ -1,4 +1,4 @@
-"""LLM clients: local Ollama for real runs, a scripted mock for tests/CI, and an 'off' stub."""
+"""LLM clients: llm-gateway for real runs (W18, no direct model calls), a mock, and 'off'."""
 
 from __future__ import annotations
 
@@ -16,40 +16,53 @@ class LLM(Protocol):
     async def complete(self, messages: list[dict[str, str]], schema: dict[str, Any]) -> str: ...
 
 
-class OllamaLLM:
-    """Ollama /api/chat with structured output (``format`` = JSON schema), temperature 0."""
+class GatewayLLM:
+    """Every model call goes through llm-gateway (W18): routing, guardrails, PII redaction.
+
+    ``last`` keeps the gateway's route / latency / redaction info for the response and trace.
+    A guard block (400), rate limit (429) or no route (503) raises LLMError -> fallback answer.
+    """
+
+    name = "llm-gateway"
 
     def __init__(
         self,
-        url: str = "http://localhost:11434",
-        model: str = "qwen2.5:1.5b",
-        timeout: float = 60.0,
+        url: str = "http://localhost:8010",
+        token: str | None = None,
+        timeout: float = 90.0,
         transport: httpx.AsyncBaseTransport | None = None,
     ) -> None:
         self.url = url.rstrip("/")
-        self.model = model
-        self.name = f"ollama:{model}"
+        self._headers = {"Authorization": f"Bearer {token}"} if token else {}
         self._timeout = timeout
         self._transport = transport
+        self.last: dict[str, Any] | None = None
 
     async def complete(self, messages: list[dict[str, str]], schema: dict[str, Any]) -> str:
-        body = {
-            "model": self.model,
-            "messages": messages,
-            "stream": False,
-            "format": schema,
-            "options": {"temperature": 0, "num_ctx": 4096},
-        }
+        body = {"messages": messages, "schema": schema}
         try:
             async with httpx.AsyncClient(timeout=self._timeout, transport=self._transport) as c:
-                resp = await c.post(f"{self.url}/api/chat", json=body)
-                resp.raise_for_status()
+                resp = await c.post(f"{self.url}/v1/complete", json=body, headers=self._headers)
                 data = resp.json()
         except (httpx.HTTPError, ValueError) as exc:
-            raise LLMError(f"ollama request failed: {type(exc).__name__}") from exc
-        content = (data.get("message") or {}).get("content") if isinstance(data, dict) else None
+            raise LLMError(f"llm-gateway request failed: {type(exc).__name__}") from exc
+        if resp.status_code != 200:
+            detail = data.get("detail") if isinstance(data, dict) else None
+            if isinstance(detail, dict) and detail.get("error") == "prompt_injection":
+                self.last = {"route": None, "latencyMs": 0, "blocked": detail.get("reasons", [])}
+                raise LLMError(
+                    "blocked by llm-gateway guard: " + ",".join(detail.get("reasons", []))
+                )
+            raise LLMError(f"llm-gateway {resp.status_code}: {str(detail)[:120]}")
+        self.last = {
+            "route": data.get("route"),
+            "latencyMs": data.get("latencyMs", 0),
+            "redactions": (data.get("redactions") or {}).get("total", 0),
+            "blocked": [],
+        }
+        content = data.get("content")
         if not content:
-            raise LLMError("ollama returned no content")
+            raise LLMError("llm-gateway returned no content")
         return content
 
 

@@ -357,22 +357,51 @@ services:
       LANGFUSE_HOST: ${LANGFUSE_HOST:-}
       LANGFUSE_PUBLIC_KEY: ${LANGFUSE_PUBLIC_KEY:-}
       LANGFUSE_SECRET_KEY: ${LANGFUSE_SECRET_KEY:-}
-      # Ollama runs natively on the Mac (Metal); "off" = deterministic fallback answers only
-      OLLAMA_URL: http://host.docker.internal:11434
-      OLLAMA_MODEL: qwen2.5:1.5b
-      LLM: ollama
+      # Step 18: every model call goes through llm-gateway; "off" = deterministic fallback only
+      LLM: ${LLM:-gateway}
+      LLM_GATEWAY_URL: http://llm-gateway:8010
+      LLM_GATEWAY_TOKEN: ${LLM_GATEWAY_TOKEN:-dev-only-llm-token}
       # W10: evidence via MCP tools (TOOLS=http = direct W9 calls)
       TOOLS: mcp
       MCP_URL: http://mcp-server:8006/mcp
       MCP_SERVICE_TOKEN: ${MCP_SERVICE_TOKEN:-dev-only-change-me}
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     mem_limit: 192m
     depends_on:
       mcp-server:
         condition: service_healthy
+      llm-gateway:
+        condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request;urllib.request.urlopen('http://localhost:8005/healthz')\""]
+      interval: 10s
+      retries: 5
+    restart: unless-stopped
+
+  llm-gateway:
+    build:
+      context: .
+      dockerfile: services/llm-gateway/Dockerfile
+    profiles: ["copilot"]
+    # Step 18: the only service allowed to reach a model. Internal only (no published port).
+    expose:
+      - "8010"
+    environment:
+      # Ordered routes: local SLM first, cloud stub until Phase 3 (telcogpt-mini later)
+      LLM_ROUTES: ${LLM_ROUTES:-ollama:qwen2.5:1.5b,cloud:stub}
+      # Ollama runs natively on the Mac (Metal)
+      OLLAMA_URL: http://host.docker.internal:11434
+      LLM_TIMEOUT_S: "60"
+      LLM_BREAKER_FAILURES: "3"
+      LLM_BREAKER_COOLDOWN_S: "30"
+      # name:token:requests-per-minute, comma separated
+      LLM_GATEWAY_CALLERS: copilot-orchestrator:${LLM_GATEWAY_TOKEN:-dev-only-llm-token}:30
+      LLM_CALLER_CONCURRENCY: "2"
+      PII_ENGINE: regex
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    mem_limit: 128m
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request;urllib.request.urlopen('http://localhost:8010/health')\""]
       interval: 10s
       retries: 5
     restart: unless-stopped

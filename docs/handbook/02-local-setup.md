@@ -499,3 +499,11 @@ make topo-load                # re-load topology + runbooks (inside the containe
 - Neo4j Browser: http://localhost:7474 (bound to 127.0.0.1; user `neo4j`, password from `.env`).
 - The console's **Impact / RCA graph** panel needs the `ui` and `graph` profiles together. `make smoke` runs a `graph_impact` check automatically when the graph is up (`SMOKE_GRAPH=1` makes it required, `0` skips it).
 - No Neo4j? The service also runs with `GRAPH_BACKEND=memory` (same impact answers, no named queries): `GRAPH_BACKEND=memory uv run uvicorn topology_service.main:app --port 8008` (dev, needs uv).
+
+## llm-gateway (Step 18)
+
+`make up-copilot` (or `docker compose --profile copilot up -d`) starts `llm-gateway` next to
+the copilot. Ollama still runs on the host (`ollama pull qwen2.5:1.5b`); only the gateway
+reaches it. Set `LLM_GATEWAY_TOKEN` in `.env` for anything beyond local dev. Check routes and
+circuits with `docker compose exec llm-gateway python -c "import urllib.request;print(urllib.request.urlopen('http://localhost:8010/v1/stats').read().decode())"`.
+Run the red-team set with `make llm-gateway-redteam`.

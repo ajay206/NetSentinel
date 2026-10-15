@@ -34,6 +34,9 @@ jobs:
       - name: Run pytest
         run: uv run pytest
 
+      - name: No direct LLM calls outside llm-gateway (Step 18)
+        run: python3 scripts/check_llm_calls.py
+
   console:
     runs-on: ubuntu-latest
     needs: python

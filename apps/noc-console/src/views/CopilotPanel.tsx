@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { CardHeader } from '../components/ui/Card';
+import { CardHeader } from "../components/ui/Card";
 import type { AnalyzeResponse, ToolCall } from "../types.copilot";
 import { RetrievalModeBadge } from "../components/NodeChips";
 
@@ -22,7 +22,10 @@ interface CopilotPanelProps {
 }
 
 /** Step 15: a cited graph node (site / link / cell) gets a teal node chip. */
-const SourceChip: React.FC<{ id: string; graphNodes: Set<string> }> = ({ id, graphNodes }) =>
+const SourceChip: React.FC<{ id: string; graphNodes: Set<string> }> = ({
+  id,
+  graphNodes,
+}) =>
   graphNodes.has(id) && NODE_RE.test(id) ? (
     <span
       className="inline-block font-mono text-[10px] border bg-teal-950 border-teal-700 text-teal-200 px-1.5 py-0.5 rounded mr-1 mb-1"
@@ -85,10 +88,7 @@ export const CopilotPanel: React.FC<CopilotPanelProps> = ({
   const graphNodes = new Set(result?.context?.graphNodes ?? []);
 
   return (
-    <div
-      className="ns-card"
-      data-testid="copilot-panel"
-    >
+    <div className="ns-card" data-testid="copilot-panel">
       <CardHeader
         as="h3"
         title="Copilot analyze"
@@ -140,8 +140,8 @@ export const CopilotPanel: React.FC<CopilotPanelProps> = ({
       {error && <p className="text-red-400 text-sm">{error.message}</p>}
       {!error && !result && !isPending && (
         <p className="text-slate-400 text-sm">
-          Pick a site (or click an alarm) and press Analyze. Uses the local LLM
-          via Ollama.
+          Pick a site (or click an alarm) and press Analyze. Model calls go
+          through llm-gateway (local SLM first).
         </p>
       )}
 
@@ -159,6 +159,33 @@ export const CopilotPanel: React.FC<CopilotPanelProps> = ({
                 ? `LLM · ${result.model}`
                 : "fallback (no LLM)"}
             </span>
+            {result.llm && (
+              <span
+                data-testid="model-route"
+                className="px-2 py-0.5 rounded bg-indigo-900 text-indigo-200"
+                title="Route chosen by llm-gateway"
+              >
+                route · {result.llm.route ?? "none"} · gateway{" "}
+                {Math.round(result.llm.latencyMs)} ms
+              </span>
+            )}
+            {result.llm && result.llm.redactions > 0 && (
+              <span
+                data-testid="pii-redacted"
+                className="px-2 py-0.5 rounded bg-fuchsia-900 text-fuchsia-200"
+                title="PII was stripped before the model and in gateway logs"
+              >
+                PII redacted · {result.llm.redactions}
+              </span>
+            )}
+            {result.llm && result.llm.blocked.length > 0 && (
+              <span
+                data-testid="guard-blocked"
+                className="px-2 py-0.5 rounded bg-red-900 text-red-200"
+              >
+                guard blocked · {result.llm.blocked.join(", ")}
+              </span>
+            )}
             <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-400">
               {result.attempts} attempt{result.attempts === 1 ? "" : "s"} ·{" "}
               {result.durationMs} ms
@@ -175,7 +202,10 @@ export const CopilotPanel: React.FC<CopilotPanelProps> = ({
           </div>
 
           {result.context?.retrievalMode && (
-            <div className="flex flex-wrap items-center gap-1" data-testid="copilot-graph">
+            <div
+              className="flex flex-wrap items-center gap-1"
+              data-testid="copilot-graph"
+            >
               <RetrievalModeBadge mode={result.context.retrievalMode} />
               {[...graphNodes].map((n) => (
                 <SourceChip key={n} id={n} graphNodes={graphNodes} />

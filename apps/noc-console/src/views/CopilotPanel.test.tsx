@@ -31,6 +31,48 @@ const result: AnalyzeResponse = {
 };
 
 describe("CopilotPanel", () => {
+  it("shows the llm-gateway model route chip, PII marker and guard block (W18)", () => {
+    const { rerender } = render(
+      <CopilotPanel
+        onAnalyze={vi.fn()}
+        result={{
+          ...result,
+          llm: {
+            route: "ollama:qwen2.5:1.5b",
+            latencyMs: 812.4,
+            redactions: 2,
+            blocked: [],
+          },
+        }}
+      />,
+    );
+    expect(screen.getByTestId("model-route")).toHaveTextContent(
+      "route · ollama:qwen2.5:1.5b · gateway 812 ms",
+    );
+    expect(screen.getByTestId("pii-redacted")).toHaveTextContent(
+      "PII redacted · 2",
+    );
+    rerender(
+      <CopilotPanel
+        onAnalyze={vi.fn()}
+        result={{
+          ...result,
+          generatedBy: "fallback",
+          model: null,
+          llm: {
+            route: null,
+            latencyMs: 0,
+            redactions: 0,
+            blocked: ["override"],
+          },
+        }}
+      />,
+    );
+    expect(screen.getByTestId("model-route")).toHaveTextContent("route · none");
+    expect(screen.getByTestId("guard-blocked")).toHaveTextContent("override");
+    expect(screen.queryByTestId("pii-redacted")).toBeNull();
+  });
+
   it("validates the site id and calls onAnalyze", () => {
     const onAnalyze = vi.fn();
     render(<CopilotPanel onAnalyze={onAnalyze} />);
@@ -133,7 +175,11 @@ describe("CopilotPanel", () => {
   it("is read-only for viewers (W11 RBAC)", () => {
     const onAnalyze = vi.fn();
     render(
-      <CopilotPanel onAnalyze={onAnalyze} defaultSiteId="SITE-012" canAnalyze={false} />,
+      <CopilotPanel
+        onAnalyze={onAnalyze}
+        defaultSiteId="SITE-012"
+        canAnalyze={false}
+      />,
     );
     const button = screen.getByRole("button", { name: /analyze site/i });
     expect(button).toBeDisabled();
@@ -151,17 +197,33 @@ describe("CopilotPanel graph citations (Step 15)", () => {
         ...result.answer,
         evidence: [
           ...result.answer.evidence,
-          { text: "Topology context (Graph RAG): SITE-010, LNK-012", sources: ["SITE-010", "LNK-012"] },
+          {
+            text: "Topology context (Graph RAG): SITE-010, LNK-012",
+            sources: ["SITE-010", "LNK-012"],
+          },
         ],
       },
       sourceIds: [...result.sourceIds, "SITE-010", "LNK-012", "SITE-004"],
-      context: { retrievalMode: "graph", graphNodes: ["SITE-010", "LNK-012", "SITE-004"] },
+      context: {
+        retrievalMode: "graph",
+        graphNodes: ["SITE-010", "LNK-012", "SITE-004"],
+      },
     };
     render(<CopilotPanel onAnalyze={vi.fn()} result={graph} />);
-    expect(screen.getByTestId("retrieval-mode")).toHaveTextContent("retrieval mode: graph");
+    expect(screen.getByTestId("retrieval-mode")).toHaveTextContent(
+      "retrieval mode: graph",
+    );
     const chips = screen.getAllByTestId("node-chip").map((c) => c.textContent);
-    expect(chips).toEqual(["◆ SITE-010", "◆ LNK-012", "◆ SITE-004", "◆ SITE-010", "◆ LNK-012"]);
-    expect(screen.getAllByTestId("source-chip").map((c) => c.textContent)).toEqual(["alm-root-0001"]);
+    expect(chips).toEqual([
+      "◆ SITE-010",
+      "◆ LNK-012",
+      "◆ SITE-004",
+      "◆ SITE-010",
+      "◆ LNK-012",
+    ]);
+    expect(
+      screen.getAllByTestId("source-chip").map((c) => c.textContent),
+    ).toEqual(["alm-root-0001"]);
   });
 
   it("shows no graph indicator for older responses without context", () => {
