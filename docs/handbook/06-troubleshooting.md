@@ -468,3 +468,13 @@ Then refresh the console.
 
 ### 82. CI fails on "direct LLM call outside llm-gateway"
 - `scripts/check_llm_calls.py` found an Ollama/cloud LLM URL or `OLLAMA_URL` outside `services/llm-gateway`. Route the call through `GatewayLLM` (`POST /v1/complete`) instead.
+
+### 83. PQC panel shows llm-gateway "unreachable" or the copilot always falls back after Step 21
+- llm-gateway now serves HTTPS on 8443 and waits for `pqc-init`. Run `docker compose logs pqc-init`, then `make pqc-probe`. `CERTIFICATE_VERIFY_FAILED` means the `pqc` volume was recreated after the gateway started, so restart both. A local client without OpenSSL ≥ 3.5, or one using the classical-only policy, is refused by design.
+
+### 84. ml-service returns 503 "model signature fail" or "unsigned"
+- `MODEL_VERIFY=enforce` refused the model. `make pqc-verify` shows the reason (`digest mismatch: <file>`, `file set changed`, `signed by a different key`). Re-sign a legitimate model with `scripts/sign_model.py sign ...`, or recreate the container (`docker compose up -d --force-recreate ml-service`) to retrain and re-sign in dev. `MODEL_VERIFY=warn` serves the model but keeps reporting the failure.
+
+### 85. `ssl` assert fails while building an image
+- The Dockerfile asserts OpenSSL ≥ 3.5. Make sure the base is `python:3.12-slim-trixie`, not plain `slim` or bookworm, and that no cached old base image is used (`docker compose build --pull`).
+

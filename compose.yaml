@@ -100,8 +100,16 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set in .env}
       LOGIN_MAX_FAILURES: ${LOGIN_MAX_FAILURES:-5}
       LOCKOUT_SECONDS: ${LOCKOUT_SECONDS:-900}
+      # Step 21: PQC status panel probes these with real hybrid / classical handshakes
+      PQC_TLS_TARGETS: llm-gateway=llm-gateway:8443
+      PQC_CA_FILE: /pqc/ca.crt
+    volumes:
+      - pqc:/pqc:ro
     mem_limit: 192m
     depends_on:
+      pqc-init:
+        condition: service_completed_successfully
+        required: false
       kafka:
         condition: service_healthy
         required: false
@@ -288,8 +296,17 @@ services:
       ANOMALY_Z: "3.5"
       MODELS_DIR: /tmp/models
       AUTO_TRAIN: "1"
+      # Step 21: ML-DSA-65 signature checked before the model loads; tampered = refused (503).
+      # Dev only: the auto-trained model is signed with pqc-init's release key.
+      MODEL_VERIFY: ${MODEL_VERIFY:-enforce}
+      MODEL_SIGNING_PUBKEY: /pqc/model-signing.pub
+      MODEL_SIGNING_KEY: /pqc/model-signing.key
+    volumes:
+      - pqc:/pqc:ro
     mem_limit: 256m
     depends_on:
+      pqc-init:
+        condition: service_completed_successfully
       kpi-service:
         condition: service_healthy
     healthcheck:
@@ -359,12 +376,18 @@ services:
       LANGFUSE_SECRET_KEY: ${LANGFUSE_SECRET_KEY:-}
       # Step 18: every model call goes through llm-gateway; "off" = deterministic fallback only
       LLM: ${LLM:-gateway}
-      LLM_GATEWAY_URL: http://llm-gateway:8010
+      # Step 21: TLS 1.3 to llm-gateway, which only accepts hybrid X25519MLKEM768. The client
+      # offers hybrid first and keeps X25519 for external HTTPS (e.g. Langfuse).
+      LLM_GATEWAY_URL: https://llm-gateway:8443
+      LLM_GATEWAY_CA: /pqc/ca.crt
+      OPENSSL_CONF: /etc/netsentinel/pqc/openssl-hybrid-pref.cnf
       LLM_GATEWAY_TOKEN: ${LLM_GATEWAY_TOKEN:-dev-only-llm-token}
       # W10: evidence via MCP tools (TOOLS=http = direct W9 calls)
       TOOLS: mcp
       MCP_URL: http://mcp-server:8006/mcp
       MCP_SERVICE_TOKEN: ${MCP_SERVICE_TOKEN:-dev-only-change-me}
+    volumes:
+      - pqc:/pqc:ro
     mem_limit: 192m
     depends_on:
       mcp-server:
@@ -377,15 +400,30 @@ services:
       retries: 5
     restart: unless-stopped
 
+  pqc-init:
+    # Step 21: one-shot, idempotent: dev CA + llm-gateway cert + ML-DSA-65 model-signing key
+    build:
+      context: .
+      dockerfile: infra/pqc/Dockerfile
+    profiles: ["ui", "pipeline", "copilot"]
+    volumes:
+      - pqc:/pqc
+    mem_limit: 128m
+    restart: "no"
+
   llm-gateway:
     build:
       context: .
       dockerfile: services/llm-gateway/Dockerfile
     profiles: ["copilot"]
     # Step 18: the only service allowed to reach a model. Internal only (no published port).
+    # Step 21: HTTPS on 8443, hybrid-only key exchange (classical-only clients are refused).
     expose:
-      - "8010"
+      - "8443"
     environment:
+      LLM_GATEWAY_TLS_CERT: /pqc/llm-gateway.crt
+      LLM_GATEWAY_TLS_KEY: /pqc/llm-gateway.key
+      OPENSSL_CONF: /etc/netsentinel/pqc/openssl-hybrid.cnf
       # Ordered routes: local SLM first, cloud stub until Phase 3 (telcogpt-mini later)
       LLM_ROUTES: ${LLM_ROUTES:-ollama:qwen2.5:1.5b,cloud:stub}
       # Ollama runs natively on the Mac (Metal)
@@ -397,11 +435,16 @@ services:
       LLM_GATEWAY_CALLERS: copilot-orchestrator:${LLM_GATEWAY_TOKEN:-dev-only-llm-token}:30
       LLM_CALLER_CONCURRENCY: "2"
       PII_ENGINE: regex
+    volumes:
+      - pqc:/pqc:ro
     extra_hosts:
       - "host.docker.internal:host-gateway"
     mem_limit: 128m
+    depends_on:
+      pqc-init:
+        condition: service_completed_successfully
     healthcheck:
-      test: ["CMD-SHELL", "python -c \"import urllib.request;urllib.request.urlopen('http://localhost:8010/health')\""]
+      test: ["CMD-SHELL", "python -c \"import ssl,urllib.request;urllib.request.urlopen('https://localhost:8443/health',context=ssl.create_default_context(cafile='/pqc/ca.crt'))\""]
       interval: 10s
       retries: 5
     restart: unless-stopped
@@ -481,3 +524,4 @@ volumes:
   qdrant-data: {}
   pg-data: {}
   neo4j-data: {}
+  pqc: {}

@@ -1,15 +1,18 @@
 from __future__ import annotations
 
+import json
 import logging
 import os
 import threading
 from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from typing import Any
 
 import httpx
 import numpy as np
 from fastapi import FastAPI, HTTPException, Query
+from ns_pqc import sign_dir, verify_dir
 from pydantic import BaseModel, ConfigDict, Field
 
 from ml_service.baselines import detect
@@ -23,6 +26,11 @@ ANOMALY_Z = float(os.environ.get("ANOMALY_Z", "3.5"))
 MODELS_DIR = os.environ.get("MODELS_DIR", "models")
 MODEL_NAME = os.environ.get("MODEL_NAME", "fault_classifier")
 AUTO_TRAIN = os.environ.get("AUTO_TRAIN", "1") == "1"
+# Step 21: ML-DSA signature check on model load. off | warn | enforce (refuse to serve on fail)
+MODEL_VERIFY = os.environ.get("MODEL_VERIFY", "off")
+MODEL_SIGNING_PUBKEY = os.environ.get("MODEL_SIGNING_PUBKEY", "")
+# Dev only: sign a freshly auto-trained model with this key (pqc-init's release key)
+MODEL_SIGNING_KEY = os.environ.get("MODEL_SIGNING_KEY", "")
 logger = logging.getLogger("ml-service")
 PORT = int(os.environ.get("PORT", "8003"))
 
@@ -230,6 +238,34 @@ class FaultRequest(BaseModel):
 
 _model: FaultClassifier | None = None
 _model_lock = threading.Lock()
+_signature: dict[str, Any] = {"status": "off", "reason": "MODEL_VERIFY=off"}
+
+
+class ModelRejected(Exception):
+    pass
+
+
+def _version_dir() -> Path:
+    base = Path(MODELS_DIR)
+    entry = json.loads((base / "registry.json").read_text()).get(MODEL_NAME) or {}
+    return base / MODEL_NAME / str(entry.get("latest"))
+
+
+def _check_signature() -> None:
+    """Verify the registered model's ML-DSA signature *before* it is loaded."""
+    global _signature
+    if MODEL_VERIFY == "off":
+        return
+    vdir = _version_dir()
+    if not MODEL_SIGNING_PUBKEY or not Path(MODEL_SIGNING_PUBKEY).exists():
+        result = {"status": "fail", "reason": "MODEL_SIGNING_PUBKEY missing"}
+    else:
+        result = verify_dir(vdir, Path(MODEL_SIGNING_PUBKEY)).dict()
+    result |= {"policy": MODEL_VERIFY, "modelVersion": vdir.name}
+    _signature = result
+    logger.info("model signature %s: %s", result["status"], result["reason"])
+    if result["status"] != "pass" and MODEL_VERIFY == "enforce":
+        raise ModelRejected(f"model signature {result['status']}: {result['reason']}")
 
 
 def get_model() -> FaultClassifier:
@@ -239,16 +275,17 @@ def get_model() -> FaultClassifier:
         return _model
     with _model_lock:
         if _model is None:
-            try:
-                _model = FaultClassifier.load(name=MODEL_NAME, models_dir=MODELS_DIR)
-            except FileNotFoundError:
+            if not (Path(MODELS_DIR) / "registry.json").exists():
                 if not AUTO_TRAIN:
-                    raise
+                    raise FileNotFoundError(f"Registry not found in {MODELS_DIR}")
                 from ml_service.train_xgb import train
 
                 logger.info("No registered model in %s; training a synthetic one", MODELS_DIR)
                 train(out_dir=MODELS_DIR, register=True)
-                _model = FaultClassifier.load(name=MODEL_NAME, models_dir=MODELS_DIR)
+                if MODEL_SIGNING_KEY and Path(MODEL_SIGNING_KEY).exists():
+                    sign_dir(_version_dir(), Path(MODEL_SIGNING_KEY))
+            _check_signature()
+            _model = FaultClassifier.load(name=MODEL_NAME, models_dir=MODELS_DIR)
     return _model
 
 
@@ -259,6 +296,19 @@ def _model_or_503() -> FaultClassifier:
         raise HTTPException(
             status_code=503, detail="No fault model registered - run make ml-train-xgb"
         ) from exc
+    except ModelRejected as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+
+@app.get("/model/signature")
+def model_signature() -> dict[str, Any]:
+    """Step 21: last ML-DSA verify result for the served model (PQC status panel)."""
+    if MODEL_VERIFY != "off" and _model is None:
+        try:
+            get_model()
+        except (ModelRejected, FileNotFoundError):
+            pass
+    return dict(_signature)
 
 
 @app.post("/predict")

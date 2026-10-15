@@ -113,6 +113,8 @@ MATRIX = [
     ("POST", f"/api/copilot/runs/{RUN}/approval", {"approved": True}, "operator"),
     ("GET", "/api/graph/rca/SITE-010", None, "viewer"),
     ("POST", "/api/graph/rca", {"runId": RUN}, "operator"),
+    # Step 21: PQC status panel is read-only
+    ("GET", "/api/security/pqc", None, "viewer"),
 ]
 ROLES = ("viewer", "operator", "admin")
 

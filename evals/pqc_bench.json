@@ -1,0 +1,42 @@
+{
+  "platform": "Linux x86_64, Python 3.12.14",
+  "tls": {
+    "classical": {
+      "rounds": 1000,
+      "p50_ms": 0.503,
+      "p95_ms": 1.036,
+      "mean_ms": 0.586,
+      "client_to_server_bytes": 597,
+      "server_to_client_bytes": 939,
+      "openssl": "OpenSSL 3.5.8 25 Aug 2026"
+    },
+    "hybrid": {
+      "rounds": 1000,
+      "p50_ms": 0.627,
+      "p95_ms": 0.79,
+      "mean_ms": 0.648,
+      "client_to_server_bytes": 1538,
+      "server_to_client_bytes": 2026,
+      "openssl": "OpenSSL 3.5.8 25 Aug 2026"
+    }
+  },
+  "signatures": {
+    "Ed25519": {
+      "sign_us": 180.8,
+      "verify_us": 119.1,
+      "signature_bytes": 64,
+      "public_key_bytes": 32
+    },
+    "ML-DSA-65": {
+      "sign_us": 932.2,
+      "verify_us": 203.8,
+      "signature_bytes": 3309,
+      "public_key_bytes": 1952
+    }
+  },
+  "delta": {
+    "p50_ms": 0.124,
+    "p50_pct": 24.7,
+    "extra_bytes": 2028
+  }
+}

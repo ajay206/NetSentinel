@@ -407,3 +407,16 @@ Introduces the topology‑aware incident clustering service, its API, and the ne
 - **CI:** `scripts/check_llm_calls.py` fails on direct model calls outside the gateway.
 - **Evals:** `evals/redteam.jsonl`, 48 cases (18 injection, 18 PII, 12 tricky benign); all pass.
 - **Docs:** ADR-018, `03-services.md`, `02-local-setup.md`, troubleshooting #80–82; contracts `llm-gateway.yaml` (new) and `copilot-orchestrator.yaml` regenerated.
+
+## Step 21: post-quantum security (W21)
+
+Built straight after Step 18; Steps 19–20 (TelcoGPT-mini) moved to the next phase. No `v0.2.0` tag (Phase 2 is not complete).
+
+- **Hybrid ML-KEM TLS:** llm-gateway serves HTTPS on 8443 with hybrid-only `X25519MLKEM768`, using native OpenSSL 3.5 in `python:3.12-slim-trixie` images, so no liboqs is needed. The copilot connects over it with the dev CA. `infra/pqc/*.cnf` hold the hybrid-only, hybrid-preferred and classical policies.
+- **pqc-init:** one-shot container that creates the dev CA, the llm-gateway cert and the ML-DSA-65 signing key in the `pqc` volume.
+- **ML-DSA model signing:** new `libs/ns-pqc` and `scripts/sign_model.py`. ml-service verifies before loading (`MODEL_VERIFY=enforce`, 503 on fail) and exposes `GET /model/signature`.
+- **Status:** api-gateway `GET /api/security/pqc` (viewer) runs real handshake probes and reads the model verify result. The console **PQC status** panel renders it.
+- **CI:** `.github/workflows/verify-model.yml` runs in the trixie container: sign → verify → tamper must fail, PQC tests and a benchmark smoke.
+- **Benchmark:** `scripts/bench_tls.py` measured hybrid at +0.124 ms p50 (+24.7%) and +2028 B per handshake. ML-DSA-65 verify took 203.8 µs. Details: `docs/pqc_report.md`.
+- **Docs:** ADR-019, handbook 01 (roadmap), 02, 03, 05, troubleshooting #83–85, fault-classifier model card; build plan re-planned (W19–20 moved to Phase 3).
+

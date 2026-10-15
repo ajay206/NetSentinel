@@ -1,51 +1,65 @@
-import React, { useCallback, useMemo, useState } from 'react';
-import { Header } from './components/Header';
-import { LiveAlarms } from './components/LiveAlarms';
-import { EnrichedAlarms } from './components/EnrichedAlarms';
-import { FaultBadge } from './components/FaultBadge';
-import { ShapDrawer } from './components/ShapDrawer';
-import { useFaultExplanation, useFaultPrediction } from './hooks/useFault';
-import { useRunbook, useRunbookSearch } from './hooks/useRunbooks';
-import { buildRunbookQuery } from './lib/runbookQuery';
-import { RunbooksPanel } from './views/RunbooksPanel';
-import { CopilotPanel } from './views/CopilotPanel';
-import { CopilotChat } from './views/CopilotChat';
-import { TraceView } from './views/TraceView';
-import { useAgentRuns, useRunDecision, useStartRun } from './hooks/useAgentRuns';
-import { useCopilotAnalyze } from './hooks/useCopilot';
-import type { EnrichedAlarm } from './types.enriched';
-import { useEnrichedFeed } from './hooks/useEnrichedFeed';
-import { ServiceHealth } from './components/ServiceHealth';
-import { NetworkMap } from './components/NetworkMap';
-import { KpiActivity } from './components/KpiActivity';
-import { KpiChartsContainer } from './components/KpiChartsContainer';
-import { AnomaliesContainer } from './components/AnomaliesContainer';
-import { useAlarmFeed } from './hooks/useAlarmFeed';
-import { useHealth } from './hooks/useHealth';
-import { useTopology } from './hooks/useTopology';
-import { useKpiActivity } from './hooks/useKpiActivity';
-import { worstSeverityBySite } from './lib/siteStatus';
-import { AlarmTimeline } from './components/AlarmTimeline';
-import { useTimeline } from './hooks/useTimeline';
-import { DemoPath } from './components/DemoPath';
-import { KpiSummary } from './components/KpiSummary';
-import { CardHeader } from './components/ui/Card';
-import { demoStages } from './lib/demoPath';
-import { useAnomalyList } from './hooks/useAnomalies';
-import { IncidentBoard } from './views/IncidentBoard';
-import { useIncidents } from './hooks/useIncidents';
-import { useTicketAudit, useTicketDecision, useTickets } from './hooks/useTickets';
-import { ApprovalQueue } from './views/ApprovalQueue';
-import type { TicketStatus } from './types.ticket';
-import { alarmBelongsTo } from './lib/incidents';
-import { saveSession, type Role, type Session } from './lib/auth';
-import { can } from './lib/rbac';
-import { useAlarmAction, useAlarmWorkflow, useIncidentAction } from './hooks/useWorkflow';
-import { WorkflowActions } from './components/WorkflowActions';
-import { ChangePasswordDialog } from './components/ChangePasswordDialog';
-import { AdminDashboard } from './views/admin/AdminDashboard';
-import { RcaGraph } from './views/RcaGraph';
-import type { ImpactResult, ImpactTarget } from './types.graph';
+import React, { useCallback, useMemo, useState } from "react";
+import { Header } from "./components/Header";
+import { LiveAlarms } from "./components/LiveAlarms";
+import { EnrichedAlarms } from "./components/EnrichedAlarms";
+import { FaultBadge } from "./components/FaultBadge";
+import { ShapDrawer } from "./components/ShapDrawer";
+import { useFaultExplanation, useFaultPrediction } from "./hooks/useFault";
+import { useRunbook, useRunbookSearch } from "./hooks/useRunbooks";
+import { buildRunbookQuery } from "./lib/runbookQuery";
+import { RunbooksPanel } from "./views/RunbooksPanel";
+import { CopilotPanel } from "./views/CopilotPanel";
+import { CopilotChat } from "./views/CopilotChat";
+import { PqcStatus } from "./views/PqcStatus";
+import { usePqcStatus } from "./hooks/usePqcStatus";
+import { TraceView } from "./views/TraceView";
+import {
+  useAgentRuns,
+  useRunDecision,
+  useStartRun,
+} from "./hooks/useAgentRuns";
+import { useCopilotAnalyze } from "./hooks/useCopilot";
+import type { EnrichedAlarm } from "./types.enriched";
+import { useEnrichedFeed } from "./hooks/useEnrichedFeed";
+import { ServiceHealth } from "./components/ServiceHealth";
+import { NetworkMap } from "./components/NetworkMap";
+import { KpiActivity } from "./components/KpiActivity";
+import { KpiChartsContainer } from "./components/KpiChartsContainer";
+import { AnomaliesContainer } from "./components/AnomaliesContainer";
+import { useAlarmFeed } from "./hooks/useAlarmFeed";
+import { useHealth } from "./hooks/useHealth";
+import { useTopology } from "./hooks/useTopology";
+import { useKpiActivity } from "./hooks/useKpiActivity";
+import { worstSeverityBySite } from "./lib/siteStatus";
+import { AlarmTimeline } from "./components/AlarmTimeline";
+import { useTimeline } from "./hooks/useTimeline";
+import { DemoPath } from "./components/DemoPath";
+import { KpiSummary } from "./components/KpiSummary";
+import { CardHeader } from "./components/ui/Card";
+import { demoStages } from "./lib/demoPath";
+import { useAnomalyList } from "./hooks/useAnomalies";
+import { IncidentBoard } from "./views/IncidentBoard";
+import { useIncidents } from "./hooks/useIncidents";
+import {
+  useTicketAudit,
+  useTicketDecision,
+  useTickets,
+} from "./hooks/useTickets";
+import { ApprovalQueue } from "./views/ApprovalQueue";
+import type { TicketStatus } from "./types.ticket";
+import { alarmBelongsTo } from "./lib/incidents";
+import { saveSession, type Role, type Session } from "./lib/auth";
+import { can } from "./lib/rbac";
+import {
+  useAlarmAction,
+  useAlarmWorkflow,
+  useIncidentAction,
+} from "./hooks/useWorkflow";
+import { WorkflowActions } from "./components/WorkflowActions";
+import { ChangePasswordDialog } from "./components/ChangePasswordDialog";
+import { AdminDashboard } from "./views/admin/AdminDashboard";
+import { RcaGraph } from "./views/RcaGraph";
+import type { ImpactResult, ImpactTarget } from "./types.graph";
 
 interface AppProps {
   /** W11: set by AuthGate; without it (tests, AUTH_DISABLED) every control is enabled. */
@@ -55,41 +69,53 @@ interface AppProps {
   onSessionChange?: (s: Session) => void;
 }
 
-export const App: React.FC<AppProps> = ({ session, onLogout, onSessionChange }) => {
+export const App: React.FC<AppProps> = ({
+  session,
+  onLogout,
+  onSessionChange,
+}) => {
   // Step 13b: role-specific dashboards. The gateway enforces the same rules (403).
-  const role = session?.role ?? 'admin';
-  const me = session?.username ?? 'anonymous';
-  const canOperate = can(role, 'incident.act');
-  const canCopilot = can(role, 'copilot.analyze');
-  const isAdmin = can(role, 'admin.users');
-  const canApprove = can(role, 'ticket.approve');
-  const [view, setView] = useState<'ops' | 'admin'>('ops');
+  const role = session?.role ?? "admin";
+  const me = session?.username ?? "anonymous";
+  const canOperate = can(role, "incident.act");
+  const canCopilot = can(role, "copilot.analyze");
+  const isAdmin = can(role, "admin.users");
+  const canApprove = can(role, "ticket.approve");
+  const [view, setView] = useState<"ops" | "admin">("ops");
   const [pwOpen, setPwOpen] = useState(false);
   const incidentAction = useIncidentAction();
   const alarmWorkflow = useAlarmWorkflow();
   const alarmAction = useAlarmAction();
   const timeline = useTimeline();
   // W12: same query key as the Anomalies panel's default, so this shares its cache
-  const anomalies = useAnomalyList('dlThroughputMbps', 24);
+  const anomalies = useAnomalyList("dlThroughputMbps", 24);
   const { alarms, status: wsStatus } = useAlarmFeed();
   const { alarms: enrichedAlarms, status: enrichedStatus } = useEnrichedFeed();
   const { data: health, isError } = useHealth();
-  const { data: topology, isLoading: topoLoading, isError: topoError } = useTopology();
+  const {
+    data: topology,
+    isLoading: topoLoading,
+    isError: topoError,
+  } = useTopology();
   const { activity: kpiActivity, status: kpiStatus } = useKpiActivity();
 
   // W13: selecting an incident filters both alarm feeds to its members
   const incidents = useIncidents();
   const [incidentId, setIncidentId] = useState<string | null>(null);
-  const incident = incidents.data?.items?.find((i) => i?.id === incidentId) ?? null;
+  const incident =
+    incidents.data?.items?.find((i) => i?.id === incidentId) ?? null;
   // W16: approval queue + audit trail; the incident board links to related drafts
-  const [ticketStatus, setTicketStatus] = useState<TicketStatus | 'all'>('draft');
+  const [ticketStatus, setTicketStatus] = useState<TicketStatus | "all">(
+    "draft",
+  );
   const [ticketId, setTicketId] = useState<string | null>(null);
   const tickets = useTickets(ticketStatus);
-  const allTickets = useTickets('all');
+  const allTickets = useTickets("all");
   const ticketAudit = useTicketAudit(ticketId);
   const decision = useTicketDecision();
   // W17: multi-agent copilot runs (operators start and approve; viewers read the trace)
   const agentRuns = useAgentRuns();
+  const pqc = usePqcStatus();
   const startRun = useStartRun();
   const runDecision = useRunDecision();
   const [runId, setRunId] = useState<string | null>(null);
@@ -155,7 +181,8 @@ export const App: React.FC<AppProps> = ({ session, onLogout, onSessionChange }) 
     result: ImpactResult | null;
   }>({ target: null, result: null });
   const onImpact = useCallback(
-    (target: ImpactTarget | null, result: ImpactResult | null) => setImpact({ target, result }),
+    (target: ImpactTarget | null, result: ImpactResult | null) =>
+      setImpact({ target, result }),
     [],
   );
   const impactedSiteIds = useMemo(
@@ -165,9 +192,9 @@ export const App: React.FC<AppProps> = ({ session, onLogout, onSessionChange }) 
 
   // Fix 1 redesign: headline numbers for the KPI summary row
   const summary = useMemo(() => {
-    const active = alarms.filter((a) => a.perceivedSeverity !== 'cleared');
+    const active = alarms.filter((a) => a.perceivedSeverity !== "cleared");
     const items = incidents.data?.items ?? [];
-    const open = items.filter((i) => i?.status === 'open');
+    const open = items.filter((i) => i?.status === "open");
     // Root of the biggest incident (open first) for the storm annotation
     const biggest = [...(open.length ? open : items)].sort(
       (a, b) => (b?.alarmCount ?? 0) - (a?.alarmCount ?? 0),
@@ -175,11 +202,12 @@ export const App: React.FC<AppProps> = ({ session, onLogout, onSessionChange }) 
     const services = health?.services ?? [];
     return {
       activeAlarms: active.length,
-      criticalAlarms: active.filter((a) => a.perceivedSeverity === 'critical').length,
+      criticalAlarms: active.filter((a) => a.perceivedSeverity === "critical")
+        .length,
       openIncidents: open.length,
       compressionRatio: incidents.data?.stats?.compressionRatio ?? null,
       anomalies: anomalies.data?.items?.length ?? 0,
-      servicesUp: services.filter((x) => x.status === 'up').length,
+      servicesUp: services.filter((x) => x.status === "up").length,
       servicesTotal: services.length,
       stormRoot: biggest?.rootSiteId ?? null,
     };
@@ -195,13 +223,13 @@ export const App: React.FC<AppProps> = ({ session, onLogout, onSessionChange }) 
         views={
           isAdmin
             ? [
-                { id: 'ops', label: 'Operations' },
-                { id: 'admin', label: 'Admin' },
+                { id: "ops", label: "Operations" },
+                { id: "admin", label: "Admin" },
               ]
             : []
         }
         activeView={view}
-        onSelectView={(id) => setView(id === 'admin' ? 'admin' : 'ops')}
+        onSelectView={(id) => setView(id === "admin" ? "admin" : "ops")}
       />
       {session && (
         <ChangePasswordDialog
@@ -220,9 +248,13 @@ export const App: React.FC<AppProps> = ({ session, onLogout, onSessionChange }) 
           }}
         />
       )}
-      {isAdmin && view === 'admin' ? (
+      {isAdmin && view === "admin" ? (
         <main className="mx-auto w-full max-w-[1600px] flex-1 px-6 py-5">
-          <AdminDashboard currentUser={me} health={health} healthError={isError} />
+          <AdminDashboard
+            currentUser={me}
+            health={health}
+            healthError={isError}
+          />
         </main>
       ) : (
         /* 12-column grid, 16px gutters; rows share a fixed height so neighbouring panels align */
@@ -256,14 +288,16 @@ export const App: React.FC<AppProps> = ({ session, onLogout, onSessionChange }) 
                           className="mb-2 flex flex-wrap items-center gap-1 text-xs"
                           data-testid="related-drafts"
                         >
-                          <span className="text-slate-400">Related tickets:</span>
+                          <span className="text-slate-400">
+                            Related tickets:
+                          </span>
                           {relatedDrafts.map((t) => (
                             <button
                               key={t.id}
                               type="button"
                               className="font-mono text-sky-300 hover:underline"
                               onClick={() => {
-                                setTicketStatus('all');
+                                setTicketStatus("all");
                                 setTicketId(t.id);
                               }}
                             >
@@ -274,14 +308,21 @@ export const App: React.FC<AppProps> = ({ session, onLogout, onSessionChange }) 
                       )}
                       <WorkflowActions
                         subject={`incident ${incidentId}`}
-                        workflow={incidents.data?.items.find((i) => i.id === incidentId)?.workflow}
+                        workflow={
+                          incidents.data?.items.find((i) => i.id === incidentId)
+                            ?.workflow
+                        }
                         canAct={canOperate}
                         currentUser={me}
                         allowAssign
                         isPending={incidentAction.isPending}
                         error={incidentAction.error}
                         onAction={(action, extra) =>
-                          incidentAction.mutate({ incidentId, action, ...extra })
+                          incidentAction.mutate({
+                            incidentId,
+                            action,
+                            ...extra,
+                          })
                         }
                       />
                     </>
@@ -303,7 +344,9 @@ export const App: React.FC<AppProps> = ({ session, onLogout, onSessionChange }) 
             audit={ticketAudit.data?.entries}
             auditLoading={ticketId !== null && ticketAudit.isLoading}
             canApprove={canApprove}
-            onDecide={(id, d, note) => decision.mutate({ id, decision: d, note })}
+            onDecide={(id, d, note) =>
+              decision.mutate({ id, decision: d, note })
+            }
             isPending={decision.isPending}
             error={decision.error}
           />
@@ -343,8 +386,12 @@ export const App: React.FC<AppProps> = ({ session, onLogout, onSessionChange }) 
                 isError={topoError}
                 severityBySite={severityBySite}
                 impactedSiteIds={impactedSiteIds}
-                failedLinkId={impact.target?.type === 'link' ? impact.target.id : null}
-                failedSiteId={impact.target?.type === 'site' ? impact.target.id : null}
+                failedLinkId={
+                  impact.target?.type === "link" ? impact.target.id : null
+                }
+                failedSiteId={
+                  impact.target?.type === "site" ? impact.target.id : null
+                }
               />
             </div>
             <div className="lg:col-span-5">
@@ -369,6 +416,13 @@ export const App: React.FC<AppProps> = ({ session, onLogout, onSessionChange }) 
             <AnomaliesContainer />
           </div>
 
+          {/* Step 21: post-quantum TLS + model signature status */}
+          <PqcStatus
+            data={pqc.data}
+            error={pqc.error}
+            isLoading={pqc.isLoading}
+          />
+
           {/* Row: W17 multi-agent copilot chat + per-agent trace */}
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
             <div className="lg:col-span-7">
@@ -382,11 +436,14 @@ export const App: React.FC<AppProps> = ({ session, onLogout, onSessionChange }) 
                 error={startRun.error ?? runDecision.error}
                 canOperate={canCopilot}
                 onStart={(target) =>
-                  startRun.mutate(target, { onSuccess: (r) => setRunId(r.runId) })
+                  startRun.mutate(target, {
+                    onSuccess: (r) => setRunId(r.runId),
+                  })
                 }
                 onSelectRun={setRunId}
                 onDecide={(approved, note) =>
-                  run && runDecision.mutate({ runId: run.runId, approved, note })
+                  run &&
+                  runDecision.mutate({ runId: run.runId, approved, note })
                 }
               />
             </div>
@@ -400,7 +457,9 @@ export const App: React.FC<AppProps> = ({ session, onLogout, onSessionChange }) 
             <div>
               <CopilotPanel
                 defaultSiteId={selected?.siteId ?? null}
-                onAnalyze={(siteId, window) => copilot.mutate({ siteId, window })}
+                onAnalyze={(siteId, window) =>
+                  copilot.mutate({ siteId, window })
+                }
                 result={copilot.data}
                 isPending={copilot.isPending}
                 error={copilot.error}
@@ -428,14 +487,19 @@ export const App: React.FC<AppProps> = ({ session, onLogout, onSessionChange }) 
               isPending={alarmAction.isPending}
               error={alarmAction.error}
               onAction={(action, { note }) =>
-                action !== 'assign' && alarmAction.mutate({ key: selected.dedup.key, action, note })
+                action !== "assign" &&
+                alarmAction.mutate({ key: selected.dedup.key, action, note })
               }
             />
           ) : null
         }
         runbooks={
           <RunbooksPanel
-            alarmLabel={selected ? `${selected.specificProblem} @ ${selected.siteId}` : null}
+            alarmLabel={
+              selected
+                ? `${selected.specificProblem} @ ${selected.siteId}`
+                : null
+            }
             hits={runbookSearch.data?.results}
             isLoading={runbookQuery !== null && runbookSearch.isLoading}
             isError={runbookSearch.isError}

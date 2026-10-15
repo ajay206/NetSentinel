@@ -22,6 +22,7 @@ members = [
     "netgen-simulator",
     "netsentinel",
     "ns-common",
+    "ns-pqc",
     "rag-service",
     "ticket-service",
     "topology-service",
@@ -144,6 +145,7 @@ dependencies = [
     { name = "fastapi" },
     { name = "httpx" },
     { name = "netgen" },
+    { name = "ns-pqc" },
     { name = "psycopg", extra = ["binary"] },
     { name = "psycopg-pool" },
     { name = "pyjwt" },
@@ -166,6 +168,7 @@ requires-dist = [
     { name = "httpx", specifier = ">=0.27" },
     { name = "httpx", marker = "extra == 'dev'", specifier = ">=0.27" },
     { name = "netgen", editable = "libs/netgen" },
+    { name = "ns-pqc", editable = "libs/ns-pqc" },
     { name = "psycopg", extras = ["binary"], specifier = ">=3.2" },
     { name = "psycopg-pool", specifier = ">=3.2" },
     { name = "pyjwt", specifier = ">=2.8" },
@@ -1850,6 +1853,7 @@ dependencies = [
     { name = "fastapi" },
     { name = "httpx" },
     { name = "netgen" },
+    { name = "ns-pqc" },
     { name = "numpy" },
     { name = "scipy" },
     { name = "uvicorn", extra = ["standard"] },
@@ -1867,6 +1871,7 @@ requires-dist = [
     { name = "httpx", specifier = ">=0.27" },
     { name = "mlflow-skinny", marker = "extra == 'mlflow'", specifier = ">=2.16" },
     { name = "netgen", editable = "libs/netgen" },
+    { name = "ns-pqc", editable = "libs/ns-pqc" },
     { name = "numpy", specifier = ">=1.26" },
     { name = "scipy", specifier = ">=1.13" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.30" },
@@ -2176,6 +2181,7 @@ dev = [
     { name = "netgen" },
     { name = "netgen-simulator" },
     { name = "ns-common" },
+    { name = "ns-pqc" },
     { name = "pre-commit" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
@@ -2203,6 +2209,7 @@ dev = [
     { name = "netgen", editable = "libs/netgen" },
     { name = "netgen-simulator", editable = "services/netgen-simulator" },
     { name = "ns-common", editable = "libs/ns-common" },
+    { name = "ns-pqc", editable = "libs/ns-pqc" },
     { name = "pre-commit", specifier = ">=3.8.0" },
     { name = "pytest", specifier = ">=8.3.0" },
     { name = "pytest-asyncio", specifier = ">=0.24" },
@@ -2236,6 +2243,17 @@ requires-dist = [
     { name = "confluent-kafka", specifier = ">=2.4.0" },
     { name = "pydantic", specifier = ">=2.8.0" },
 ]
+
+[[package]]
+name = "ns-pqc"
+version = "0.1.0"
+source = { editable = "libs/ns-pqc" }
+dependencies = [
+    { name = "cryptography" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "cryptography", specifier = ">=46" }]
 
 [[package]]
 name = "numpy"

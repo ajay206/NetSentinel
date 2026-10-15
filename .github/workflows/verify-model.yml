@@ -1,0 +1,49 @@
+name: verify-model
+
+# Step 21: ML-DSA-65 model signing + hybrid ML-KEM TLS, checked inside the same Debian trixie
+# image the services use (OpenSSL 3.5), so a pass here means a pass in the containers.
+on:
+  push:
+    branches: [ "**" ]
+  pull_request:
+    branches: [ "**" ]
+
+jobs:
+  pqc:
+    runs-on: ubuntu-latest
+    container: python:3.12-slim-trixie
+    env:
+      UV_LINK_MODE: copy
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        run: pip install --no-cache-dir "uv==0.12.23"
+
+      - name: OpenSSL has ML-KEM and ML-DSA
+        run: python -c "import ssl; assert ssl.OPENSSL_VERSION_INFO >= (3, 5), ssl.OPENSSL_VERSION; print(ssl.OPENSSL_VERSION)"
+
+      - name: Sync
+        run: uv sync --frozen --all-extras --dev
+
+      - name: Sign a freshly trained model, verify, then tamper (must fail)
+        run: |
+          set -eu
+          uv run --no-sync python -c "from ml_service.train_xgb import train; train(n=300, days=5, out_dir='/tmp/models')"
+          V=$(ls -d /tmp/models/fault_classifier/*/ | head -1)
+          uv run --no-sync python scripts/sign_model.py keygen --key /tmp/k.pem --pub /tmp/p.pem
+          uv run --no-sync python scripts/sign_model.py sign --alg ML-DSA-65 --key /tmp/k.pem \
+            --model-dir "$V" --card docs/model_card_fault_classifier.md
+          uv run --no-sync python scripts/sign_model.py verify --pub /tmp/p.pem --model-dir "$V" \
+            --card docs/model_card_fault_classifier.md
+          echo " " >> "$V/model.json"
+          if uv run --no-sync python scripts/sign_model.py verify --pub /tmp/p.pem --model-dir "$V"; then
+            echo "tampered model verified: FAIL"; exit 1
+          fi
+          echo "tampered model rejected: OK"
+
+      - name: PQC tests (real hybrid handshakes, verify on load)
+        run: uv run --no-sync pytest -q libs/ns-pqc services/ml-service/tests/test_model_signature.py services/api-gateway/tests/test_pqc_status.py
+
+      - name: Benchmark smoke (100 rounds)
+        run: uv run --no-sync python scripts/bench_tls.py --rounds 100

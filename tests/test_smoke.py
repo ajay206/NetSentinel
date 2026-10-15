@@ -219,6 +219,8 @@ class FakeGateway:
             if path == "/health":
                 return httpx.Response(200, json={"services": []})
 
+        if path == "/api/security/pqc" and getattr(self, "pqc", None) is not None:
+            return httpx.Response(200, json=self.pqc)
         if path.startswith("/api/copilot/runs"):
             return self._runs(request)
         if path.startswith("/api/tickets"):
@@ -246,7 +248,7 @@ def test_smoke_all_pass(client, monkeypatch):
     smoke = Smoke(client, user="operator", wait_s=0, poll_s=0)
     result = smoke.run()
     assert result is True
-    assert len(smoke.checks) == 15
+    assert len(smoke.checks) == 16
     assert all(c.ok for c in smoke.checks)
 
 
@@ -326,13 +328,14 @@ def test_main_json_output(monkeypatch, mock_transport, capsys):
     exit_code = main(["--base-url", "http://test", "--json", "--wait", "0"])
     assert exit_code == 0
     checks = json.loads(capsys.readouterr().out)
-    assert [c["name"] for c in checks][-6:] == [
+    assert [c["name"] for c in checks][-7:] == [
         "rbac",
         "roles",
         "password",
         "graph_impact",
         "tickets",
         "agents",
+        "pqc",
     ] and all(c["ok"] for c in checks)
 
 
@@ -342,7 +345,7 @@ def test_main_text_output(monkeypatch, mock_transport, capsys):
     exit_code = main(["--base-url", "http://test", "--wait", "0"])
     assert exit_code == 0
     captured = capsys.readouterr()
-    assert "15/15 checks passed" in captured.out
+    assert "16/16 checks passed" in captured.out
     assert "secret-token-xyz" not in captured.out
 
 
@@ -392,7 +395,7 @@ def test_smoke_console_check(client):
     smoke = Smoke(client, user="operator", wait_s=0, poll_s=0, console_url="http://console/")
     assert smoke.run() is True
     assert [c.name for c in smoke.checks][:2] == ["health", "console"]
-    assert len(smoke.checks) == 16
+    assert len(smoke.checks) == 17
 
 
 def test_smoke_console_down(client):
@@ -599,4 +602,43 @@ def test_agents_check(monkeypatch, mode, up, ok, needle):
     smoke = Smoke(c, user="operator", wait_s=0, poll_s=0)
     smoke.run()
     check = next(x for x in smoke.checks if x.name == "agents")
+    assert check.ok is ok and needle in check.detail, check.detail
+
+
+HYBRID = {"service": "llm-gateway", "tls": True, "hybridOnly": True, "group": "X25519MLKEM768"}
+
+
+@pytest.mark.parametrize(
+    "mode,pqc,ok,needle",
+    [
+        ("auto", None, True, "skipped: /api/security/pqc returned 404"),
+        ("1", None, False, "404"),
+        (
+            "auto",
+            {"tls": [HYBRID], "model": {"status": "pass"}},
+            True,
+            "llm-gateway=X25519MLKEM768; model pass",
+        ),
+        (
+            "auto",
+            {"tls": [HYBRID | {"hybridOnly": False}], "model": {"status": "pass"}},
+            False,
+            "not hybrid-only: llm-gateway",
+        ),
+        (
+            "auto",
+            {"tls": [HYBRID], "model": {"status": "fail", "reason": "digest mismatch"}},
+            False,
+            "model signature fail",
+        ),
+    ],
+)
+def test_pqc_check(monkeypatch, mode, pqc, ok, needle):
+    fake = FakeGateway()
+    fake.pqc = pqc
+    c = httpx.Client(transport=httpx.MockTransport(fake.handle_request), base_url="http://test")
+    monkeypatch.setattr(Smoke, "PQC_MODE", mode)
+    smoke = Smoke(c, user="operator", wait_s=0, poll_s=0)
+    smoke.run()
+    check = next(x for x in smoke.checks if x.name == "pqc")
     assert check.ok is ok and needle in check.detail, check.detail

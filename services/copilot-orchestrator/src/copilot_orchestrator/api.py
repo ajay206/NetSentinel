@@ -88,6 +88,7 @@ def get_llm() -> LLM:
         url=os.getenv("LLM_GATEWAY_URL", "http://localhost:8010"),
         token=os.getenv("LLM_GATEWAY_TOKEN") or None,
         timeout=float(os.getenv("LLM_TIMEOUT_S", "90")),
+        ca=os.getenv("LLM_GATEWAY_CA") or None,
     )
 
 

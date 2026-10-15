@@ -1,7 +1,8 @@
 # Multi-arch: python:3.12-slim and the uv image both publish linux/amd64 and linux/arm64.
 FROM ghcr.io/astral-sh/uv:0.12.23 AS uv
 
-FROM python:3.12-slim
+# Step 21: trixie ships OpenSSL 3.5 (native ML-KEM / X25519MLKEM768); multi-arch like before
+FROM python:3.12-slim-trixie
 
 COPY --from=uv /uv /bin/uv
 
@@ -21,6 +22,9 @@ COPY libs ./libs
 COPY services ./services
 
 RUN uv sync --frozen --no-dev --package copilot-orchestrator
+
+RUN python -c "import ssl; assert ssl.OPENSSL_VERSION_INFO >= (3, 5), ssl.OPENSSL_VERSION"
+COPY infra/pqc/*.cnf /etc/netsentinel/pqc/
 
 RUN useradd --create-home --uid 1000 --shell /usr/sbin/nologin appuser
 USER appuser
