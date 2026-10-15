@@ -12,14 +12,17 @@ down_revision = None
 branch_labels = None
 depends_on = None
 
-PG_GUARD = """
+# psycopg3 (extended query protocol) rejects multiple commands in one execute.
+PG_GUARD_FN = """
 CREATE OR REPLACE FUNCTION ticket_audit_append_only() RETURNS trigger AS $$
 BEGIN
   RAISE EXCEPTION 'ticket_audit is append-only';
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql
+"""
+PG_GUARD_TRG = """
 CREATE TRIGGER ticket_audit_no_update BEFORE UPDATE OR DELETE ON ticket_audit
-  FOR EACH ROW EXECUTE FUNCTION ticket_audit_append_only();
+  FOR EACH ROW EXECUTE FUNCTION ticket_audit_append_only()
 """
 
 
@@ -60,7 +63,8 @@ def upgrade() -> None:
     )
     dialect = op.get_bind().dialect.name
     if dialect == "postgresql":
-        op.execute(PG_GUARD)
+        op.execute(PG_GUARD_FN)
+        op.execute(PG_GUARD_TRG)
     elif dialect == "sqlite":
         for ev in ("UPDATE", "DELETE"):
             op.execute(
