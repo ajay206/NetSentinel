@@ -11,6 +11,7 @@ The demo needs only three things on the host. Python, uv, Node, compilers and li
 | **Docker** | Docker Desktop (macOS/Windows) or Docker Engine + Compose v2 plugin (Linux). Images are multi-arch (linux/amd64 and linux/arm64, e.g. Apple Silicon). |
 | **git** | To clone the repo. |
 | **make** | Preinstalled on macOS (Xcode CLT prompt) and most Linux distros; `sudo apt install make` on Debian/Ubuntu/WSL. |
+| **Ollama** (optional) | Host LLM for real copilot answers. Install with `brew install ollama` or the app from [ollama.com](https://ollama.com), then `ollama serve` and `make ollama-pull`. If Ollama is missing, llm-gateway returns 503 / circuit-open and the copilot uses deterministic fallback answers (see troubleshooting #91–92). |
 
 **Windows:** use WSL2 (Ubuntu) with Docker Desktop's WSL integration enabled, and clone the repo *inside* the WSL filesystem (e.g. `~/src`), not under `/mnt/c`.
 
