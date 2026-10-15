@@ -1,4 +1,6 @@
 import React from 'react';
+import { Tip } from './ui/Tooltip';
+import { TIPS } from '../lib/tooltips';
 import { CardHeader } from './ui/Card';
 import type { AnomalyItem, AnomalyList } from '../types.anomaly';
 import { formatIST } from '../lib/time';
@@ -19,13 +21,7 @@ const KPI_OPTIONS = [
   'availabilityPct',
 ] as const;
 
-export const AnomaliesPanel: React.FC<Props> = ({
-  data,
-  isLoading,
-  isError,
-  kpi,
-  onKpiChange,
-}) => {
+export const AnomaliesPanel: React.FC<Props> = ({ data, isLoading, isError, kpi, onKpiChange }) => {
   const items = Array.isArray(data?.items) ? data.items : [];
   const count = items.length;
 
@@ -38,7 +34,9 @@ export const AnomaliesPanel: React.FC<Props> = ({
     const dirArrow = direction === 'high' ? '▲' : '▼';
     return (
       <span className="inline-flex items-center gap-1">
-        <span className={`px-1.5 py-0.5 rounded ${bg} text-xs font-mono`}>z {score.toFixed(1)}</span>
+        <span className={`px-1.5 py-0.5 rounded ${bg} text-xs font-mono`}>
+          z {score.toFixed(1)}
+        </span>
         <span className={direction === 'high' ? 'text-red-400' : 'text-sky-400'}>{dirArrow}</span>
         <span className="text-slate-500">{method}</span>
       </span>
@@ -52,7 +50,7 @@ export const AnomaliesPanel: React.FC<Props> = ({
           <CardHeader
             title="Anomalies"
             subtitle="Cells whose KPI left its normal range (robust z-score + CUSUM)."
-            info="ml-service learns a per-cell baseline from 7 days of KPIs. Score = how many robust standard deviations away the value is."
+            info={TIPS.panelAnomalies}
           />
         </div>
         <div className="flex items-center gap-2">
@@ -67,31 +65,31 @@ export const AnomaliesPanel: React.FC<Props> = ({
               </option>
             ))}
           </select>
-          <span className="px-2 py-0.5 bg-slate-700 rounded text-slate-300 text-xs">
-            {count}
-          </span>
+          <span className="px-2 py-0.5 bg-slate-700 rounded text-slate-300 text-xs">{count}</span>
         </div>
       </header>
 
       {isLoading && <p className="text-slate-400">Loading…</p>}
-      {isError && (
-        <p className="text-red-400">
-          ml-service unreachable — run make ml
-        </p>
-      )}
+      {isError && <p className="text-red-400">ml-service unreachable — run make ml</p>}
       {!isLoading && !isError && data && items.length === 0 && (
-        <p className="text-slate-400">
-          No anomalies in the last {data.hours ?? 24} h
-        </p>
+        <p className="text-slate-400">No anomalies in the last {data.hours ?? 24} h</p>
       )}
       {!isLoading && !isError && items.length > 0 && (
         <table className="w-full table-auto">
           <thead className="text-slate-400">
             <tr>
-              <th className="text-left">Cell</th>
-              <th className="text-left">Region</th>
-              <th className="text-left">Time</th>
-              <th className="text-left">Score</th>
+              <th className="text-left">
+                <Tip tip={TIPS.colCell}>Cell</Tip>
+              </th>
+              <th className="text-left">
+                <Tip tip={TIPS.colRegion}>Region</Tip>
+              </th>
+              <th className="text-left">
+                <Tip tip={TIPS.colTime}>Time</Tip>
+              </th>
+              <th className="text-left">
+                <Tip tip={TIPS.colScore}>Score</Tip>
+              </th>
             </tr>
           </thead>
           <tbody>

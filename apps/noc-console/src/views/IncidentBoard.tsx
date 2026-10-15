@@ -1,4 +1,5 @@
 import type React from 'react';
+import { TIPS } from '../lib/tooltips';
 import { useMemo } from 'react';
 import { sortIncidents, durationLabel } from '../lib/incidents';
 import type { IncidentList } from '../types.incident';
@@ -16,9 +17,7 @@ interface IncidentBoardProps {
 
 const TITLE = 'Incident board';
 const SUBTITLE = 'Related alarms grouped into incidents. Click one to filter the alarm feeds.';
-const INFO =
-  'incident-service groups alarms that are close in time (5 min) and in the network topology. ' +
-  'The root site is the affected site closest to the core.';
+const INFO = TIPS.panelIncidents;
 
 const ROW = 'grid grid-cols-[5.75rem_6rem_minmax(0,1fr)_4rem_4.5rem] items-center gap-2';
 

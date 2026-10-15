@@ -1,4 +1,6 @@
 import React, { useMemo } from 'react';
+import { Tip } from './ui/Tooltip';
+import { TIPS } from '../lib/tooltips';
 import { CardHeader, SeverityChip } from './ui/Card';
 import { formatIST } from '../lib/time';
 import type { EnrichedAlarm } from '../types.enriched';
@@ -24,7 +26,7 @@ export const EnrichedAlarms: React.FC<EnrichedAlarmsProps> = ({
   const summary = useMemo(() => {
     const deduped = alarms.reduce((sum, a) => sum + Math.max(0, a.dedup.count - 1), 0);
     const groups = new Set(
-      alarms.map((a) => a.correlation.groupId).filter((g): g is string => g !== null)
+      alarms.map((a) => a.correlation.groupId).filter((g): g is string => g !== null),
     ).size;
     return { total: alarms.length, deduped, groups };
   }, [alarms]);
@@ -34,28 +36,30 @@ export const EnrichedAlarms: React.FC<EnrichedAlarmsProps> = ({
       <CardHeader
         title="Enriched alarm feed"
         subtitle="Alarms after de-duplication and topology enrichment. Click a row to diagnose it."
-        info="alarm-ingest adds the site name, region and equipment, merges duplicates (×N) and marks the root alarm of each correlated group (↳ points to the root site)."
+        info={TIPS.panelEnriched}
         actions={
-        <div className="flex gap-2 text-xs" data-testid="enriched-summary">
-          {status && (
-            <span
-              className={`px-2 py-0.5 rounded ${
-                status === 'open' ? 'bg-emerald-500/15 text-emerald-400' : 'bg-red-500/15 text-red-400'
-              }`}
-            >
-              {status === 'open' ? 'live' : status}
+          <div className="flex gap-2 text-xs" data-testid="enriched-summary">
+            {status && (
+              <span
+                className={`px-2 py-0.5 rounded ${
+                  status === 'open'
+                    ? 'bg-emerald-500/15 text-emerald-400'
+                    : 'bg-red-500/15 text-red-400'
+                }`}
+              >
+                {status === 'open' ? 'live' : status}
+              </span>
+            )}
+            <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-300">
+              Alarms {summary.total}
             </span>
-          )}
-          <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-300">
-            Alarms {summary.total}
-          </span>
-          <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-300">
-            Deduped {summary.deduped}
-          </span>
-          <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-300">
-            Groups {summary.groups}
-          </span>
-        </div>
+            <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-300">
+              Deduped {summary.deduped}
+            </span>
+            <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-300">
+              Groups {summary.groups}
+            </span>
+          </div>
         }
       />
       {alarms.length === 0 ? (
@@ -67,14 +71,30 @@ export const EnrichedAlarms: React.FC<EnrichedAlarmsProps> = ({
           <table className="w-full text-xs">
             <thead>
               <tr className="ns-thead">
-                <th className="py-2 pl-2 pr-3 font-medium">Time (IST)</th>
-                <th className="py-2 pr-3 font-medium">Severity</th>
-                <th className="py-2 pr-3 font-medium">Site</th>
-                <th className="py-2 pr-3 font-medium">Region</th>
-                <th className="py-2 pr-3 font-medium">Node types</th>
-                <th className="py-2 pr-3 font-medium">Problem</th>
-                <th className="py-2 pr-3 font-medium">Repeats</th>
-                <th className="py-2 pr-3 font-medium">Root / symptom</th>
+                <th className="py-2 pl-2 pr-3 font-medium">
+                  <Tip tip={TIPS.colTime}>Time (IST)</Tip>
+                </th>
+                <th className="py-2 pr-3 font-medium">
+                  <Tip tip={TIPS.colSeverity}>Severity</Tip>
+                </th>
+                <th className="py-2 pr-3 font-medium">
+                  <Tip tip={TIPS.colSite}>Site</Tip>
+                </th>
+                <th className="py-2 pr-3 font-medium">
+                  <Tip tip={TIPS.colRegion}>Region</Tip>
+                </th>
+                <th className="py-2 pr-3 font-medium">
+                  <Tip tip={TIPS.colNodeTypes}>Node types</Tip>
+                </th>
+                <th className="py-2 pr-3 font-medium">
+                  <Tip tip={TIPS.colProblem}>Problem</Tip>
+                </th>
+                <th className="py-2 pr-3 font-medium">
+                  <Tip tip={TIPS.colRepeats}>Repeats</Tip>
+                </th>
+                <th className="py-2 pr-3 font-medium">
+                  <Tip tip={TIPS.colRootSymptom}>Root / symptom</Tip>
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -124,9 +144,7 @@ export const EnrichedAlarms: React.FC<EnrichedAlarmsProps> = ({
                       {a.correlation.role === 'symptom' && (
                         <span className="text-slate-300">↳ {a.correlation.rootSiteId}</span>
                       )}
-                      {a.correlation.role === 'none' && (
-                        <span className="text-slate-600">—</span>
-                      )}
+                      {a.correlation.role === 'none' && <span className="text-slate-600">—</span>}
                     </td>
                   </tr>
                 );

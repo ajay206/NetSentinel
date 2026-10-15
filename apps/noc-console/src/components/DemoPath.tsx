@@ -1,4 +1,5 @@
 import React from 'react';
+import { TIPS } from '../lib/tooltips';
 import { CardHeader } from './ui/Card';
 import type { DemoStage } from '../lib/demoPath';
 
@@ -26,7 +27,7 @@ export const DemoPath: React.FC<DemoPathProps> = ({ stages, hint }) => {
       <CardHeader
         title="Demo path (fibre_cut)"
         subtitle="The five steps of the fibre-cut walkthrough; each turns green when it is done."
-        info="Start the demo stack, then follow the steps: alarms arrive, a KPI anomaly appears, click a root alarm to classify it, open a runbook, ask the copilot."
+        info={TIPS.panelDemoPath}
       />
       <ol className="flex items-center justify-between">
         {stages.map((stage, idx) => {

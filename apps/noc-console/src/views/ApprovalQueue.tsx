@@ -1,5 +1,7 @@
 import React, { useEffect, useState, type ChangeEvent } from 'react';
+import { TIPS } from '../lib/tooltips';
 import { CardHeader } from '../components/ui/Card';
+import { Tooltip } from '../components/ui/Tooltip';
 import type { Ticket, TicketStatus, AuditEntry } from '../types.ticket';
 
 export interface ApprovalQueueProps {
@@ -54,9 +56,17 @@ export const ApprovalQueue: React.FC<ApprovalQueueProps> = ({
       rejected: 'bg-red-900 text-red-200',
     };
     return (
-      <span className={`px-2 py-0.5 rounded text-xs ${map[s]}`} data-testid="status-pill">
-        {s}
-      </span>
+      <Tooltip
+        content={
+          { draft: TIPS.statusDraft, approved: TIPS.statusApproved, rejected: TIPS.statusRejected }[
+            s
+          ]
+        }
+      >
+        <span className={`px-2 py-0.5 rounded text-xs ${map[s]}`} data-testid="status-pill">
+          {s}
+        </span>
+      </Tooltip>
     );
   };
 
@@ -66,7 +76,7 @@ export const ApprovalQueue: React.FC<ApprovalQueueProps> = ({
         as="h3"
         title="Approval queue"
         subtitle="AI and operators draft tickets; only operators approve."
-        info="Drafts come from operators or the copilot (MCP open_ticket_draft). Every create, approve and reject is written to an append-only, hash-chained audit log."
+        info={TIPS.panelApprovals}
       />
 
       <div className="mb-4">
@@ -78,7 +88,7 @@ export const ApprovalQueue: React.FC<ApprovalQueueProps> = ({
           aria-label="Status"
           value={status}
           onChange={handleStatus}
-          className="rounded border-slate-600 bg-slate-800 p-1"
+          className="rounded border border-slate-700 bg-slate-800 px-2 py-1 text-sm"
         >
           <option value="all">All</option>
           <option value="draft">Draft</option>
@@ -94,7 +104,7 @@ export const ApprovalQueue: React.FC<ApprovalQueueProps> = ({
       )}
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <ul className="space-y-2">
+        <ul className="ns-scroll max-h-[420px] space-y-2 pr-1">
           {tickets.map((ticket) => (
             <li key={ticket.id}>
               <button
@@ -167,29 +177,48 @@ export const ApprovalQueue: React.FC<ApprovalQueueProps> = ({
                   id="decision-note"
                   aria-label="Decision note"
                   maxLength={500}
+                  placeholder="Why are you approving or rejecting? (required to reject)"
                   value={note}
                   onChange={(e) => setNote(e.target.value)}
                   className="w-full rounded border-slate-600 bg-slate-800 p-2"
                 />
                 <div className="mt-2 flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => handleDecide('approve')}
-                    disabled={!canApprove || isPending}
-                    title={!canApprove ? 'Requires the operator role' : undefined}
-                    className="px-4 py-2 bg-emerald-600 rounded disabled:opacity-50"
+                  <Tooltip
+                    content={
+                      canApprove
+                        ? TIPS.btnApproveTicket
+                        : `${TIPS.btnApproveTicket} Requires the operator role.`
+                    }
                   >
-                    Approve
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleDecide('reject')}
-                    disabled={!canApprove || note.trim() === '' || isPending}
-                    title={!canApprove ? 'Requires the operator role' : undefined}
-                    className="px-4 py-2 bg-red-600 rounded disabled:opacity-50"
+                    <span className="inline-flex">
+                      <button
+                        type="button"
+                        onClick={() => handleDecide('approve')}
+                        disabled={!canApprove || isPending}
+                        className="px-4 py-2 bg-emerald-600 rounded disabled:opacity-50"
+                      >
+                        Approve
+                      </button>
+                    </span>
+                  </Tooltip>
+                  <Tooltip
+                    content={
+                      canApprove
+                        ? TIPS.btnRejectTicket
+                        : `${TIPS.btnRejectTicket} Requires the operator role.`
+                    }
                   >
-                    Reject
-                  </button>
+                    <span className="inline-flex">
+                      <button
+                        type="button"
+                        onClick={() => handleDecide('reject')}
+                        disabled={!canApprove || note.trim() === '' || isPending}
+                        className="px-4 py-2 bg-red-600 rounded disabled:opacity-50"
+                      >
+                        Reject
+                      </button>
+                    </span>
+                  </Tooltip>
                 </div>
                 {!canApprove && (
                   <p role="note" className="mt-1 text-sm text-slate-400">

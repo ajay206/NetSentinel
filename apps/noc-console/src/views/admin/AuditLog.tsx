@@ -1,4 +1,6 @@
 import React, { useMemo, useState } from 'react';
+import { TIPS } from '../../lib/tooltips';
+import { Tip, Tooltip } from '../../components/ui/Tooltip';
 import { Card, StateMessage } from '../../components/ui/Card';
 import { useAuditLog } from '../../hooks/useAdmin';
 
@@ -31,14 +33,24 @@ export const AuditLog: React.FC = () => {
   else
     body = (
       <div className="ns-scroll">
-        <table className="w-full text-sm" data-testid="audit-table">
+        <table className="w-full table-fixed text-sm" data-testid="audit-table">
           <thead className="ns-thead">
             <tr className="text-left">
-              <th className="px-2 py-1.5">Time (IST)</th>
-              <th className="px-2 py-1.5">Actor</th>
-              <th className="px-2 py-1.5">Action</th>
-              <th className="px-2 py-1.5">Target</th>
-              <th className="px-2 py-1.5">Details</th>
+              <th className="px-2 py-1.5">
+                <Tip tip={TIPS.colTime}>Time (IST)</Tip>
+              </th>
+              <th className="px-2 py-1.5">
+                <Tip tip={TIPS.colActor}>Actor</Tip>
+              </th>
+              <th className="px-2 py-1.5">
+                <Tip tip={TIPS.colAction}>Action</Tip>
+              </th>
+              <th className="px-2 py-1.5">
+                <Tip tip={TIPS.colTarget}>Target</Tip>
+              </th>
+              <th className="px-2 py-1.5">
+                <Tip tip={TIPS.colDetails}>Details</Tip>
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -53,11 +65,10 @@ export const AuditLog: React.FC = () => {
                     {e.action}
                   </span>
                 </td>
-                <td
-                  className="max-w-[16rem] truncate px-2 py-1.5 font-mono text-xs"
-                  title={e.target}
-                >
-                  {e.target}
+                <td className="max-w-[16rem] px-2 py-1.5 font-mono text-xs">
+                  <Tooltip content={e.target}>
+                    <span className="block truncate">{e.target}</span>
+                  </Tooltip>
                 </td>
                 <td className="px-2 py-1.5 text-xs text-slate-400">
                   {Object.entries(e.detail ?? {})
@@ -75,7 +86,7 @@ export const AuditLog: React.FC = () => {
     <Card
       title="Audit log"
       subtitle="Who changed what: roles, passwords, resets and incident actions."
-      info="Stored in the audit_log table. Passwords and tokens are never recorded."
+      info={TIPS.panelAuditLog}
       testId="audit-log"
       actions={
         <input

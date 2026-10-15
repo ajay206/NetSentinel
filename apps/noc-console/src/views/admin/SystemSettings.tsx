@@ -1,4 +1,5 @@
 import React from 'react';
+import { TIPS } from '../../lib/tooltips';
 import { Card, StateMessage } from '../../components/ui/Card';
 import { useAdminSettings } from '../../hooks/useAdmin';
 
@@ -45,7 +46,7 @@ export const SystemSettings: React.FC = () => {
     <Card
       title="System & security settings"
       subtitle="Read-only view of auth settings; change them via environment variables."
-      info="JWT_TTL_SECONDS, RATE_LIMIT_PER_MIN, LOGIN_RATE_PER_MIN, LOGIN_MAX_FAILURES, LOCKOUT_SECONDS and USER_STORE in compose/.env."
+      info={TIPS.panelSettings}
       testId="system-settings"
     >
       {body}

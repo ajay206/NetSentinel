@@ -14,12 +14,12 @@ export const AdminDashboard: React.FC<{
   <div className="space-y-4" data-testid="admin-dashboard">
     <AdminUsers currentUser={currentUser} />
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
-      <div className="lg:col-span-8 lg:h-[480px]">
+      <div className="min-w-0 lg:col-span-8 lg:h-[560px]">
         <AuditLog />
       </div>
-      <div className="flex flex-col gap-4 lg:col-span-4">
+      <div className="flex min-w-0 flex-col gap-4 lg:col-span-4 lg:h-[560px]">
         <SystemSettings />
-        <div className="lg:h-[300px]">
+        <div className="min-h-[220px] flex-1">
           <ServiceHealth health={health} isError={healthError} />
         </div>
       </div>

@@ -420,6 +420,14 @@ Built straight after Step 18; Steps 19–20 (TelcoGPT-mini) moved to the next ph
 - **Benchmark:** `scripts/bench_tls.py` measured hybrid at +0.124 ms p50 (+24.7%) and +2028 B per handshake. ML-DSA-65 verify took 203.8 µs. Details: `docs/pqc_report.md`.
 - **Docs:** ADR-019, handbook 01 (roadmap), 02, 03, 05, troubleshooting #83–85, fault-classifier model card; build plan re-planned (W19–20 moved to Phase 3).
 
+## UI polish: layout and tooltips (Oct 15, 2026)
+* **Scope:** Not a new step. This fixes the layout problems seen in five console screenshots and adds accessible tooltips everywhere.
+  * Layout: equal card heights per row; all card headers use one style; the Card body is a flex column so lists scroll inside the card; dark page background; RCA and PQC side by side; chat and trace at equal height; admin audit, settings and health at equal height.
+  * Copilot chat: a normal-size Run button, a friendly status pill ("Awaiting approval", not `awaiting_approval`), wider message bubbles, "RCA" spelled correctly, a neutral approval box with a labelled note field.
+  * PQC status: a compact table, summary tiles, the check time shown in IST.
+  * Tooltips: a new `Tooltip`, `Tip` and `InfoIcon` (keyboard focus, `aria-describedby`, Escape); the copy is in `lib/tooltips.ts`. Groq drafted the copy and it was then edited by hand.
+* **Verification:** console lint, typecheck, Vitest (new Tooltip and panel-tooltip tests) and build; `scripts/check_docs.py`.
+
 ## Docs: Mac test run errors (Oct 15, 2026)
 
 - **Date:** 2026-10-15

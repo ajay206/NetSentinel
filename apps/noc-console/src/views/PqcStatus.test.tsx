@@ -69,8 +69,10 @@ describe("PqcStatus", () => {
       />,
     );
     expect(screen.getByTestId("pqc-model")).toHaveTextContent("fail");
-    expect(screen.getByTestId("pqc-model")).toHaveAttribute(
-      "title",
+    const chip = screen.getByTestId("pqc-model");
+    const tipId = chip.getAttribute("aria-describedby");
+    expect(tipId).toBeTruthy();
+    expect(document.getElementById(tipId!)).toHaveTextContent(
       "digest mismatch: model.json",
     );
     expect(

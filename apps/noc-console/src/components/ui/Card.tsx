@@ -1,10 +1,11 @@
 import React from 'react';
+import { InfoIcon } from './Tooltip';
 import { card, severityChip, severityHex, severityLabel } from '../../theme';
 
 type CardProps = {
   title: string;
   subtitle?: string;
-  info?: string;
+  info?: React.ReactNode;
   actions?: React.ReactNode;
   children: React.ReactNode;
   className?: string;
@@ -21,40 +22,29 @@ export const Card: React.FC<CardProps> = ({
   testId,
 }) => (
   <section className={`${card} flex flex-col h-full min-h-0 ${className}`} data-testid={testId}>
-    <header className="px-4 pt-4 flex items-center justify-between">
-      <div>
-        <h2 className="text-sm font-semibold text-slate-100 tracking-wide">{title}</h2>
+    <header className="px-4 pt-4 flex items-start justify-between gap-3">
+      <div className="min-w-0">
+        <div className="flex items-center gap-2">
+          <h2 className="text-sm font-semibold text-slate-100 tracking-wide">{title}</h2>
+          {info && <InfoTip text={info} label={title} />}
+        </div>
         {subtitle && <p className="text-xs text-slate-400 mt-0.5">{subtitle}</p>}
       </div>
-      <div className="flex items-center gap-2">
-        {info && <InfoTip text={info} />}
-        {actions && <div>{actions}</div>}
-      </div>
+      {actions && <div className="flex shrink-0 flex-wrap items-center gap-1.5">{actions}</div>}
     </header>
-    <div className="flex-1 min-h-0 p-4 pt-3">{children}</div>
+    {/* flex column + min-h-0 so an inner .ns-scroll can shrink and scroll instead of spilling */}
+    <div className="flex flex-1 min-h-0 flex-col overflow-hidden p-4 pt-3">{children}</div>
   </section>
 );
 
 type InfoTipProps = {
-  text: string;
+  text: React.ReactNode;
+  label?: string;
 };
 
-export const InfoTip: React.FC<InfoTipProps> = ({ text }) => (
-  <span className="relative group">
-    <button
-      type="button"
-      aria-label="More info"
-      className="inline-flex items-center justify-center w-5 h-5 text-xs font-medium text-slate-400 bg-slate-800 rounded-full"
-    >
-      i
-    </button>
-    <div
-      role="tooltip"
-      className="hidden group-hover:block group-focus-within:block absolute z-20 w-64 text-xs bg-slate-800 border border-slate-700 rounded p-2 text-slate-200 left-1/2 -translate-x-1/2 mt-2"
-    >
-      {text}
-    </div>
-  </span>
+/** The (i) next to a panel title; see ./Tooltip for the accessible behaviour. */
+export const InfoTip: React.FC<InfoTipProps> = ({ text, label }) => (
+  <InfoIcon text={text} label={label} />
 );
 
 type StateMessageProps = {
@@ -111,7 +101,7 @@ export const SeverityChip: React.FC<SeverityChipProps> = ({ severity }) => {
 type CardHeaderProps = {
   title: React.ReactNode;
   subtitle?: string;
-  info?: string;
+  info?: React.ReactNode;
   actions?: React.ReactNode;
   as?: 'h2' | 'h3';
 };
@@ -128,7 +118,7 @@ export const CardHeader: React.FC<CardHeaderProps> = ({
     <div className="min-w-0">
       <div className="flex items-center gap-2">
         <Tag className="text-sm font-semibold tracking-wide text-slate-100">{title}</Tag>
-        {info && <InfoTip text={info} />}
+        {info && <InfoTip text={info} label={typeof title === 'string' ? title : undefined} />}
       </div>
       {subtitle && <p className="mt-0.5 text-xs text-slate-400">{subtitle}</p>}
     </div>

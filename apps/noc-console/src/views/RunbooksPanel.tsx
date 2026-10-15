@@ -1,4 +1,5 @@
 import React from 'react';
+import { TIPS } from '../lib/tooltips';
 import { CardHeader } from '../components/ui/Card';
 import type { RunbookDoc, RunbookHit } from '../types.runbook';
 import { MarkdownPreview } from '../components/MarkdownPreview';
@@ -90,7 +91,7 @@ export const RunbooksPanel: React.FC<RunbooksPanelProps> = ({
         as="h3"
         title="Suggested runbooks"
         subtitle="Repair procedures that match the selected alarm."
-        info="Graph RAG: hybrid keyword + vector search, expanded with the alarm's topology neighbourhood (site, links, parent hub) and reranked. Chips show the graph nodes behind each hit."
+        info={TIPS.panelRunbooks}
         actions={
           <span className="flex items-center gap-2">
             {alarmLabel && hits.length > 0 && <RetrievalModeBadge mode={mode} />}

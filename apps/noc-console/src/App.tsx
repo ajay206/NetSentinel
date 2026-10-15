@@ -1,4 +1,5 @@
 import React, { useCallback, useMemo, useState } from "react";
+import { TIPS } from "./lib/tooltips";
 import { Header } from "./components/Header";
 import { LiveAlarms } from "./components/LiveAlarms";
 import { EnrichedAlarms } from "./components/EnrichedAlarms";
@@ -265,7 +266,7 @@ export const App: React.FC<AppProps> = ({
 
           {/* Row: what is happening now */}
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
-            <div className="lg:col-span-6 2xl:col-span-7">
+            <div className="lg:col-span-6 lg:h-[440px] 2xl:col-span-7">
               <AlarmTimeline
                 data={timeline.data}
                 isLoading={timeline.isLoading}
@@ -273,7 +274,7 @@ export const App: React.FC<AppProps> = ({
                 rootSiteId={summary.stormRoot}
               />
             </div>
-            <div className="lg:col-span-6 2xl:col-span-5">
+            <div className="lg:col-span-6 lg:h-[440px] 2xl:col-span-5">
               <IncidentBoard
                 data={incidents.data}
                 isLoading={incidents.isLoading}
@@ -379,7 +380,7 @@ export const App: React.FC<AppProps> = ({
 
           {/* Row: network + KPIs */}
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
-            <div className="lg:col-span-7">
+            <div className="lg:col-span-7 lg:h-[500px]">
               <NetworkMap
                 topology={topology}
                 isLoading={topoLoading}
@@ -394,21 +395,36 @@ export const App: React.FC<AppProps> = ({
                 }
               />
             </div>
-            <div className="lg:col-span-5">
+            <div className="lg:col-span-5 lg:h-[500px]">
               <section className="ns-card">
                 <CardHeader
                   title="KPI activity"
                   subtitle="Live KPI samples streaming from the cells."
-                  info="Counts and network-wide averages of the KPI samples the simulator publishes every 15 minutes (synthetic)."
+                  info={TIPS.panelKpiActivity}
                 />
-                <KpiActivity activity={kpiActivity} status={kpiStatus} />
+                <div className="ns-scroll">
+                  <KpiActivity activity={kpiActivity} status={kpiStatus} />
+                </div>
               </section>
             </div>
           </div>
 
-          {/* Step 14: impact / RCA on the knowledge graph (highlights the map above) */}
-          <div className="lg:max-h-[420px]">
-            <RcaGraph topology={topology} onImpact={onImpact} agentRun={run} />
+          {/* Row: Step 14 impact / RCA (highlights the map above) + Step 21 PQC status */}
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
+            <div className="lg:col-span-7 lg:h-[460px]">
+              <RcaGraph
+                topology={topology}
+                onImpact={onImpact}
+                agentRun={run}
+              />
+            </div>
+            <div className="lg:col-span-5 lg:h-[460px]">
+              <PqcStatus
+                data={pqc.data}
+                error={pqc.error}
+                isLoading={pqc.isLoading}
+              />
+            </div>
           </div>
 
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -416,16 +432,9 @@ export const App: React.FC<AppProps> = ({
             <AnomaliesContainer />
           </div>
 
-          {/* Step 21: post-quantum TLS + model signature status */}
-          <PqcStatus
-            data={pqc.data}
-            error={pqc.error}
-            isLoading={pqc.isLoading}
-          />
-
-          {/* Row: W17 multi-agent copilot chat + per-agent trace */}
+          {/* Row: W17 multi-agent copilot chat + per-agent trace (equal height, both scroll) */}
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
-            <div className="lg:col-span-7">
+            <div className="lg:col-span-7 lg:h-[640px]">
               <CopilotChat
                 incidentId={incidentId}
                 siteId={selected?.siteId ?? null}
@@ -447,7 +456,7 @@ export const App: React.FC<AppProps> = ({
                 }
               />
             </div>
-            <div className="ns-card lg:col-span-5">
+            <div className="ns-card lg:col-span-5 lg:h-[640px]">
               <TraceView run={run} />
             </div>
           </div>
