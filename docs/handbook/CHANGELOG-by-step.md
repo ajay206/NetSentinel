@@ -366,3 +366,18 @@ Introduces the topology‑aware incident clustering service, its API, and the ne
 - **Results (hash embedder):** graph-question hit@1 0.26 (hybrid) → 0.80 (graph); all-questions hit@1 0.733 → 0.900, MRR@5 0.815 → 0.921; p95 about 2.5 ms. Caveats are in the report and ADR-015.
 - **Docs:** ADR-015, `03-services.md`, `02-local-setup.md`, troubleshooting #71–73.
 - **Tests:** rag graph pipeline (linking, planner, rerank, API, bench), context endpoint (memory + opt-in Neo4j equality), gateway RBAC row, MCP mode, copilot end-to-end against the real rag-service, Vitest chips/badge; smoke: `graph_rag` check (works without the `graph` profile).
+
+### Step 16 — ticket-service: drafts, human approvals, append-only audit log (W16)
+- **ticket-service** (new, port 8009, profile `ops`):
+  - SQLAlchemy + Alembic (`uv run alembic upgrade head`), on TimescaleDB in compose and SQLite in dev/tests;
+  - `draft → approved | rejected` with 409 on a second or stale decision;
+  - `ticket_audit` is append-only (DB trigger) and hash-chained, checked by `GET /audit/verify`.
+- **Gateway:** `/api/tickets/*`. Reads need viewer; drafts need operator or the MCP service token; approve/reject need operator. Both ticket-service and the gateway `audit_log` are written; the shared `TICKET_SERVICE_TOKEN` stops header forgery. Health panel lists ticket-service.
+- **MCP:** `open_ticket_draft`, which creates drafts only; there is no approve tool.
+- **Console:** **Approval queue** (`views/ApprovalQueue.tsx`) with status filter, approve/reject with note, read-only for viewers, and an audit trail side panel. The Incident board links to related drafts. New permission `ticket.approve`.
+- **Compose / Make:** `ticket-service`; TimescaleDB joins `ops`; `make up-tickets`, `ticket-migrate`, `ticket-contract`, `tickets`; `TICKET_SERVICE_TOKEN` in `env.example.txt`. All 1024 profile combinations validate.
+- **Docs:** ADR-016, `03-services.md` (service, API, RBAC rows), `02-local-setup.md`, troubleshooting #74–76, `contracts/openapi/ticket-service.yaml`; gateway-auth and MCP contracts regenerated.
+- **Tests:**
+  - pytest: state machine, roles, service principal drafts only, validation, internal token, trigger and tamper detection; gateway RBAC matrix rows and an end-to-end test against the real ticket-service (MCP draft → viewer 403 → operator approve → both audits); MCP tool (no approve tool); contract drift;
+  - Vitest: ApprovalQueue and App role flows (operator approves via the related-draft link, viewer read-only);
+  - smoke: `tickets` check (skips when `ops` is off).

@@ -274,6 +274,21 @@ make rag-bench         # Docker only: vector/bm25/hybrid/rerank/graph -> evals/r
 
 `mode: "graph"` links ids and names in the query (SITE-010, LNK-012, "North-Hub-1", "the hub of SITE-010") to the topology. It reads the neighbourhood from topology-service when the `graph` profile is up; otherwise it uses the same seed-42 topology in-process, so it works with the `rag` profile alone. The copilot uses graph mode by default (`RAG_MODE`).
 
+## Ticket drafts and approvals (Step 16)
+
+```bash
+make up-tickets                 # timescaledb + ticket-service (profile ops); migrates on start
+make ticket-migrate             # optional: alembic upgrade head inside the container
+OP=$(curl -s localhost:8000/api/auth/login -H 'content-type: application/json' \
+     -d '{"username":"operator","password":"operator"}' | python3 -c 'import sys,json;print(json.load(sys.stdin)["accessToken"])')
+curl -s -XPOST localhost:8000/api/tickets/drafts -H "authorization: Bearer $OP" \
+     -H 'content-type: application/json' -d '{"title":"Fibre cut SITE-010","siteId":"SITE-010"}'
+# with a viewer token the same call returns 403; approve with
+curl -s -XPOST localhost:8000/api/tickets/TKT-XXXXXXXXXX/approve -H "authorization: Bearer $OP" -d '{}'
+```
+
+The console's **Approval queue** shows drafts, including ones the copilot opened through MCP (🤖 MCP). Operators approve or reject; viewers see it read-only.
+
 ## Copilot with a local LLM (W9) – Setup
 
 ### Prerequisites

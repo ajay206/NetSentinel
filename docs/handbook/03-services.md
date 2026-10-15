@@ -659,7 +659,8 @@ still depends only on the core tier (Kafka, TimescaleDB):
 | Role | Accessible endpoints |
 |------|----------------------|
 | `viewer` | All `/api/*` (except admin/operator only), all `/ws/*`, `/health`, `/docs`, `/openapi.json` |
-| `operator` | All viewer endpoints **plus** `POST /api/copilot/analyze` |
+| `operator` | All viewer endpoints **plus** `POST /api/copilot/analyze`, incident/alarm actions, `POST /api/tickets/drafts`, `POST /api/tickets/{id}/approve\|reject` (Step 16) |
+| service token (MCP, copilot) | viewer reads **plus** `POST /api/tickets/drafts` only: AI may draft, never approve |
 | `admin` | All viewer & operator endpoints **plus** `GET /api/auth/users` |
 
 ### OpenAPI contract
@@ -762,6 +763,24 @@ The gateway exposes these under `/api/graph/*` (viewer; reload is admin and audi
 **Memory:** Neo4j 512 MB heap + 256 MB page cache, `mem_limit: 1g`; topology-service 192 MB. **Measured latency** (Neo4j 5.26, laptop-class box): impact p50 ≈ 6 ms on the 12-site graph and ≈ 5 ms on the 60-site graph; HTTP round trip 7–10 ms warm. The first query after start takes 150–600 ms while Neo4j plans it.
 
 Run: `make up-graph` (compose), `make impact LINK=LNK-012` (through the gateway as viewer), `make topo-load` (re-load inside the container).
+
+## ticket-service: drafts, approvals and audit (Step 16, W16)
+
+- **Port** 8009 (bound to localhost; reach it through the gateway). **Profile** `ops`. **Store**: SQLAlchemy + Alembic on TimescaleDB/Postgres (`DATABASE_URL`). SQLite is the default for dev and tests.
+- **Workflow:** `draft → approved | rejected`. A decision happens once: a second decision or a stale `version` returns 409. Reject needs a note.
+- **Who may do what:** operators and admins may draft. So may the MCP service token, recorded as `createdVia: "mcp"`. Only operators and admins may decide. The gateway enforces this, and ticket-service re-checks the `X-NS-Role` forwarded by the gateway. With `TICKET_SERVICE_TOKEN` set (compose), every call must carry `X-NS-Internal-Token`, so nobody can forge those headers.
+- **Audit:** every create and decision appends to `ticket_audit`. Rows are append-only: a DB trigger rejects UPDATE/DELETE on Postgres and SQLite. Each row's SHA-256 `hash` chains to the previous one, so `GET /audit/verify` detects edits even if the trigger is bypassed. The gateway also writes `ticket.draft|approve|reject` to its own `audit_log` (Admin → Audit).
+- **Migrations:** `cd services/ticket-service && uv run alembic upgrade head` (dev). The container also upgrades on start (`TICKET_AUTO_MIGRATE=1`), and `make ticket-migrate` runs it in Docker.
+
+| Method | Path (gateway: `/api/` prefix) | Role | Notes |
+|---|---|---|---|
+| POST | `/tickets/drafts` | operator / service token | Body `{title, description?, severity?, siteId?, incidentId?, faultType?, runbookIds?, sourceIds?}`, 201 |
+| GET | `/tickets?status=&incidentId=` | viewer | `{items, counts}` |
+| GET | `/tickets/{id}`, `/tickets/{id}/audit` | viewer | Detail and the ticket's audit trail |
+| POST | `/tickets/{id}/approve`, `/tickets/{id}/reject` | operator | Body `{note?, version?}`; 409 if not a draft |
+| GET | `/tickets/audit`, `/tickets/audit/verify` (service: `/audit`, `/audit/verify`) | viewer | Whole log; chain check `{ok, entries, head \| brokenAt}` |
+
+**MCP:** `open_ticket_draft(title, site_id, description?, severity?, incident_id?, fault_type?, runbook_ids?, source_ids?)` creates a draft through the gateway. There is deliberately no approve tool. **Console:** the **Approval queue** panel (`views/ApprovalQueue.tsx`) shows the status filter, approve/reject with a note (read-only for viewers) and the audit trail side panel. Selecting an incident on the Incident board lists its related tickets. Contract: `contracts/openapi/ticket-service.yaml` (`make ticket-contract`).
 
 ## noc-console container (Fix 1)
 

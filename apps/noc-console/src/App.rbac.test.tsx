@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import App from './App';
 import type { Role, Session } from './lib/auth';
@@ -30,6 +30,26 @@ const INC = {
   status: 'open',
   version: 1,
   workflow: null,
+};
+
+const TKT = {
+  id: 'TKT-00000000AA',
+  status: 'draft',
+  title: 'Fibre cut at SITE-011',
+  description: 'drafted by the copilot',
+  severity: 'critical',
+  siteId: 'SITE-011',
+  incidentId: 'INC-0123456789',
+  faultType: 'fibre_cut',
+  runbookIds: ['RB-FIB-001'],
+  sourceIds: [],
+  createdBy: 'service:mcp',
+  createdVia: 'mcp',
+  createdAt: '2026-01-01T00:06:00Z',
+  decidedBy: null,
+  decidedAt: null,
+  decisionNote: null,
+  version: 1,
 };
 
 const json = (body: unknown, ok = true) =>
@@ -70,6 +90,10 @@ beforeEach(() => {
         ],
       });
     if (url.startsWith('/api/admin/audit')) return json({ items: [] });
+    if (url.endsWith('/audit') && url.startsWith('/api/tickets/'))
+      return json({ ticketId: TKT.id, entries: [] });
+    if (url.startsWith('/api/tickets'))
+      return json({ items: [TKT], counts: { draft: 1, approved: 0, rejected: 0 } });
     if (url.startsWith('/api/admin/settings'))
       return json({
         userStore: 'postgres',
@@ -143,5 +167,28 @@ describe('role-specific dashboards (Step 13b)', () => {
     expect(screen.getByLabelText('Role for admin1')).toBeDisabled();
     expect(await screen.findByTestId('settings-list')).toHaveTextContent('after 5 failed logins');
     expect(screen.getByTestId('audit-log')).toBeInTheDocument();
+  });
+});
+
+describe('approval queue (Step 16)', () => {
+  it('operator opens a related draft from the incident board and approves it', async () => {
+    renderAs('operator');
+    await selectIncident();
+    const related = await screen.findByTestId('related-drafts');
+    fireEvent.click(within(related).getByRole('button', { name: `${TKT.id} (draft)` }));
+    expect(await screen.findByTestId('ticket-detail')).toHaveTextContent(TKT.title);
+    fireEvent.click(screen.getByRole('button', { name: 'Approve' }));
+    await waitFor(() =>
+      expect(globalThis.fetch).toHaveBeenCalledWith(
+        `/api/tickets/${TKT.id}/approve`,
+        expect.objectContaining({ method: 'POST' }),
+      ),
+    );
+  });
+
+  it('viewer sees the queue read-only', async () => {
+    renderAs('viewer');
+    fireEvent.click(await screen.findByTestId('ticket-row'));
+    expect(screen.getByRole('button', { name: 'Approve' })).toBeDisabled();
   });
 });

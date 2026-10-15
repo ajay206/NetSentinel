@@ -264,6 +264,10 @@ def required_role(method: str, path: str) -> str | None:
     # Step 13b: incident and alarm workflow actions (ack / assign / resolve with notes)
     if method == "POST" and _ACTION_RE.match(path):
         return "operator"
+    # Step 16: drafting and deciding tickets is operator work (the MCP service token may
+    # draft too, see SERVICE_ALLOWED); reading the queue and the audit trail is viewer
+    if method == "POST" and _TICKET_WRITE_RE.match(path):
+        return "operator"
     # Step 14: reloading the knowledge graph rewrites it, so admin only
     if path == "/api/graph/reload":
         return "admin"
@@ -273,6 +277,9 @@ def required_role(method: str, path: str) -> str | None:
 
 
 _ACTION_RE = re.compile(r"^/api/(incidents/[^/]+|alarms)/actions$")
+_TICKET_WRITE_RE = re.compile(r"^/api/tickets/(drafts|[^/]+/(approve|reject))$")
+# Step 16: the only write the internal service principal (MCP) gets: AI drafts, humans approve
+SERVICE_ALLOWED = {("POST", "/api/tickets/drafts")}
 
 
 class RateLimiter:
@@ -374,7 +381,8 @@ class AuthMiddleware:
             # the live role wins: a demotion takes effect without waiting for token expiry
             user = {"username": account.username, "role": account.role}
 
-        if not role_at_least(user["role"], needed):
+        service_ok = user["username"] == "service" and (method, path) in SERVICE_ALLOWED
+        if not service_ok and not role_at_least(user["role"], needed):
             await _reject(send, is_ws, 403, f"Requires role {needed}")
             return
 

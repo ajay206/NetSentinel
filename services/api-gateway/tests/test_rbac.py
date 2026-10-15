@@ -16,6 +16,7 @@ from api_gateway import auth  # noqa: E402
 
 STRONG = "N3w-Synthetic-pass!"
 INC = "INC-0123456789"
+TKT = "TKT-0123456789"
 
 
 @pytest.fixture
@@ -55,6 +56,11 @@ def client(monkeypatch, memory_store_factory):
         "topology_transport",
         httpx.MockTransport(lambda r: httpx.Response(200, json={"ok": True, "loaded": {}})),
     )
+    monkeypatch.setattr(
+        main,
+        "ticket_transport",
+        httpx.MockTransport(lambda r: httpx.Response(200, json={"id": TKT, "status": "draft"})),
+    )
     c = TestClient(main.app)
     c.store = store  # type: ignore[attr-defined]
     c.seen = seen  # type: ignore[attr-defined]
@@ -90,6 +96,15 @@ MATRIX = [
     ("POST", "/api/graph/queries/site_by_id", {"siteId": "SITE-001"}, "viewer"),
     ("POST", "/api/graph/reload", None, "admin"),
     ("GET", "/api/graph/context/SITE-010", None, "viewer"),
+    # Step 16: AI may draft, humans approve
+    ("GET", "/api/tickets", None, "viewer"),
+    ("GET", f"/api/tickets/{TKT}", None, "viewer"),
+    ("GET", f"/api/tickets/{TKT}/audit", None, "viewer"),
+    ("GET", "/api/tickets/audit", None, "viewer"),
+    ("GET", "/api/tickets/audit/verify", None, "viewer"),
+    ("POST", "/api/tickets/drafts", {"title": "x"}, "operator"),
+    ("POST", f"/api/tickets/{TKT}/approve", {}, "operator"),
+    ("POST", f"/api/tickets/{TKT}/reject", {"note": "dup"}, "operator"),
 ]
 ROLES = ("viewer", "operator", "admin")
 

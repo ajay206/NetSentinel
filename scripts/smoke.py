@@ -371,6 +371,39 @@ class Smoke:
             raise RuntimeError(f"impact query took {ms:.0f} ms (target < {self.GRAPH_MAX_MS:.0f})")
         return f"LNK-012 -> {body.get('cellsLost')} cells lost, {ms:.1f} ms ({body.get('backend')})"
 
+    TICKETS_MODE = os.environ.get("SMOKE_TICKETS", "auto")  # auto | 1 (required) | 0 (skip)
+
+    def step_tickets(self) -> str:
+        """Step 16: operator drafts, viewer cannot approve, operator approves, audit chain ok."""
+        op = self._bearer(
+            self._login_as("operator", os.environ.get("SMOKE_OPERATOR_PASSWORD", "operator"))
+        )
+        viewer = self._bearer(
+            self._login_as("viewer", os.environ.get("SMOKE_VIEWER_PASSWORD", "viewer"))
+        )
+        draft = {"title": "smoke: synthetic ticket draft", "siteId": "SITE-010"}
+        r = self.client.post("/api/tickets/drafts", json=draft, headers=op)
+        if r.status_code == 503 and self.TICKETS_MODE != "1":
+            return "skipped: ops profile not running (SMOKE_TICKETS=1 to require it)"
+        if r.status_code != 201:
+            raise RuntimeError(f"draft returned {r.status_code}")
+        tid = r.json()["id"]
+        if (
+            self.client.post(f"/api/tickets/{tid}/approve", json={}, headers=viewer).status_code
+            != 403
+        ):
+            raise RuntimeError("viewer was not refused (expected 403)")
+        r = self.client.post(f"/api/tickets/{tid}/approve", json={"note": "smoke"}, headers=op)
+        if r.status_code != 200 or r.json().get("status") != "approved":
+            raise RuntimeError(f"approve returned {r.status_code}")
+        trail = self.client.get(f"/api/tickets/{tid}/audit", headers=viewer).json()["entries"]
+        if [e.get("action") for e in trail] != ["created", "approved"]:
+            raise RuntimeError(f"unexpected audit trail {[e.get('action') for e in trail]}")
+        v = self.client.get("/api/tickets/audit/verify", headers=viewer).json()
+        if not v.get("ok"):
+            raise RuntimeError(f"audit chain broken at {v.get('brokenAt')}")
+        return f"{tid} draft -> approved, audit chain ok ({v.get('entries')} entries)"
+
     def step_console(self) -> str:
         """The dashboard container serves the SPA and proxies /health to the gateway."""
         page = self.client.get(f"{self.console_url}/")
@@ -426,6 +459,8 @@ class Smoke:
         self._run("password", self.step_password)
         if self.GRAPH_MODE != "0":
             self._run("graph_impact", self.step_graph_impact)
+        if self.TICKETS_MODE != "0":
+            self._run("tickets", self.step_tickets)
         return all(c.ok for c in self.checks)
 
     @staticmethod

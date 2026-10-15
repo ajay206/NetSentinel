@@ -650,6 +650,240 @@ paths:
       x-required-role: viewer
       security:
       - bearer: []
+  /api/tickets:
+    get:
+      summary: Tickets Read
+      description: 'W16: approval queue, ticket detail and audit trail (viewer role).'
+      operationId: tickets_read_api_tickets_get
+      parameters:
+      - name: ticket_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Ticket Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+        '401':
+          description: Missing, invalid or expired token
+        '403':
+          description: Role too low
+        '429':
+          description: Rate limited (Retry-After header)
+      x-required-role: viewer
+      security:
+      - bearer: []
+  /api/tickets/audit:
+    get:
+      summary: Tickets Read
+      description: 'W16: approval queue, ticket detail and audit trail (viewer role).'
+      operationId: tickets_read_api_tickets_audit_get
+      parameters:
+      - name: ticket_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Ticket Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+        '401':
+          description: Missing, invalid or expired token
+        '403':
+          description: Role too low
+        '429':
+          description: Rate limited (Retry-After header)
+      x-required-role: viewer
+      security:
+      - bearer: []
+  /api/tickets/audit/verify:
+    get:
+      summary: Tickets Read
+      description: 'W16: approval queue, ticket detail and audit trail (viewer role).'
+      operationId: tickets_read_api_tickets_audit_verify_get
+      parameters:
+      - name: ticket_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Ticket Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+        '401':
+          description: Missing, invalid or expired token
+        '403':
+          description: Role too low
+        '429':
+          description: Rate limited (Retry-After header)
+      x-required-role: viewer
+      security:
+      - bearer: []
+  /api/tickets/{ticket_id}:
+    get:
+      summary: Tickets Read
+      description: 'W16: approval queue, ticket detail and audit trail (viewer role).'
+      operationId: tickets_read_api_tickets__ticket_id__get
+      parameters:
+      - name: ticket_id
+        in: path
+        required: true
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Ticket Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+        '401':
+          description: Missing, invalid or expired token
+        '403':
+          description: Role too low
+        '429':
+          description: Rate limited (Retry-After header)
+      x-required-role: viewer
+      security:
+      - bearer: []
+  /api/tickets/{ticket_id}/audit:
+    get:
+      summary: Tickets Read
+      description: 'W16: approval queue, ticket detail and audit trail (viewer role).'
+      operationId: tickets_read_api_tickets__ticket_id__audit_get
+      parameters:
+      - name: ticket_id
+        in: path
+        required: true
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Ticket Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+        '401':
+          description: Missing, invalid or expired token
+        '403':
+          description: Role too low
+        '429':
+          description: Rate limited (Retry-After header)
+      x-required-role: viewer
+      security:
+      - bearer: []
+  /api/tickets/drafts:
+    post:
+      summary: Ticket Draft
+      description: 'W16: create a ticket draft (operator role, or the MCP service token). Audited.'
+      operationId: ticket_draft_api_tickets_drafts_post
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '401':
+          description: Missing, invalid or expired token
+        '403':
+          description: Role too low
+        '429':
+          description: Rate limited (Retry-After header)
+      x-required-role: operator
+      security:
+      - bearer: []
+  /api/tickets/{ticket_id}/{decision}:
+    post:
+      summary: Ticket Decide
+      description: 'W16: approve or reject a draft (operator role). Audited here and in ticket-service.'
+      operationId: ticket_decide_api_tickets__ticket_id___decision__post
+      parameters:
+      - name: ticket_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Ticket Id
+      - name: decision
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Decision
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+        '401':
+          description: Missing, invalid or expired token
+        '403':
+          description: Role too low
+        '429':
+          description: Rate limited (Retry-After header)
+      x-required-role: operator
+      security:
+      - bearer: []
 components:
   schemas:
     HTTPValidationError:

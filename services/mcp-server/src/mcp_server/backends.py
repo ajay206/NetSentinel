@@ -224,3 +224,16 @@ class Backends:
                 return resp.json()
             except (httpx.HTTPError, ValueError) as exc:
                 self._raise_backend_error("topology", exc)
+
+    async def open_ticket_draft(self, draft: dict[str, Any]) -> dict[str, Any]:
+        """W16: create a ticket DRAFT via the gateway (the service token can draft, not approve)."""
+        headers = {**(gateway_headers() or {}), "X-NS-Via": "mcp"}
+        async with self._client() as client:
+            try:
+                resp = await client.post(
+                    f"{self.gateway_url}/api/tickets/drafts", json=draft, headers=headers
+                )
+                resp.raise_for_status()
+                return resp.json()
+            except (httpx.HTTPError, ValueError) as exc:
+                self._raise_backend_error("ticket", exc)

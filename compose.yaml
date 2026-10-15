@@ -39,7 +39,8 @@ services:
 
   timescaledb:
     image: timescale/timescaledb:latest-pg16
-    profiles: ["core", "pipeline", "ui"]  # ui: the gateway keeps users + audit_log here (13b)
+    # ui: the gateway keeps users + audit_log here (13b); ops: ticket-service tables (W16)
+    profiles: ["core", "pipeline", "ui", "ops"]
     ports:
       - "5432:5432"
     environment:
@@ -87,6 +88,8 @@ services:
       MCP_SERVER_URL: http://mcp-server:8006
       INCIDENT_SERVICE_URL: http://incident-service:8007
       TOPOLOGY_SERVICE_URL: http://topology-service:8008
+      TICKET_SERVICE_URL: http://ticket-service:8009
+      TICKET_SERVICE_TOKEN: ${TICKET_SERVICE_TOKEN:-dev-only-ticket-token}
       # W11: JWT/RBAC. Dev-only defaults; set real values in .env (never commit them)
       JWT_SECRET: ${JWT_SECRET:-dev-only-change-me-0123456789abcdefghij}
       GATEWAY_SERVICE_TOKEN: ${GATEWAY_SERVICE_TOKEN:-dev-only-service-token}
@@ -165,6 +168,28 @@ services:
       test: ["CMD-SHELL", "python -c \"import urllib.request;urllib.request.urlopen('http://localhost:8007/healthz')\""]
       interval: 10s
       retries: 5
+    restart: unless-stopped
+
+  # W16: ticket drafts + human approvals + append-only audit log (Postgres via Alembic)
+  ticket-service:
+    build:
+      context: .
+      dockerfile: services/ticket-service/Dockerfile
+    profiles: ["ops"]
+    ports:
+      - "127.0.0.1:8009:8009"  # local only; reached through the gateway
+    environment:
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:?set in .env}@timescaledb:5432/postgres
+      # Only the gateway knows this token, so X-NS-User / X-NS-Role cannot be forged
+      TICKET_SERVICE_TOKEN: ${TICKET_SERVICE_TOKEN:-dev-only-ticket-token}
+    mem_limit: 128m
+    depends_on:
+      timescaledb:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request;urllib.request.urlopen('http://localhost:8009/readyz')\""]
+      interval: 10s
+      retries: 6
     restart: unless-stopped
 
   # Step 14 (W14): network knowledge graph. ~1 GB total, opt-in: --profile graph

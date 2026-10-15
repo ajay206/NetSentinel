@@ -59,6 +59,8 @@ MCP_SERVER_URL = os.getenv("MCP_SERVER_URL", "http://localhost:8006").rstrip("/"
 INCIDENT_SERVICE_URL = os.getenv("INCIDENT_SERVICE_URL", "http://localhost:8007").rstrip("/")
 # W14: topology-service (Neo4j knowledge graph), compose profile `graph`
 TOPOLOGY_SERVICE_URL = os.getenv("TOPOLOGY_SERVICE_URL", "http://localhost:8008").rstrip("/")
+# W16: ticket-service (drafts + approvals), compose profile `ops`
+TICKET_SERVICE_URL = os.getenv("TICKET_SERVICE_URL", "http://localhost:8009").rstrip("/")
 # W11: Phase 1 services probed through the gateway for the health panel
 PHASE1_SERVICES = {
     "alarm-ingest": lambda: ALARM_INGEST_URL,
@@ -68,6 +70,7 @@ PHASE1_SERVICES = {
     "copilot-orchestrator": lambda: COPILOT_URL,
     "mcp-server": lambda: MCP_SERVER_URL,
     "incident-service": lambda: INCIDENT_SERVICE_URL,
+    "ticket-service": lambda: TICKET_SERVICE_URL,
 }
 health_transport: httpx.AsyncBaseTransport | None = None
 # Tests swap this for an httpx.MockTransport
@@ -77,6 +80,7 @@ rag_transport: httpx.AsyncBaseTransport | None = None
 copilot_transport: httpx.AsyncBaseTransport | None = None
 incident_transport: httpx.AsyncBaseTransport | None = None
 topology_transport: httpx.AsyncBaseTransport | None = None
+ticket_transport: httpx.AsyncBaseTransport | None = None
 
 # Topology generation settings
 TOPOLOGY_SEED = int(os.getenv("TOPOLOGY_SEED", "42"))
@@ -679,6 +683,93 @@ async def alarm_action_proxy(request: Request) -> JSONResponse:
     except (ValueError, AttributeError):
         return JSONResponse({"detail": "Invalid JSON"}, status_code=400)
     return await _workflow_call(request, "alarms/actions", key or "?")
+
+
+# --- W16: ticket drafts, approvals and the audit trail ---------------------------------------
+
+_TICKET_ID_RE = re.compile(r"^TKT-[0-9A-F]{10}$")
+
+
+async def _ticket_call(
+    request: Request, method: str, path: str, body: bytes | None = None
+) -> tuple[JSONResponse, dict[str, Any] | None]:
+    user = auth_mod.current_user(request)
+    # the gateway's service principal is "viewer" for reads; ticket-service knows it as service
+    role = "service" if user["username"] == "service" else user["role"]
+    headers = {"X-NS-User": user["username"], "X-NS-Role": role, "X-NS-Via": "ui"}
+    if role == "service":
+        headers["X-NS-Via"] = request.headers.get("X-NS-Via", "mcp")[:16]
+    token = os.getenv("TICKET_SERVICE_TOKEN")
+    if token:
+        headers["X-NS-Internal-Token"] = token
+    if body is not None:
+        headers["Content-Type"] = "application/json"
+    try:
+        async with httpx.AsyncClient(transport=ticket_transport, timeout=10.0) as client:
+            resp = await client.request(
+                method,
+                f"{TICKET_SERVICE_URL}/{path}",
+                content=body,
+                headers=headers,
+                params=request.query_params if method == "GET" else None,
+            )
+    except httpx.HTTPError as exc:
+        logger.warning("ticket-service unreachable: %s", exc)
+        return JSONResponse({"detail": "ticket-service unreachable"}, status_code=503), None
+    try:
+        payload = resp.json()
+    except ValueError:
+        return JSONResponse({"detail": "ticket-service returned non-JSON"}, status_code=502), None
+    ok = payload if resp.status_code in (200, 201) and isinstance(payload, dict) else None
+    return JSONResponse(payload, status_code=resp.status_code), ok
+
+
+@app.get("/api/tickets")
+@app.get("/api/tickets/audit")
+@app.get("/api/tickets/audit/verify")
+@app.get("/api/tickets/{ticket_id}")
+@app.get("/api/tickets/{ticket_id}/audit")
+async def tickets_read(request: Request, ticket_id: str | None = None) -> JSONResponse:
+    """W16: approval queue, ticket detail and audit trail (viewer role)."""
+    path = request.url.path.removeprefix("/api/")
+    if path.startswith("tickets/audit"):
+        path = path.removeprefix("tickets/")
+    elif ticket_id is not None and not _TICKET_ID_RE.match(ticket_id):
+        return JSONResponse({"detail": "Not found"}, status_code=404)
+    resp, _ = await _ticket_call(request, "GET", path)
+    return resp
+
+
+@app.post("/api/tickets/drafts")
+async def ticket_draft(request: Request) -> JSONResponse:
+    """W16: create a ticket draft (operator role, or the MCP service token). Audited."""
+    body = await request.body()
+    if len(body) > 16_000:
+        return JSONResponse({"detail": "Request too large"}, status_code=413)
+    resp, ok = await _ticket_call(request, "POST", "tickets/drafts", body)
+    if ok:
+        user = auth_mod.current_user(request)
+        await auth_mod.store.audit(
+            user["username"], "ticket.draft", str(ok.get("id")), {"via": ok.get("createdVia")}
+        )
+    return resp
+
+
+@app.post("/api/tickets/{ticket_id}/{decision}")
+async def ticket_decide(ticket_id: str, decision: str, request: Request) -> JSONResponse:
+    """W16: approve or reject a draft (operator role). Audited here and in ticket-service."""
+    if decision not in ("approve", "reject") or not _TICKET_ID_RE.match(ticket_id):
+        return JSONResponse({"detail": "Not found"}, status_code=404)
+    body = await request.body()
+    if len(body) > 4_000:
+        return JSONResponse({"detail": "Request too large"}, status_code=413)
+    resp, ok = await _ticket_call(request, "POST", f"tickets/{ticket_id}/{decision}", body)
+    if ok:
+        user = auth_mod.current_user(request)
+        await auth_mod.store.audit(
+            user["username"], f"ticket.{decision}", ticket_id, {"status": ok.get("status")}
+        )
+    return resp
 
 
 # --- W14: topology knowledge graph -------------------------------------------------------------

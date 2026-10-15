@@ -10,6 +10,8 @@ export const PERMISSIONS = {
   'copilot.analyze': 'operator',
   'incident.act': 'operator',
   'alarm.act': 'operator',
+  // Step 16: anyone may read the approval queue; only operators decide
+  'ticket.approve': 'operator',
   'admin.users': 'admin',
   'admin.audit': 'admin',
   'admin.settings': 'admin',
@@ -32,6 +34,7 @@ export const ROLE_STYLE: Record<Role, string> = {
 
 export const ROLE_BLURB: Record<Role, string> = {
   viewer: 'Read-only: dashboards, alarms, KPIs, incidents and runbooks.',
-  operator: 'Viewer + copilot and acknowledge / assign / resolve incidents and alarms.',
+  operator:
+    'Viewer + copilot, acknowledge / assign / resolve incidents and alarms, approve ticket drafts.',
   admin: 'Operator + user management, audit log and system settings.',
 };
