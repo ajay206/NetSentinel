@@ -431,6 +431,28 @@ class Smoke:
         path = "→".join(done.get("agentPath", []))
         return f"{run['runId']} {path} ticket={done.get('ticketId') or 'none (ops off)'}"
 
+    PQC_MODE = os.environ.get("SMOKE_PQC", "auto")  # auto | 1 (required) | 0 (skip)
+
+    def step_pqc(self) -> str:
+        """Step 21: TLS targets are hybrid-only; the served model's signature is not 'fail'."""
+        r = self.client.get("/api/security/pqc", headers=self._auth_headers())
+        if r.status_code != 200:
+            if self.PQC_MODE != "1":
+                return (
+                    f"skipped: /api/security/pqc returned {r.status_code} (SMOKE_PQC=1 to require)"
+                )
+            raise RuntimeError(f"/api/security/pqc returned {r.status_code}")
+        body = r.json()
+        tls = [t for t in body.get("tls", []) if t.get("tls")]
+        weak = [t["service"] for t in tls if not t.get("hybridOnly")]
+        if weak:
+            raise RuntimeError(f"not hybrid-only: {', '.join(weak)}")
+        model = body.get("model") or {}
+        if model.get("status") == "fail":
+            raise RuntimeError(f"model signature fail: {model.get('reason')}")
+        hybrid = ", ".join(f"{t['service']}={t.get('group')}" for t in tls) or "no TLS targets"
+        return f"{hybrid}; model {model.get('status', 'unknown')}"
+
     def step_console(self) -> str:
         """The dashboard container serves the SPA and proxies /health to the gateway."""
         page = self.client.get(f"{self.console_url}/")
@@ -490,6 +512,8 @@ class Smoke:
             self._run("tickets", self.step_tickets)
         if self.AGENTS_MODE != "0":
             self._run("agents", self.step_agents)
+        if self.PQC_MODE != "0":
+            self._run("pqc", self.step_pqc)
         return all(c.ok for c in self.checks)
 
     @staticmethod

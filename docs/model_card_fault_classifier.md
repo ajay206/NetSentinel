@@ -42,3 +42,8 @@
 - **No real‑world decisions:** The classifier is for demo visualization; it must not be used for automated remediation in a live network.  
 - **Explainability:** SHAP contributions are provided via TreeSHAP; they are approximations of feature impact on the model’s output.  
 - **Model freshness:** With `AUTO_TRAIN=1`, a minimal model is auto‑trained on the first /predict or /explain request if none is registered. For reproducible results, register a model explicitly via `make ml-train-xgb`.
+
+## Integrity (Step 21)
+- Each released version directory carries `signature.json`: SHA-256 of `model.json`, `meta.json` and this card, signed with **ML-DSA-65** (FIPS 204), with the key id `mldsa-<sha256(pub)[:16]>`.
+- ml-service verifies the signature before loading the model (`MODEL_VERIFY=enforce` in compose) and refuses a model that fails (503). CI (`verify-model.yml`) proves that a tampered model fails. See ADR-019.
+

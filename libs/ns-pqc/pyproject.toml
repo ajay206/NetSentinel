@@ -1,0 +1,14 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "ns-pqc"
+version = "0.1.0"
+description = "Post-quantum helpers: ML-DSA model signing and hybrid ML-KEM TLS probing (W21)"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = ["cryptography>=46"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/ns_pqc"]

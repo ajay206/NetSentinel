@@ -13,3 +13,15 @@ The GitHub Actions CI pipeline automatically runs on every push and pull request
 3. Runs `uv run ruff check .` (Linter).
 4. Runs `uv run ruff format --check .` (Formatter check).
 5. Runs `uv run pytest` (Test suite).
+
+## verify-model workflow (Step 21, `.github/workflows/verify-model.yml`)
+
+This workflow runs inside the `python:3.12-slim-trixie` container (the service base image, OpenSSL 3.5). It:
+
+- asserts that OpenSSL has ML-KEM / ML-DSA;
+- trains a tiny fault classifier, signs it and its model card with ML-DSA-65 and verifies it, then appends one byte and requires verification to **fail**;
+- runs the PQC tests: real hybrid / classical handshakes against hybrid-only, hybrid-preferred and classical servers, an untrusted CA, ml-service verify-on-load (enforce → 503) and the status aggregation;
+- runs a 100-round benchmark smoke.
+
+The handshake tests skip themselves on hosts with OpenSSL < 3.5; in this workflow they always run.
+

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import ssl
 from typing import Any, Protocol
 
 import httpx
@@ -31,8 +32,12 @@ class GatewayLLM:
         token: str | None = None,
         timeout: float = 90.0,
         transport: httpx.AsyncBaseTransport | None = None,
+        ca: str | None = None,
     ) -> None:
         self.url = url.rstrip("/")
+        # Step 21: https://llm-gateway:8443 with the dev CA; the hybrid X25519MLKEM768 group is
+        # enforced process-wide by OPENSSL_CONF (infra/pqc/openssl-hybrid.cnf).
+        self._verify: ssl.SSLContext | bool = ssl.create_default_context(cafile=ca) if ca else True
         self._headers = {"Authorization": f"Bearer {token}"} if token else {}
         self._timeout = timeout
         self._transport = transport
@@ -41,7 +46,9 @@ class GatewayLLM:
     async def complete(self, messages: list[dict[str, str]], schema: dict[str, Any]) -> str:
         body = {"messages": messages, "schema": schema}
         try:
-            async with httpx.AsyncClient(timeout=self._timeout, transport=self._transport) as c:
+            async with httpx.AsyncClient(
+                timeout=self._timeout, transport=self._transport, verify=self._verify
+            ) as c:
                 resp = await c.post(f"{self.url}/v1/complete", json=body, headers=self._headers)
                 data = resp.json()
         except (httpx.HTTPError, ValueError) as exc:

@@ -1,4 +1,4 @@
-.PHONY: logs ps reset-db tools-build incidents up-core up-tools up-ui down topics test lint fmt smoke sim sim-loop sim-docker gateway console-install console console-build console-lint console-test test-all ingest up-pipeline enriched-peek ingest-stats kpi-service kpi-stats kpi-query ml ml-train anomalies topology kpis kpis-follow kpis-peek docs-check ml-train-xgb up-rag rag rag-ingest rag-eval runbooks copilot up-copilot analyze ollama-pull mcp mcp-dev mcp-contract copilot-contract gateway-contract token demo kafka-smoke incident up-incident incidents-peek incident-eval up-graph topo-load impact topology-contract rag-bench rag-bench-dev up-tickets ticket-migrate ticket-contract tickets agents agent-runs llm-gateway-contract llm-gateway-redteam
+.PHONY: logs ps reset-db tools-build incidents up-core up-tools up-ui down topics test lint fmt smoke sim sim-loop sim-docker gateway console-install console console-build console-lint console-test test-all ingest up-pipeline enriched-peek ingest-stats kpi-service kpi-stats kpi-query ml ml-train anomalies topology kpis kpis-follow kpis-peek docs-check ml-train-xgb up-rag rag rag-ingest rag-eval runbooks copilot up-copilot analyze ollama-pull mcp mcp-dev mcp-contract copilot-contract gateway-contract token demo kafka-smoke incident up-incident incidents-peek incident-eval up-graph topo-load impact topology-contract rag-bench rag-bench-dev up-tickets ticket-migrate ticket-contract tickets agents agent-runs llm-gateway-contract llm-gateway-redteam pqc-init pqc-probe pqc-bench pqc-tamper pqc-verify
 
 # Targets marked (dev) run on the host and need uv / Node; everything else needs only Docker.
 
@@ -281,3 +281,22 @@ topo-load:
 LINK ?= LNK-012
 impact:
 	@$(TOOLS) python scripts/gw.py call GET "/api/graph/impact?linkId=$(LINK)" --as viewer
+
+# Step 21: post-quantum (Docker only; the pqc-init image has OpenSSL 3.5 + ns-pqc)
+pqc-init:
+	docker compose --profile copilot run --rm pqc-init
+
+pqc-probe:
+	docker compose --profile copilot run --rm --no-deps pqc-init python -c "import json,ns_pqc;print(json.dumps(ns_pqc.probe_tls('llm-gateway',8443,'/pqc/ca.crt'),indent=1))"
+
+pqc-bench:
+	docker compose --profile copilot run --rm --no-deps pqc-init python scripts/bench_tls.py --rounds 1000
+
+pqc-verify:
+	docker compose exec ml-service python -c "import urllib.request;print(urllib.request.urlopen('http://localhost:8003/model/signature').read().decode())"
+
+# Demo: alter the served model; after the restart ml-service refuses it (MODEL_VERIFY=enforce)
+pqc-tamper:
+	docker compose exec ml-service sh -c 'echo " " >> $$(ls -d /tmp/models/fault_classifier/*/ | head -1)meta.json'
+	docker compose restart ml-service
+

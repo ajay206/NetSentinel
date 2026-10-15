@@ -617,6 +617,7 @@ The **mcp-server** provides the internal MCP tool layer used by the Copilot orch
 | GET | `/api/graph/queries` | No | viewer | The 20 named read-only Cypher queries |
 | POST | `/api/graph/queries/{name}` | No | viewer | Run one named query with JSON params (no free-form Cypher) |
 | POST | `/api/graph/reload` | No | admin | Rebuild the graph from topology + runbooks (audited `graph.reload`) |
+| GET | `/api/security/pqc` | No | viewer | Step 21: hybrid-TLS probe per service + ml-service model-signature result |
 
 Error codes: 401 (no, bad, expired or revoked token), 403 (role too low or account disabled), 423 (account locked), 429 (rate limited), 503 (user store not ready). The generated contract is `contracts/openapi/api-gateway-auth.yaml` (`make gateway-contract`).
 
@@ -813,7 +814,7 @@ Run: `make up-graph` (compose), `make impact LINK=LNK-012` (through the gateway 
 
 ## llm-gateway: model router and guardrails (Step 18, W18)
 
-Every LLM call goes through `services/llm-gateway` (port 8010, `copilot` profile, internal
+Every LLM call goes through `services/llm-gateway` (HTTPS 8443 in compose since Step 21, plain 8010 for local dev; `copilot` profile, internal
 only). No other service may talk to Ollama or a cloud LLM; CI runs `scripts/check_llm_calls.py`
 to enforce it (ADR-018).
 
@@ -834,6 +835,16 @@ The W17 trace view's RCA step lists `llm:<route>` with the gateway latency.
 
 Red-team set: `evals/redteam.jsonl`, run with `make llm-gateway-redteam`
 (`uv run pytest services/llm-gateway -k redteam`).
+
+## Post-quantum security (Step 21, W21)
+
+ADR-019; numbers are in `docs/pqc_report.md`.
+
+- **Hybrid TLS:** llm-gateway serves HTTPS on 8443 (`python -m llm_gateway.serve`, `LLM_GATEWAY_TLS_CERT/KEY`) with `OPENSSL_CONF=/etc/netsentinel/pqc/openssl-hybrid.cnf`, which accepts only `X25519MLKEM768`. The copilot connects with `LLM_GATEWAY_URL=https://llm-gateway:8443`, `LLM_GATEWAY_CA=/pqc/ca.crt` and the hybrid-preferred policy. Images are `python:3.12-slim-trixie` (OpenSSL 3.5, asserted at build).
+- **pqc-init** (`infra/pqc/Dockerfile`, profiles `ui`, `pipeline`, `copilot`): a one-shot container that creates the dev CA, the llm-gateway cert and the ML-DSA-65 signing keypair in the `pqc` volume. It is idempotent.
+- **Model signing:** `scripts/sign_model.py keygen|sign|verify` (`ns_pqc`) writes and checks `signature.json` in a model version directory (SHA-256 manifest + optional model card, signed with ML-DSA-65). ml-service verifies before loading (`MODEL_VERIFY=enforce` in compose, `MODEL_SIGNING_PUBKEY`). On a failure, `/predict` and `/explain` return 503 and `GET /model/signature` reports why.
+- **Status:** `GET /api/security/pqc` (viewer) runs real hybrid-only and classical-only handshakes against `PQC_TLS_TARGETS` (cached 30 s), lists other services as plaintext and includes the model verify result. The console **PQC status** panel renders it.
+- **Make (Docker only):** `pqc-init`, `pqc-probe`, `pqc-bench`, `pqc-verify`, `pqc-tamper`.
 
 ## noc-console container (Fix 1)
 

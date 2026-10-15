@@ -47,3 +47,16 @@ graph TD
 ```
 
 > **Security & Design Constraint:** The Model Context Protocol (MCP) server is strictly an internal tool layer called exclusively by the `copilot-orchestrator`. There are no external AI clients.
+
+## Roadmap
+
+| Phase | Steps (weeks) | Status |
+|---|---|---|
+| 1: interview-ready core | 1–12 | Done |
+| 2: advanced AI | 13 incident-service, 14 topology-service, 15 Graph RAG, 16 ticket-service, 17 LangGraph copilot, 18 llm-gateway, 21 post-quantum | Steps 13–18 merged; Step 21 in review. **Not complete, so no `v0.2.0` tag yet** |
+| 3: production and cloud | **19–20 TelcoGPT-mini (moved from Phase 2 on 2026-10-15)**, 22 observability, 23 k3d + Helm, 24 CI/CD and eval gates, 25–26 | Planned |
+
+Step 21 was built straight after Step 18 and does not depend on TelcoGPT-mini. When Steps 19–20
+land, llm-gateway gains a `telcogpt-mini` route and `scripts/sign_model.py` signs that release
+the same way it signs the fault classifier today. The full plan is in `NetSentinel_Build_Plan.md`.
+

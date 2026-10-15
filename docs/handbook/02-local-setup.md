@@ -505,5 +505,24 @@ make topo-load                # re-load topology + runbooks (inside the containe
 `make up-copilot` (or `docker compose --profile copilot up -d`) starts `llm-gateway` next to
 the copilot. Ollama still runs on the host (`ollama pull qwen2.5:1.5b`); only the gateway
 reaches it. Set `LLM_GATEWAY_TOKEN` in `.env` for anything beyond local dev. Check routes and
-circuits with `docker compose exec llm-gateway python -c "import urllib.request;print(urllib.request.urlopen('http://localhost:8010/v1/stats').read().decode())"`.
+circuits with `docker compose exec llm-gateway python -c "import ssl,urllib.request;print(urllib.request.urlopen('https://localhost:8443/v1/stats',context=ssl.create_default_context(cafile='/pqc/ca.crt')).read().decode())"`
+(HTTPS since Step 21).
 Run the red-team set with `make llm-gateway-redteam`.
+
+## Post-quantum (Step 21)
+
+Everything runs in Docker; no host OpenSSL is needed.
+
+```bash
+docker compose --profile ui --profile pipeline --profile copilot up -d   # pqc-init runs first
+make pqc-probe     # real handshakes: {"hybrid": true, "classical": false, "group": "X25519MLKEM768"}
+make pqc-verify    # ml-service model signature: {"status": "pass", "alg": "ML-DSA-65", ...}
+make pqc-tamper    # alter the served model + restart: verify fails, /predict returns 503
+make pqc-bench     # classical vs hybrid handshake numbers (docs/pqc_report.md)
+```
+
+Recover from `pqc-tamper` with `docker compose up -d --force-recreate ml-service`, which retrains
+and re-signs. To sign a real release offline, use `scripts/sign_model.py sign --alg ML-DSA-65
+--key <private key> --model-dir models/fault_classifier/<version> --card
+docs/model_card_fault_classifier.md`. Keep private keys in `.pqc/` (gitignored) or a secrets store.
+

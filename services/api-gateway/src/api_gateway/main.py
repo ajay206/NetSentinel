@@ -31,6 +31,7 @@ from netgen import build_topology
 from api_gateway import auth as auth_mod
 from api_gateway.auth import AuthMiddleware, admin_router
 from api_gateway.auth import router as auth_router
+from api_gateway.pqc_status import PqcStatus
 from api_gateway.timeline import build_timeline
 
 logging.basicConfig(
@@ -862,6 +863,15 @@ async def _topology_call(method: str, path: str, **kwargs: Any) -> JSONResponse:
     except ValueError:
         return JSONResponse({"detail": "topology-service returned non-JSON"}, status_code=502)
     return JSONResponse(payload, status_code=resp.status_code)
+
+
+_pqc = PqcStatus(lambda: ML_SERVICE_URL)
+
+
+@app.get("/api/security/pqc")
+async def security_pqc() -> JSONResponse:
+    """Step 21: hybrid-TLS per service + last model-signature verify (PQC status panel)."""
+    return JSONResponse(await _pqc.get())
 
 
 @app.get("/api/graph/impact")

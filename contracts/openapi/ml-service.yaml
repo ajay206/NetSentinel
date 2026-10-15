@@ -109,6 +109,30 @@ paths:
               schema: {$ref: '#/components/schemas/FaultExplanation'}
         '422': {description: Invalid body}
         '503': {description: No model registered and AUTO_TRAIN=0}
+  /model/signature:
+    get:
+      summary: Step 21 - last ML-DSA-65 verify result for the served fault model
+      description: >-
+        MODEL_VERIFY=off|warn|enforce. The signature (signature.json, SHA-256 manifest signed
+        with ML-DSA-65) is checked before the model loads; under enforce a failed or missing
+        signature makes /predict and /explain return 503.
+      responses:
+        '200':
+          description: Verify result
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status, reason]
+                properties:
+                  status: {type: string, enum: [pass, fail, unsigned, "off"]}
+                  reason: {type: string}
+                  alg: {type: [string, "null"], example: ML-DSA-65}
+                  keyId: {type: [string, "null"]}
+                  signedAt: {type: [string, "null"]}
+                  verifiedAt: {type: string}
+                  policy: {type: string, enum: [warn, enforce]}
+                  modelVersion: {type: string}
 components:
   parameters:
     kpi:

@@ -61,3 +61,6 @@ node_modules/
 data/topology.json
 evals/runs/
 models/
+
+# Step 21: local PQC keys and certs (never commit private keys)
+.pqc/

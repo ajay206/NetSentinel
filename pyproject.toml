@@ -27,6 +27,7 @@ dev = [
     "topology-service",
     "ticket-service",
     "llm-gateway",
+    "ns-pqc",
     "httpx>=0.27",
     "pytest-asyncio>=0.24",
 ]
@@ -54,6 +55,7 @@ incident-service = { workspace = true }
 topology-service = { workspace = true }
 ticket-service = { workspace = true }
 llm-gateway = { workspace = true }
+ns-pqc = { workspace = true }
 
 [tool.ruff]
 line-length = 100

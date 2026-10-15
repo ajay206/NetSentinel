@@ -1,0 +1,9 @@
+# Step 21: process-wide TLS key-exchange policy for OpenSSL 3.5 (OPENSSL_CONF). ADR-019.
+# Hybrid preferred, classical X25519 still accepted (migration mode).
+openssl_conf = openssl_init
+[openssl_init]
+ssl_conf = ssl_sect
+[ssl_sect]
+system_default = sys
+[sys]
+Groups = X25519MLKEM768:X25519
