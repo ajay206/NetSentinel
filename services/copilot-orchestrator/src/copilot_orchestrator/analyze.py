@@ -10,7 +10,7 @@ from typing import Any
 from pydantic import ValidationError
 
 from copilot_orchestrator.clients.llm import LLM
-from copilot_orchestrator.clients.upstream import ToolRecorder
+from copilot_orchestrator.clients.upstream import ToolRecorder, rag_mode
 from copilot_orchestrator.models import (
     AlarmRef,
     AnalyzeRequest,
@@ -101,7 +101,7 @@ async def gather(
         anomalies=anomalies,
         fault=fault,
         runbooks=runbooks,
-        retrievalMode="graph" if any(r.nodeIds for r in runbooks) else "hybrid",
+        retrievalMode=rag_mode(),
         graphNodes=list(dict.fromkeys(n for r in runbooks for n in r.nodeIds))[:8],
     )
     return ctx, raw_alarms

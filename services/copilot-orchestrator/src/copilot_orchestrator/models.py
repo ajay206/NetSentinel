@@ -68,7 +68,7 @@ class Context(BaseModel):
     anomalies: list[AnomalyRef]
     fault: dict[str, Any] | None
     runbooks: list[RunbookRef]
-    # Step 15: "graph" when runbooks came from Graph RAG; graph nodes are citable sources
+    # Step 15: RAG_MODE used for this analyze (graph | hybrid); graph nodes are citable sources
     retrievalMode: str = "hybrid"
     graphNodes: list[str] = Field(default_factory=list)
 

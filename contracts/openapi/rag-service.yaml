@@ -93,12 +93,12 @@ components:
                 properties: {id: {type: string}, type: {type: string}, mention: {type: string}, via: {type: string}}
             nodes: {type: array, items: {type: string}}
             facets: {type: array, items: {type: string}}
-            summary: {type: string}
-            source: {type: string, description: "local | http | local (topology-service unavailable)"}
+            summary: {type: array, items: {type: string}, description: One neighbourhood summary string per linked entity}
+            source: {type: string, description: "local | topology-service | local (topology-service unavailable)"}
             plan:
               nullable: true
               type: object
-              properties: {query: {type: string}, params: {type: object, additionalProperties: {type: string}}, planner: {type: string}}
+              properties: {query: {type: string}, params: {type: object, additionalProperties: true}, planner: {type: string}}
             reranker: {type: string}
             elapsedMs: {type: number}
     RunbookHit:

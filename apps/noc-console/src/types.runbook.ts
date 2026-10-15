@@ -14,9 +14,9 @@ export interface GraphContext {
   entities: { id: string; type: string; mention: string; via: string }[];
   nodes: string[];
   facets: string[];
-  summary: string;
+  summary: string[];
   source: string;
-  plan?: { query: string; params: Record<string, string>; planner: string } | null;
+  plan?: { query: string; params: Record<string, string | number>; planner: string } | null;
   reranker: string;
   elapsedMs: number;
 }

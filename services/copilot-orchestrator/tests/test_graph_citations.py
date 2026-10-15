@@ -91,3 +91,23 @@ def test_llm_may_cite_graph_nodes_and_hybrid_mode_has_none(rag, monkeypatch):
         app.dependency_overrides.clear()
     assert plain["context"]["retrievalMode"] == "hybrid" and plain["context"]["graphNodes"] == []
     assert seen[-1]["mode"] == "hybrid"
+
+
+def test_retrieval_mode_is_graph_even_without_node_ids(rag, monkeypatch):
+    """RAG_MODE is the retrieval mode; missing topology chips must not report hybrid."""
+    monkeypatch.setenv("RAG_MODE", "graph")
+    from rag_service.api import app as rag_app
+
+    rag_app.state.graph_retriever.topology = None
+    seen: list = []
+    try:
+        data = (
+            _client(rag, MockLLM([{"bad": 1}]), seen)
+            .post("/analyze", json={"siteId": "SITE-010"})
+            .json()
+        )
+    finally:
+        app.dependency_overrides.clear()
+    assert seen[0]["mode"] == "graph"
+    assert data["context"]["retrievalMode"] == "graph"
+    assert data["context"]["graphNodes"] == []
