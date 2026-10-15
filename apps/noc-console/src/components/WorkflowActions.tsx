@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import type { Workflow } from '../hooks/useWorkflow';
 import { formatIST } from '../lib/time';
+import { TIPS } from '../lib/tooltips';
+import { Tooltip } from './ui/Tooltip';
 
 type Action = 'ack' | 'assign' | 'resolve' | 'note';
 
@@ -73,24 +75,32 @@ export const WorkflowActions: React.FC<WorkflowActionsProps> = ({
             className="w-full rounded border border-slate-700 bg-slate-950 px-2 py-1 text-slate-200"
           />
           <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              className={`${btn} bg-amber-600/80 text-white hover:bg-amber-500`}
-              disabled={isPending || state !== 'new'}
-              onClick={() => run('ack')}
-            >
-              Acknowledge
-            </button>
-            {allowAssign && (
-              <>
+            <Tooltip content={TIPS.btnAck}>
+              <span className="inline-flex">
                 <button
                   type="button"
-                  className={`${btn} bg-slate-700 text-slate-100 hover:bg-slate-600`}
-                  disabled={isPending || resolved || workflow?.assignee === currentUser}
-                  onClick={() => run('assign', { assignee: currentUser })}
+                  className={`${btn} bg-amber-600/80 text-white hover:bg-amber-500`}
+                  disabled={isPending || state !== 'new'}
+                  onClick={() => run('ack')}
                 >
-                  Assign to me
+                  Acknowledge
                 </button>
+              </span>
+            </Tooltip>
+            {allowAssign && (
+              <>
+                <Tooltip content={TIPS.btnAssign}>
+                  <span className="inline-flex">
+                    <button
+                      type="button"
+                      className={`${btn} bg-slate-700 text-slate-100 hover:bg-slate-600`}
+                      disabled={isPending || resolved || workflow?.assignee === currentUser}
+                      onClick={() => run('assign', { assignee: currentUser })}
+                    >
+                      Assign to me
+                    </button>
+                  </span>
+                </Tooltip>
                 <input
                   aria-label={`Assign ${subject} to`}
                   placeholder="username"
@@ -111,23 +121,30 @@ export const WorkflowActions: React.FC<WorkflowActionsProps> = ({
                 </button>
               </>
             )}
-            <button
-              type="button"
-              className={`${btn} bg-emerald-600/80 text-white hover:bg-emerald-500`}
-              disabled={isPending || resolved || !note.trim()}
-              title={note.trim() ? undefined : 'Add a resolution note first'}
-              onClick={() => run('resolve')}
-            >
-              Resolve
-            </button>
-            <button
-              type="button"
-              className={`${btn} border border-slate-700 text-slate-300 hover:bg-slate-800`}
-              disabled={isPending || !note.trim()}
-              onClick={() => run('note')}
-            >
-              Add note
-            </button>
+            <Tooltip content={TIPS.btnResolve}>
+              <span className="inline-flex">
+                <button
+                  type="button"
+                  className={`${btn} bg-emerald-600/80 text-white hover:bg-emerald-500`}
+                  disabled={isPending || resolved || !note.trim()}
+                  onClick={() => run('resolve')}
+                >
+                  Resolve
+                </button>
+              </span>
+            </Tooltip>
+            <Tooltip content={TIPS.btnNote}>
+              <span className="inline-flex">
+                <button
+                  type="button"
+                  className={`${btn} border border-slate-700 text-slate-300 hover:bg-slate-800`}
+                  disabled={isPending || !note.trim()}
+                  onClick={() => run('note')}
+                >
+                  Add note
+                </button>
+              </span>
+            </Tooltip>
           </div>
           {error && (
             <p role="alert" className="text-red-300">

@@ -2,6 +2,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import type { ConnectionStatus } from '../hooks/useAlarmFeed';
 import { formatIST } from '../lib/time';
 import type { Role } from '../lib/auth';
+import { TIPS } from '../lib/tooltips';
+import { Tooltip } from './ui/Tooltip';
 import { ROLE_BLURB, ROLE_STYLE } from '../lib/rbac';
 
 interface HeaderProps {
@@ -68,9 +70,11 @@ export const Header: React.FC<HeaderProps> = ({
         </span>
         <span className="font-semibold text-slate-100">NetSentinel</span>
         <span className="text-slate-400">NOC Console</span>
-        <span className="rounded-full bg-slate-800 px-2 py-0.5 text-[11px] text-sky-300">
-          Synthetic data
-        </span>
+        <Tooltip content={TIPS.chipSynthetic} side="bottom">
+          <span className="rounded-full bg-slate-800 px-2 py-0.5 text-[11px] text-sky-300">
+            Synthetic data
+          </span>
+        </Tooltip>
         {views.length > 1 && (
           <nav className="ml-4 flex gap-1" aria-label="Dashboards">
             {views.map((v) => (
@@ -92,38 +96,45 @@ export const Header: React.FC<HeaderProps> = ({
         )}
       </div>
       <div className="flex items-center gap-4 text-sm">
-        <span
-          className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ${live.pill}`}
-          data-testid="live-status"
-          title="Live alarm stream (WebSocket)"
-        >
+        <Tooltip content={TIPS.chipLive} side="bottom">
           <span
-            className={`h-2 w-2 rounded-full ${live.dot} ${wsStatus === 'open' ? 'animate-pulse' : ''}`}
-          />
-          {live.label}
-        </span>
-        <span className="font-mono text-xs text-slate-400">IST {istTime}</span>
+            className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ${live.pill}`}
+            data-testid="live-status"
+          >
+            <span
+              className={`h-2 w-2 rounded-full ${live.dot} ${wsStatus === 'open' ? 'animate-pulse' : ''}`}
+            />
+            {live.label}
+          </span>
+        </Tooltip>
+        <Tooltip content={TIPS.chipClock} side="bottom">
+          <span className="font-mono text-xs text-slate-400">IST {istTime}</span>
+        </Tooltip>
         {user && (
           <div className="relative" ref={menuRef} data-testid="user-badge">
-            <button
-              type="button"
-              aria-haspopup="menu"
-              aria-expanded={menuOpen}
-              onClick={() => setMenuOpen((o) => !o)}
-              className="flex items-center gap-2 rounded px-2 py-1 hover:bg-slate-800"
+            <Tooltip
+              content={`${ROLE_BLURB[user.role] ?? ''} ${TIPS.chipRole}`.trim()}
+              side="bottom"
             >
-              <span className="text-slate-200">{user.username}</span>
-              <span
-                className={`rounded px-2 py-0.5 font-mono text-xs ${ROLE_STYLE[user.role] ?? ''}`}
-                data-testid="role-badge"
-                title={ROLE_BLURB[user.role]}
+              <button
+                type="button"
+                aria-haspopup="menu"
+                aria-expanded={menuOpen}
+                onClick={() => setMenuOpen((o) => !o)}
+                className="flex items-center gap-2 rounded px-2 py-1 hover:bg-slate-800"
               >
-                {user.role}
-              </span>
-              <span aria-hidden="true" className="text-slate-500">
-                ▾
-              </span>
-            </button>
+                <span className="text-slate-200">{user.username}</span>
+                <span
+                  className={`rounded px-2 py-0.5 font-mono text-xs ${ROLE_STYLE[user.role] ?? ''}`}
+                  data-testid="role-badge"
+                >
+                  {user.role}
+                </span>
+                <span aria-hidden="true" className="text-slate-500">
+                  ▾
+                </span>
+              </button>
+            </Tooltip>
             {menuOpen && (
               <div
                 role="menu"

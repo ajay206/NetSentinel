@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { TIPS } from '../lib/tooltips';
 import { Card, StateMessage } from './ui/Card';
 import {
   bucketAt,
@@ -22,10 +23,7 @@ interface AlarmTimelineProps {
 
 const TITLE = 'Alarm storm timeline';
 const SUBTITLE = 'Alarms raised per minute, stacked by severity. A tall bar means an alarm storm.';
-const INFO =
-  'Each bar is one minute. Colours stack critical, major, minor, warning and cleared alarms. ' +
-  'The busiest minute is outlined and annotated with the root site reported by the incident ' +
-  'service. Click a bar or use the slider to inspect a minute.';
+const INFO = TIPS.panelTimeline;
 
 // Bottom-up stacking order (most severe at the bottom, where the eye starts)
 const STACK: Severity[] = ['critical', 'major', 'minor', 'warning', 'cleared'];

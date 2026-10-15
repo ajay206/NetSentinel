@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { Tip } from '../../components/ui/Tooltip';
+import { TIPS } from '../../lib/tooltips';
 import { Card, StateMessage } from '../../components/ui/Card';
 import { useAdminUserAction, useAdminUsers, type AdminUser } from '../../hooks/useAdmin';
 import { passwordProblems } from '../../lib/passwordPolicy';
@@ -27,7 +29,9 @@ export const AdminUsers: React.FC<{ currentUser: string }> = ({ currentUser }) =
     e.preventDefault();
     action.mutate(
       { kind: 'create', ...form, username: form.username.trim().toLowerCase() },
-      { onSuccess: () => setForm({ username: '', role: 'viewer', password: '' }) },
+      {
+        onSuccess: () => setForm({ username: '', role: 'viewer', password: '' }),
+      },
     );
   };
 
@@ -42,11 +46,21 @@ export const AdminUsers: React.FC<{ currentUser: string }> = ({ currentUser }) =
         <table className="w-full text-sm" data-testid="users-table">
           <thead className="ns-thead">
             <tr className="text-left">
-              <th className="px-2 py-1.5">User</th>
-              <th className="px-2 py-1.5">Role</th>
-              <th className="px-2 py-1.5">Status</th>
-              <th className="px-2 py-1.5">Failed logins</th>
-              <th className="px-2 py-1.5">Actions</th>
+              <th className="px-2 py-1.5">
+                <Tip tip={TIPS.colUser}>User</Tip>
+              </th>
+              <th className="px-2 py-1.5">
+                <Tip tip={TIPS.colRole}>Role</Tip>
+              </th>
+              <th className="px-2 py-1.5">
+                <Tip tip={TIPS.colStatus}>Status</Tip>
+              </th>
+              <th className="px-2 py-1.5">
+                <Tip tip={TIPS.colFailedLogins}>Failed logins</Tip>
+              </th>
+              <th className="px-2 py-1.5">
+                <Tip tip={TIPS.colActions}>Actions</Tip>
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -115,7 +129,12 @@ export const AdminUsers: React.FC<{ currentUser: string }> = ({ currentUser }) =
                         <button
                           type="button"
                           className={btn}
-                          onClick={() => action.mutate({ kind: 'unlock', username: u.username })}
+                          onClick={() =>
+                            action.mutate({
+                              kind: 'unlock',
+                              username: u.username,
+                            })
+                          }
                         >
                           Unlock
                         </button>
@@ -148,7 +167,11 @@ export const AdminUsers: React.FC<{ currentUser: string }> = ({ currentUser }) =
                           title={passwordProblems(resetPw, u.username).join(', ') || undefined}
                           onClick={() =>
                             action.mutate(
-                              { kind: 'reset', username: u.username, newPassword: resetPw },
+                              {
+                                kind: 'reset',
+                                username: u.username,
+                                newPassword: resetPw,
+                              },
                               { onSuccess: () => setResetFor(null) },
                             )
                           }
@@ -173,7 +196,7 @@ export const AdminUsers: React.FC<{ currentUser: string }> = ({ currentUser }) =
     <Card
       title="User management"
       subtitle="Create users, change roles, disable, unlock and reset passwords."
-      info="Changing a role, disabling a user or resetting a password signs that user out everywhere. Every change is written to the audit log."
+      info={TIPS.panelUsers}
       testId="admin-users"
     >
       <form

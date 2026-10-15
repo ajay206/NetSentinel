@@ -886,5 +886,15 @@ What you see, top to bottom (described screenshot, 1440 px, synthetic data):
 
 Why runbooks used to look missing: the runbook list was a separate panel at the bottom of the page. The fixed SHAP drawer that opened on alarm click covered it (small_s6), so clicking an alarm looked like nothing happened. Runbooks now live inside that drawer. The gateway route `/api/rag/search` does need the bearer token. The console adds it through `installAuthFetch`, which is now installed before the app mounts, so the very first queries are authenticated too.
 
+### Tooltips and layout (UI polish)
+
+Every panel title has an **ⓘ** button. Hover it, or Tab to it, to read what the panel shows and how to read it. Chips and badges (route, PII, guard, hybrid, role, live status), status pills, table column headers (dotted underline) and action buttons also have tooltips. Buttons that are greyed out explain why, for example "Requires the operator role".
+
+- **One component:** `src/components/ui/Tooltip.tsx` (`Tooltip`, `Tip` for labels, `InfoIcon`). It opens on hover after 150 ms, or straight away on keyboard focus, and closes on mouse-out, blur, Escape or scroll. The trigger gets `aria-describedby` pointing at a `role="tooltip"` element. Plain elements get `tabIndex=0` so the keyboard can reach them. The tip renders in a portal with fixed positioning, so scrolling tables cannot clip it, and it flips below when there is no room above.
+- **Copy:** all text lives in `src/lib/tooltips.ts` (`TIPS`), in short plain English. Change wording there, not in the panels. Run-status labels and colours live in `src/lib/statusTips.ts`.
+- **Layout rules:** cards in the same row share a fixed height at `lg` (timeline | incidents 440 px; map | KPI activity 500 px; RCA | PQC 460 px; copilot chat | agent trace 640 px; admin audit | settings + health 560 px). Only the card body scrolls (`.ns-scroll`), and the card body is a flex column, so long tables (for example the audit log) never spill past the border. Every card uses the same header: an `text-sm` title, ⓘ, a subtitle and actions on the right. The page background is set on `html` and `body`, so scrolling past the content stays dark.
+- **Timestamps** in PQC status and the audit log are shown in IST.
+- Tests: `Tooltip.test.tsx` (hover, focus, Escape, aria-describedby, tabIndex) and `views/panelTooltips.test.tsx` (panel ⓘ, header chips, copy length).
+
 ### Impact / RCA graph panel (Step 14)
 Below the network map, **Impact / RCA graph**: choose Link, Site or Node and an element; the panel shows "LNK-012 fails → 1 site isolated, 3 cells lose service", the backend and server time (e.g. `neo4j · 5.4 ms`) and a table of impacted sites with the reason and the cells. The network map rings impacted sites in orange and draws the failed link (or site) in red. When the `graph` profile is not running the panel shows the gateway's 503 hint. Files: `src/views/RcaGraph.tsx`, `src/hooks/useImpact.ts`, `src/types.graph.ts`.

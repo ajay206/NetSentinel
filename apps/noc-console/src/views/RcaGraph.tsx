@@ -1,4 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { Tip, Tooltip } from '../components/ui/Tooltip';
+import { TIPS } from '../lib/tooltips';
 import { Card, StateMessage } from '../components/ui/Card';
 import { useImpact } from '../hooks/useImpact';
 import type { Topology } from '../types';
@@ -46,7 +48,10 @@ export const RcaGraph: React.FC<Props> = ({ topology, onImpact, agentRun = null 
         label: `${s.siteId} · ${s.name} (${s.kind})`,
       }));
     return (topology.sites ?? []).flatMap((s) =>
-      (s.nodes ?? []).map((n) => ({ value: n.nodeId, label: `${n.nodeId} (${n.kind})` })),
+      (s.nodes ?? []).map((n) => ({
+        value: n.nodeId,
+        label: `${n.nodeId} (${n.kind})`,
+      })),
     );
   }, [topology, type]);
 
@@ -54,7 +59,7 @@ export const RcaGraph: React.FC<Props> = ({ topology, onImpact, agentRun = null 
     <Card
       title="Impact / RCA graph"
       subtitle="Pick a link, site or node to see which cells lose service."
-      info="Answered by topology-service with Cypher on the Neo4j knowledge graph (Step 14). Impacted sites are highlighted on the network map."
+      info={TIPS.panelRca}
       testId="rca-graph"
     >
       {agentRun && agentRun.agentPath.length > 0 && (
@@ -71,16 +76,18 @@ export const RcaGraph: React.FC<Props> = ({ topology, onImpact, agentRun = null 
               {a}
             </span>
           ))}
-          <button
-            type="button"
-            className="ml-auto font-mono text-sky-300 hover:underline"
-            onClick={() => {
-              setType('site');
-              setId(agentRun.siteId);
-            }}
-          >
-            impact of {agentRun.siteId}
-          </button>
+          <Tooltip content={TIPS.btnImpact}>
+            <button
+              type="button"
+              className="ml-auto font-mono text-sky-300 hover:underline"
+              onClick={() => {
+                setType('site');
+                setId(agentRun.siteId);
+              }}
+            >
+              impact of {agentRun.siteId}
+            </button>
+          </Tooltip>
         </div>
       )}
       <div className="mb-3 flex flex-wrap items-center gap-2">
@@ -111,14 +118,16 @@ export const RcaGraph: React.FC<Props> = ({ topology, onImpact, agentRun = null 
             </option>
           ))}
         </select>
-        <button
-          type="button"
-          onClick={() => setId('')}
-          disabled={!id}
-          className="rounded px-2 py-1 text-xs font-medium text-sky-300 hover:text-sky-200 disabled:opacity-40"
-        >
-          Clear
-        </button>
+        <Tooltip content="Clear the selection and the highlight on the network map.">
+          <button
+            type="button"
+            onClick={() => setId('')}
+            disabled={!id}
+            className="rounded px-2 py-1 text-xs font-medium text-sky-300 hover:text-sky-200 disabled:opacity-40"
+          >
+            Clear
+          </button>
+        </Tooltip>
       </div>
 
       {!topology && <StateMessage kind="loading">Loading topology…</StateMessage>}
@@ -140,26 +149,40 @@ export const RcaGraph: React.FC<Props> = ({ topology, onImpact, agentRun = null 
               <strong>{result.target.id}</strong> fails → {plural(result.sitesIsolated, 'site')}{' '}
               isolated, {plural(result.cellsLost, 'cell')} lose service
             </span>
-            <span
-              className="rounded bg-slate-800 px-2 py-0.5 text-xs text-slate-300"
-              data-testid="impact-latency"
-            >
-              {result.backend} · {result.elapsedMs.toFixed(1)} ms
-            </span>
+            <Tooltip content="Where the answer came from (Neo4j graph or in-memory copy) and how long the query took.">
+              <span
+                className="rounded bg-slate-800 px-2 py-0.5 text-xs text-slate-300"
+                data-testid="impact-latency"
+              >
+                {result.backend} · {result.elapsedMs.toFixed(1)} ms
+              </span>
+            </Tooltip>
           </p>
           {result.impactedSites.length === 0 ? (
             <StateMessage kind="empty">
               No cells lose service: there is a redundant path.
             </StateMessage>
           ) : (
-            <div className="min-h-0 overflow-auto">
+            <div className="ns-scroll">
               <table className="w-full text-left text-sm" data-testid="impact-table">
-                <thead className="text-xs uppercase text-slate-400">
+                <thead className="ns-thead">
                   <tr>
-                    <th className="py-1 pr-2">Site</th>
-                    <th className="py-1 pr-2">Kind</th>
-                    <th className="py-1 pr-2">Why</th>
-                    <th className="py-1">Cells lost</th>
+                    <th className="py-1.5 pr-2 font-medium">
+                      <Tip tip={TIPS.colSite}>Site</Tip>
+                    </th>
+                    <th className="py-1.5 pr-2 font-medium">
+                      <Tip tip="Core, hub or access site.">Kind</Tip>
+                    </th>
+                    <th className="py-1.5 pr-2 font-medium">
+                      <Tip tip="Why the site loses service: it failed itself, or every path to the core is cut.">
+                        Why
+                      </Tip>
+                    </th>
+                    <th className="py-1.5 font-medium">
+                      <Tip tip="How many radio cells at this site go down, and their ids.">
+                        Cells lost
+                      </Tip>
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -168,7 +191,10 @@ export const RcaGraph: React.FC<Props> = ({ topology, onImpact, agentRun = null 
                       <td className="py-1 pr-2 font-mono">{s.siteId}</td>
                       <td className="py-1 pr-2">{s.kind}</td>
                       <td className="py-1 pr-2">{REASON[s.reason]}</td>
-                      <td className="py-1 font-mono text-xs" title={s.cells.join(', ')}>
+                      <td
+                        className="max-w-[14rem] truncate py-1 font-mono text-xs"
+                        title={s.cells.join(', ')}
+                      >
                         {s.cells.length}: {s.cells.join(', ')}
                       </td>
                     </tr>

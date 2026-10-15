@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from "react";
+import { TIPS } from "../lib/tooltips";
 import { CardHeader } from "../components/ui/Card";
+import { Tooltip } from "../components/ui/Tooltip";
 import type { AnalyzeResponse, ToolCall } from "../types.copilot";
 import { RetrievalModeBadge } from "../components/NodeChips";
 
@@ -93,7 +95,7 @@ export const CopilotPanel: React.FC<CopilotPanelProps> = ({
         as="h3"
         title="Copilot analyze"
         subtitle="A cited root-cause summary and next steps for one site."
-        info="Uses the local LLM (Ollama) with evidence from alarms, anomalies, the fault classifier and runbooks. Without an LLM it gives a deterministic summary."
+        info={TIPS.panelCopilot}
       />
       <form
         className="flex flex-wrap gap-2 items-center mb-3"
@@ -122,14 +124,23 @@ export const CopilotPanel: React.FC<CopilotPanelProps> = ({
             </option>
           ))}
         </select>
-        <button
-          type="submit"
-          disabled={!valid || isPending || !canAnalyze}
-          title={canAnalyze ? undefined : "Requires the operator role"}
-          className="bg-sky-600 hover:bg-sky-500 disabled:bg-slate-700 disabled:text-slate-500 text-white text-sm px-3 py-1 rounded"
+        <Tooltip
+          content={
+            canAnalyze
+              ? TIPS.btnAnalyze
+              : `${TIPS.btnAnalyze} Requires the operator role.`
+          }
         >
-          {isPending ? "Analyzing…" : "Analyze site"}
-        </button>
+          <span className="inline-flex">
+            <button
+              type="submit"
+              disabled={!valid || isPending || !canAnalyze}
+              className="bg-sky-600 hover:bg-sky-500 disabled:bg-slate-700 disabled:text-slate-500 text-white text-sm px-3 py-1 rounded"
+            >
+              {isPending ? "Analyzing…" : "Analyze site"}
+            </button>
+          </span>
+        </Tooltip>
       </form>
 
       {!canAnalyze && (
@@ -148,56 +159,69 @@ export const CopilotPanel: React.FC<CopilotPanelProps> = ({
       {result && !isPending && (
         <div className="space-y-3" data-testid="copilot-answer">
           <div className="flex flex-wrap gap-2 text-[11px]">
-            <span
-              className={`px-2 py-0.5 rounded ${
-                result.generatedBy === "llm"
-                  ? "bg-emerald-900 text-emerald-200"
-                  : "bg-amber-900 text-amber-200"
-              }`}
+            <Tooltip
+              content={
+                result.generatedBy === "llm" ? TIPS.chipLlm : TIPS.chipFallback
+              }
             >
-              {result.generatedBy === "llm"
-                ? `LLM · ${result.model}`
-                : "fallback (no LLM)"}
-            </span>
-            {result.llm && (
               <span
-                data-testid="model-route"
-                className="px-2 py-0.5 rounded bg-indigo-900 text-indigo-200"
-                title="Route chosen by llm-gateway"
+                className={`px-2 py-0.5 rounded ${
+                  result.generatedBy === "llm"
+                    ? "bg-emerald-900 text-emerald-200"
+                    : "bg-amber-900 text-amber-200"
+                }`}
               >
-                route · {result.llm.route ?? "none"} · gateway{" "}
-                {Math.round(result.llm.latencyMs)} ms
+                {result.generatedBy === "llm"
+                  ? `LLM · ${result.model}`
+                  : "fallback (no LLM)"}
               </span>
+            </Tooltip>
+            {result.llm && (
+              <Tooltip content={TIPS.chipRoute}>
+                <span
+                  data-testid="model-route"
+                  className="px-2 py-0.5 rounded bg-indigo-900 text-indigo-200"
+                >
+                  route · {result.llm.route ?? "none"} · gateway{" "}
+                  {Math.round(result.llm.latencyMs)} ms
+                </span>
+              </Tooltip>
             )}
             {result.llm && result.llm.redactions > 0 && (
-              <span
-                data-testid="pii-redacted"
-                className="px-2 py-0.5 rounded bg-fuchsia-900 text-fuchsia-200"
-                title="PII was stripped before the model and in gateway logs"
-              >
-                PII redacted · {result.llm.redactions}
-              </span>
+              <Tooltip content={TIPS.chipPii}>
+                <span
+                  data-testid="pii-redacted"
+                  className="px-2 py-0.5 rounded bg-fuchsia-900 text-fuchsia-200"
+                >
+                  PII redacted · {result.llm.redactions}
+                </span>
+              </Tooltip>
             )}
             {result.llm && result.llm.blocked.length > 0 && (
-              <span
-                data-testid="guard-blocked"
-                className="px-2 py-0.5 rounded bg-red-900 text-red-200"
-              >
-                guard blocked · {result.llm.blocked.join(", ")}
-              </span>
+              <Tooltip content={TIPS.chipGuard}>
+                <span
+                  data-testid="guard-blocked"
+                  className="px-2 py-0.5 rounded bg-red-900 text-red-200"
+                >
+                  guard blocked · {result.llm.blocked.join(", ")}
+                </span>
+              </Tooltip>
             )}
-            <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-400">
-              {result.attempts} attempt{result.attempts === 1 ? "" : "s"} ·{" "}
-              {result.durationMs} ms
-            </span>
-            {result.warnings.length > 0 && (
-              <span
-                className="px-2 py-0.5 rounded bg-slate-800 text-amber-300"
-                title={result.warnings.join("\n")}
-              >
-                {result.warnings.length} upstream warning
-                {result.warnings.length === 1 ? "" : "s"}
+            <Tooltip content={TIPS.chipAttempts}>
+              <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-400">
+                {result.attempts} attempt{result.attempts === 1 ? "" : "s"} ·{" "}
+                {result.durationMs} ms
               </span>
+            </Tooltip>
+            {result.warnings.length > 0 && (
+              <Tooltip
+                content={`${TIPS.chipWarnings} ${result.warnings.join("; ")}`}
+              >
+                <span className="px-2 py-0.5 rounded bg-slate-800 text-amber-300">
+                  {result.warnings.length} upstream warning
+                  {result.warnings.length === 1 ? "" : "s"}
+                </span>
+              </Tooltip>
             )}
           </div>
 

@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { TIPS } from '../lib/tooltips';
 import { CardHeader } from './ui/Card';
 import type { Topology, PerceivedSeverity } from '../types';
 
@@ -217,7 +218,7 @@ export const NetworkMap: React.FC<Props> = ({
       <CardHeader
         title="Network map"
         subtitle="Sites coloured by their worst active alarm."
-        info="Squares are core sites, diamonds hubs, circles access sites. Regions run north to south."
+        info={TIPS.panelMap}
         actions={
           <div className="flex items-center gap-3 text-xs text-slate-400">
             <span>{counts?.sites ?? 0} sites</span>
