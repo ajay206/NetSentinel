@@ -884,6 +884,181 @@ paths:
       x-required-role: operator
       security:
       - bearer: []
+  /api/copilot/runs:
+    get:
+      summary: Copilot Runs Read
+      description: 'W17: multi-agent runs with their chat and per-agent trace (viewer role).'
+      operationId: copilot_runs_read_api_copilot_runs_get
+      parameters:
+      - name: run_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Run Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+        '401':
+          description: Missing, invalid or expired token
+        '403':
+          description: Role too low
+        '429':
+          description: Rate limited (Retry-After header)
+      x-required-role: operator
+      security:
+      - bearer: []
+    post:
+      summary: Copilot Run Start
+      description: 'W17: start supervisor -> triage -> RCA -> remediation (operator role). Audited.'
+      operationId: copilot_run_start_api_copilot_runs_post
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '401':
+          description: Missing, invalid or expired token
+        '403':
+          description: Role too low
+        '429':
+          description: Rate limited (Retry-After header)
+      x-required-role: operator
+      security:
+      - bearer: []
+  /api/copilot/runs/{run_id}:
+    get:
+      summary: Copilot Runs Read
+      description: 'W17: multi-agent runs with their chat and per-agent trace (viewer role).'
+      operationId: copilot_runs_read_api_copilot_runs__run_id__get
+      parameters:
+      - name: run_id
+        in: path
+        required: true
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Run Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+        '401':
+          description: Missing, invalid or expired token
+        '403':
+          description: Role too low
+        '429':
+          description: Rate limited (Retry-After header)
+      x-required-role: viewer
+      security:
+      - bearer: []
+  /api/copilot/runs/{run_id}/approval:
+    post:
+      summary: Copilot Run Approval
+      description: 'W17 human approval node: approve or reject the agents'' plan (operator role). Audited.'
+      operationId: copilot_run_approval_api_copilot_runs__run_id__approval_post
+      parameters:
+      - name: run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Run Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+        '401':
+          description: Missing, invalid or expired token
+        '403':
+          description: Role too low
+        '429':
+          description: Rate limited (Retry-After header)
+      x-required-role: operator
+      security:
+      - bearer: []
+  /api/graph/rca:
+    post:
+      summary: Graph Rca Write
+      description: Step 17 KG write-back of an approved RCA (operator, or the copilot's service token).
+      operationId: graph_rca_write_api_graph_rca_post
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '401':
+          description: Missing, invalid or expired token
+        '403':
+          description: Role too low
+        '429':
+          description: Rate limited (Retry-After header)
+      x-required-role: operator
+      security:
+      - bearer: []
+  /api/graph/rca/{site_id}:
+    get:
+      summary: Graph Rca Read
+      description: 'Step 17: approved RCA findings for a site (viewer role).'
+      operationId: graph_rca_read_api_graph_rca__site_id__get
+      parameters:
+      - name: site_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Site Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+        '401':
+          description: Missing, invalid or expired token
+        '403':
+          description: Role too low
+        '429':
+          description: Rate limited (Retry-After header)
+      x-required-role: viewer
+      security:
+      - bearer: []
 components:
   schemas:
     HTTPValidationError:

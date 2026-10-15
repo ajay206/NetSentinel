@@ -9,6 +9,9 @@ import { useRunbook, useRunbookSearch } from './hooks/useRunbooks';
 import { buildRunbookQuery } from './lib/runbookQuery';
 import { RunbooksPanel } from './views/RunbooksPanel';
 import { CopilotPanel } from './views/CopilotPanel';
+import { CopilotChat } from './views/CopilotChat';
+import { TraceView } from './views/TraceView';
+import { useAgentRuns, useRunDecision, useStartRun } from './hooks/useAgentRuns';
 import { useCopilotAnalyze } from './hooks/useCopilot';
 import type { EnrichedAlarm } from './types.enriched';
 import { useEnrichedFeed } from './hooks/useEnrichedFeed';
@@ -85,6 +88,17 @@ export const App: React.FC<AppProps> = ({ session, onLogout, onSessionChange }) 
   const allTickets = useTickets('all');
   const ticketAudit = useTicketAudit(ticketId);
   const decision = useTicketDecision();
+  // W17: multi-agent copilot runs (operators start and approve; viewers read the trace)
+  const agentRuns = useAgentRuns();
+  const startRun = useStartRun();
+  const runDecision = useRunDecision();
+  const [runId, setRunId] = useState<string | null>(null);
+  const runs = agentRuns.data?.items ?? [];
+  const run =
+    runs.find((r) => r.runId === runId) ??
+    (startRun.data && startRun.data.runId === runId ? startRun.data : null) ??
+    runs[0] ??
+    null;
   const relatedDrafts = (allTickets.data?.items ?? []).filter(
     (t) => incidentId !== null && t.incidentId === incidentId,
   );
@@ -347,12 +361,38 @@ export const App: React.FC<AppProps> = ({ session, onLogout, onSessionChange }) 
 
           {/* Step 14: impact / RCA on the knowledge graph (highlights the map above) */}
           <div className="lg:max-h-[420px]">
-            <RcaGraph topology={topology} onImpact={onImpact} />
+            <RcaGraph topology={topology} onImpact={onImpact} agentRun={run} />
           </div>
 
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             <KpiChartsContainer />
             <AnomaliesContainer />
+          </div>
+
+          {/* Row: W17 multi-agent copilot chat + per-agent trace */}
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
+            <div className="lg:col-span-7">
+              <CopilotChat
+                incidentId={incidentId}
+                siteId={selected?.siteId ?? null}
+                run={run}
+                runs={runs}
+                isStarting={startRun.isPending}
+                isDeciding={runDecision.isPending}
+                error={startRun.error ?? runDecision.error}
+                canOperate={canCopilot}
+                onStart={(target) =>
+                  startRun.mutate(target, { onSuccess: (r) => setRunId(r.runId) })
+                }
+                onSelectRun={setRunId}
+                onDecide={(approved, note) =>
+                  run && runDecision.mutate({ runId: run.runId, approved, note })
+                }
+              />
+            </div>
+            <div className="ns-card lg:col-span-5">
+              <TraceView run={run} />
+            </div>
           </div>
 
           {/* Row: diagnosis (runbooks live in the alarm drawer). Viewers have no copilot. */}

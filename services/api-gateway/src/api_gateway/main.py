@@ -600,6 +600,76 @@ async def copilot_analyze_proxy(request: Request) -> JSONResponse:
     return JSONResponse(payload, status_code=resp.status_code)
 
 
+_RUN_ID_RE = re.compile(r"^RUN-[0-9A-F]{10}$")
+
+
+async def _copilot_runs_call(
+    request: Request, method: str, path: str, body: bytes | None = None
+) -> JSONResponse:
+    headers = {"Content-Type": "application/json"}
+    if body is not None:
+        headers["X-NS-User"] = auth_mod.current_user(request)["username"]
+    try:
+        async with httpx.AsyncClient(transport=copilot_transport, timeout=120.0) as client:
+            resp = await client.request(
+                method, f"{COPILOT_URL}/{path}", content=body, headers=headers
+            )
+    except httpx.HTTPError as exc:
+        logger.warning("copilot-orchestrator unreachable: %s", exc)
+        return JSONResponse({"detail": "copilot-orchestrator unreachable"}, status_code=503)
+    try:
+        payload = resp.json()
+    except ValueError:
+        return JSONResponse({"detail": "copilot returned non-JSON"}, status_code=502)
+    return JSONResponse(payload, status_code=resp.status_code)
+
+
+@app.get("/api/copilot/runs")
+@app.get("/api/copilot/runs/{run_id}")
+async def copilot_runs_read(request: Request, run_id: str | None = None) -> JSONResponse:
+    """W17: multi-agent runs with their chat and per-agent trace (viewer role)."""
+    if run_id is not None and not _RUN_ID_RE.match(run_id):
+        return JSONResponse({"detail": "Not found"}, status_code=404)
+    return await _copilot_runs_call(request, "GET", "v2/runs" + (f"/{run_id}" if run_id else ""))
+
+
+@app.post("/api/copilot/runs")
+async def copilot_run_start(request: Request) -> JSONResponse:
+    """W17: start supervisor -> triage -> RCA -> remediation (operator role). Audited."""
+    body = await request.body()
+    if len(body) > 2_000:
+        return JSONResponse({"detail": "Request too large"}, status_code=413)
+    resp = await _copilot_runs_call(request, "POST", "v2/runs", body)
+    if resp.status_code == 200:
+        run = json.loads(resp.body)
+        user = auth_mod.current_user(request)
+        await auth_mod.store.audit(
+            user["username"], "copilot.run", str(run.get("runId")), {"site": run.get("siteId")}
+        )
+    return resp
+
+
+@app.post("/api/copilot/runs/{run_id}/approval")
+async def copilot_run_approval(run_id: str, request: Request) -> JSONResponse:
+    """W17 human approval node: approve or reject the agents' plan (operator role). Audited."""
+    if not _RUN_ID_RE.match(run_id):
+        return JSONResponse({"detail": "Not found"}, status_code=404)
+    body = await request.body()
+    if len(body) > 2_000:
+        return JSONResponse({"detail": "Request too large"}, status_code=413)
+    resp = await _copilot_runs_call(request, "POST", f"v2/runs/{run_id}/approval", body)
+    if resp.status_code == 200:
+        run = json.loads(resp.body)
+        user = auth_mod.current_user(request)
+        await auth_mod.store.audit(
+            user["username"],
+            f"copilot.plan.{run.get('status')}",
+            run_id,
+            {"ticketId": run.get("ticketId")},
+        )
+    return resp
+
+
 _INCIDENT_PATH_RE = re.compile(r"^(incidents(/INC-[0-9A-F]{10})?|stats|alarms/workflow)$")
 
 
@@ -812,6 +882,36 @@ async def graph_context(entity_id: str) -> JSONResponse:
     if not _ENTITY_RE.match(entity_id):
         return JSONResponse({"detail": "unknown entity"}, status_code=404)
     return await _topology_call("GET", f"graph/context/{entity_id}")
+
+
+@app.post("/api/graph/rca")
+async def graph_rca_write(request: Request) -> JSONResponse:
+    """Step 17 KG write-back of an approved RCA (operator, or the copilot's service token)."""
+    body = await request.body()
+    if len(body) > 4_000:
+        return JSONResponse({"detail": "Request too large"}, status_code=413)
+    try:
+        payload = json.loads(body or b"{}")
+    except ValueError:
+        return JSONResponse({"detail": "Invalid JSON"}, status_code=400)
+    resp = await _topology_call("POST", "graph/rca", json=payload)
+    if resp.status_code == 200:
+        user = auth_mod.current_user(request)
+        await auth_mod.store.audit(
+            user["username"],
+            "graph.rca",
+            str(payload.get("runId")),
+            {"site": payload.get("siteId")},
+        )
+    return resp
+
+
+@app.get("/api/graph/rca/{site_id}")
+async def graph_rca_read(site_id: str) -> JSONResponse:
+    """Step 17: approved RCA findings for a site (viewer role)."""
+    if not re.fullmatch(r"SITE-\d{3}", site_id):
+        return JSONResponse({"detail": "unknown site"}, status_code=404)
+    return await _topology_call("GET", f"graph/rca/{site_id}")
 
 
 @app.get("/api/graph/summary")

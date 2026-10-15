@@ -450,3 +450,12 @@ Then refresh the console.
 ### 76. Approve returns 403 / 409
 - 403: you are a viewer, or the call used the MCP service token, which may draft but never decide. 409: the ticket was already approved or rejected (by someone else, or with a stale `version`). Refresh the queue.
 - `GET /api/tickets/audit/verify` returning `ok: false` means someone edited an audit row directly in the database. Treat it as an incident; the log itself is never rewritten.
+
+### 77. Copilot chat run stays "awaiting_approval"
+- By design: the graph pauses at the human approval node until an operator presses Approve or Reject. Viewers cannot. Runs are kept in memory, so restarting copilot-orchestrator forgets them; start a new one.
+
+### 78. Run completed but "Ticket draft: FAILED" or "Knowledge graph: write-back failed"
+- The report agent needs ticket-service (`ops` profile) for the draft and topology-service (`graph` profile) for the write-back. The run still completes and the report says what was skipped. Start the profile and run again.
+
+### 79. No runs start on new incidents
+- Check `AGENT_TRIGGER=kafka`, and that incident-service (`ops`) publishes to `incidents` (`KAFKA_BOOTSTRAP`). Only the first message for an incident id counts as `incident.created`; incidents that existed before copilot started are skipped.

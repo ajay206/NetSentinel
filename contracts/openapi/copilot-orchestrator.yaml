@@ -2,7 +2,7 @@
 openapi: 3.1.0
 info:
   title: NetSentinel copilot-orchestrator
-  version: 0.1.0
+  version: 0.2.0
   description: Simple (non-LangGraph) analyze flow (W9). Evidence (alarms, KPI anomalies, fault type,
     runbooks) is gathered through mcp-server tools over MCP (W10, TOOLS=mcp) or directly over HTTP (TOOLS=http).
     A local Ollama model (qwen2.5:1.5b) writes a JSON answer that is validated with Pydantic plus citation
@@ -61,6 +61,111 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
         '404':
           description: No alarms for the site in the window
+  /v2/runs:
+    get:
+      summary: List Runs
+      operationId: list_runs_v2_runs_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                additionalProperties: true
+                type: object
+                title: Response List Runs V2 Runs Get
+    post:
+      summary: Start Run
+      description: Run supervisor -> triage -> RCA -> remediation; stops at the human approval node.
+      operationId: start_run_v2_runs_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RunRequest'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                additionalProperties: true
+                type: object
+                title: Response Start Run V2 Runs Post
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /v2/runs/{run_id}:
+    get:
+      summary: Get Run
+      operationId: get_run_v2_runs__run_id__get
+      parameters:
+      - name: run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Run Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                title: Response Get Run V2 Runs  Run Id  Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /v2/runs/{run_id}/approval:
+    post:
+      summary: Decide Run
+      description: 'Human approval node: resume the paused graph with the operator''s decision.'
+      operationId: decide_run_v2_runs__run_id__approval_post
+      parameters:
+      - name: run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Run Id
+      - name: x-ns-user
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Ns-User
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApprovalRequest'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                title: Response Decide Run V2 Runs  Run Id  Approval Post
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
 components:
   schemas:
     AlarmRef:
@@ -241,6 +346,21 @@ components:
       - evidence
       - steps
       title: Answer
+    ApprovalRequest:
+      properties:
+        approved:
+          type: boolean
+          title: Approved
+        note:
+          type: string
+          maxLength: 500
+          title: Note
+          default: ''
+      additionalProperties: false
+      type: object
+      required:
+      - approved
+      title: ApprovalRequest
     Claim:
       properties:
         text:
@@ -318,6 +438,29 @@ components:
           title: Detail
       type: object
       title: HTTPValidationError
+    RunRequest:
+      properties:
+        incidentId:
+          anyOf:
+          - type: string
+            pattern: ^INC-[0-9A-F]{10}$
+          - type: 'null'
+          title: Incidentid
+        siteId:
+          anyOf:
+          - type: string
+            pattern: ^SITE-\d{3}$
+          - type: 'null'
+          title: Siteid
+        window:
+          type: string
+          pattern: ^\d{1,3}m$
+          title: Window
+          default: 30m
+      additionalProperties: false
+      type: object
+      title: RunRequest
+      description: 'W17: run the agents on an incident (its root site) or a site.'
     RunbookRef:
       properties:
         runbookId:

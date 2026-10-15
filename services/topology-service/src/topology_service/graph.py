@@ -58,6 +58,8 @@ class Graph(Protocol):
     async def run_named(self, name: str, params: dict[str, Any]) -> list[dict[str, Any]]: ...
     async def add_alarm(self, alarm: dict[str, Any]) -> None: ...
     async def context(self, entity_id: str) -> dict[str, Any]: ...
+    async def record_rca(self, finding: dict[str, Any]) -> dict[str, Any]: ...
+    async def rca_findings(self, site_id: str) -> list[dict[str, Any]]: ...
 
 
 def _order(impacted: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -135,6 +137,20 @@ class MemoryGraph:
 
     async def run_named(self, name: str, params: dict[str, Any]) -> list[dict[str, Any]]:
         raise NotImplementedError("named Cypher queries need GRAPH_BACKEND=neo4j")
+
+    async def record_rca(self, finding: dict[str, Any]) -> dict[str, Any]:
+        if finding["siteId"] not in {s["siteId"] for s in self._t().sites}:
+            raise UnknownTarget(finding["siteId"])
+        known = {r.get("runbookId") for r in getattr(self, "runbooks", [])}
+        row = {k: finding.get(k) for k in FINDING_KEYS}
+        row["runbookIds"] = sorted(r for r in finding.get("runbookIds", []) if r in known)
+        self.findings = getattr(self, "findings", {})
+        self.findings[row["runId"]] = row
+        return row
+
+    async def rca_findings(self, site_id: str) -> list[dict[str, Any]]:
+        rows = [f for f in getattr(self, "findings", {}).values() if f["siteId"] == site_id]
+        return sorted(rows, key=lambda f: f["recordedAt"] or "", reverse=True)[:20]
 
     async def context(self, entity_id: str) -> dict[str, Any]:
         t = self._t()
@@ -258,6 +274,7 @@ SCHEMA = (
     "CREATE CONSTRAINT alarm_id IF NOT EXISTS FOR (a:Alarm) REQUIRE a.alarmId IS UNIQUE",
     "CREATE CONSTRAINT runbook_id IF NOT EXISTS FOR (r:Runbook) REQUIRE r.runbookId IS UNIQUE",
     "CREATE CONSTRAINT ticket_id IF NOT EXISTS FOR (t:Ticket) REQUIRE t.ticketId IS UNIQUE",
+    "CREATE CONSTRAINT rca_run IF NOT EXISTS FOR (r:RcaFinding) REQUIRE r.runId IS UNIQUE",
     "CREATE INDEX link_id IF NOT EXISTS FOR ()-[l:LINK]-() ON (l.linkId)",
 )
 
@@ -301,6 +318,47 @@ UNWIND $runbooks AS r
 MERGE (rb:Runbook {runbookId: r.runbookId})
 SET rb.title = r.title, rb.faultType = r.faultType
 """
+
+# Step 17: KG write-back of an approved multi-agent RCA (idempotent per runId)
+RECORD_RCA = """
+MATCH (s:Site {siteId: $siteId})
+MERGE (r:RcaFinding {runId: $runId})
+SET r.siteId = $siteId, r.incidentId = $incidentId, r.faultType = $faultType,
+    r.confidence = $confidence, r.summary = $summary, r.approvedBy = $approvedBy,
+    r.recordedAt = $recordedAt
+MERGE (r)-[:ROOT_CAUSE]->(s)
+WITH r
+OPTIONAL MATCH (rb:Runbook) WHERE rb.runbookId IN $runbookIds
+FOREACH (x IN CASE WHEN rb IS NULL THEN [] ELSE [rb] END | MERGE (r)-[:REMEDIATED_BY]->(x))
+WITH DISTINCT r
+FOREACH (t IN CASE WHEN $ticketId IS NULL THEN [] ELSE [$ticketId] END |
+  MERGE (tk:Ticket {ticketId: t}) MERGE (r)-[:PROPOSED]->(tk))
+RETURN r.runId AS runId
+"""
+
+RCA_FINDINGS = """
+MATCH (r:RcaFinding {siteId: $siteId})
+OPTIONAL MATCH (r)-[:REMEDIATED_BY]->(rb:Runbook)
+OPTIONAL MATCH (r)-[:PROPOSED]->(t:Ticket)
+WITH r, collect(DISTINCT rb.runbookId) AS runbookIds, head(collect(t.ticketId)) AS ticketId
+RETURN r.runId AS runId, r.siteId AS siteId, r.incidentId AS incidentId,
+       r.faultType AS faultType, r.confidence AS confidence, r.summary AS summary,
+       r.approvedBy AS approvedBy, r.recordedAt AS recordedAt, runbookIds, ticketId
+ORDER BY r.recordedAt DESC LIMIT 20
+"""
+
+FINDING_KEYS = (
+    "runId",
+    "siteId",
+    "incidentId",
+    "faultType",
+    "confidence",
+    "summary",
+    "approvedBy",
+    "recordedAt",
+    "runbookIds",
+    "ticketId",
+)
 
 ADD_ALARM = """
 MATCH (s:Site {siteId: $siteId})
@@ -399,6 +457,10 @@ class Neo4jGraph:
         records, _, _ = await self.driver.execute_query(cypher, params, routing_="r")
         return [r.data() for r in records]
 
+    async def _write(self, cypher: str, **params: Any) -> list[dict[str, Any]]:
+        records, _, _ = await self.driver.execute_query(cypher, params, routing_="w")
+        return [r.data() for r in records]
+
     async def load(self, topo: TopoData, runbooks: list[dict[str, Any]] | None = None) -> dict:
         """Replace the topology in ONE write transaction, so readers never see a half graph.
 
@@ -434,6 +496,19 @@ class Neo4jGraph:
                 "raisedAt": alarm.get("alarmRaisedTime"),
             },
         )
+
+    async def record_rca(self, finding: dict[str, Any]) -> dict[str, Any]:
+        params = {k: finding.get(k) for k in FINDING_KEYS}
+        params["runbookIds"] = list(finding.get("runbookIds") or [])
+        rows = await self._write(RECORD_RCA, **params)
+        if not rows:
+            raise UnknownTarget(finding["siteId"])
+        found = await self.rca_findings(finding["siteId"])
+        return next((f for f in found if f["runId"] == finding["runId"]), params)
+
+    async def rca_findings(self, site_id: str) -> list[dict[str, Any]]:
+        rows = await self._rows(RCA_FINDINGS, siteId=site_id)
+        return [{**r, "runbookIds": sorted(r.get("runbookIds") or [])} for r in rows]
 
     async def run_named(self, name: str, params: dict[str, Any]) -> list[dict[str, Any]]:
         q: NamedQuery = CATALOGUE[name]

@@ -17,6 +17,7 @@ from api_gateway import auth  # noqa: E402
 STRONG = "N3w-Synthetic-pass!"
 INC = "INC-0123456789"
 TKT = "TKT-0123456789"
+RUN = "RUN-0123456789"
 
 
 @pytest.fixture
@@ -105,6 +106,13 @@ MATRIX = [
     ("POST", "/api/tickets/drafts", {"title": "x"}, "operator"),
     ("POST", f"/api/tickets/{TKT}/approve", {}, "operator"),
     ("POST", f"/api/tickets/{TKT}/reject", {"note": "dup"}, "operator"),
+    # Step 17: multi-agent runs; humans approve the plan; KG write-back
+    ("GET", "/api/copilot/runs", None, "viewer"),
+    ("GET", f"/api/copilot/runs/{RUN}", None, "viewer"),
+    ("POST", "/api/copilot/runs", {"siteId": "SITE-010"}, "operator"),
+    ("POST", f"/api/copilot/runs/{RUN}/approval", {"approved": True}, "operator"),
+    ("GET", "/api/graph/rca/SITE-010", None, "viewer"),
+    ("POST", "/api/graph/rca", {"runId": RUN}, "operator"),
 ]
 ROLES = ("viewer", "operator", "admin")
 
@@ -346,3 +354,15 @@ def test_graph_reload_is_audited(client):
     assert r.status_code == 200
     audit = client.get("/api/admin/audit", headers=bearer(client, "admin")).json()
     assert any(e["action"] == "graph.reload" and e["actor"] == "admin" for e in audit["items"])
+
+
+def test_service_token_may_write_back_rca_but_not_approve_plans(client, monkeypatch):
+    monkeypatch.setattr(auth.settings, "service_token", "svc-token-0123456789")
+    svc = {"Authorization": "Bearer svc-token-0123456789"}
+    assert client.post("/api/graph/rca", json={"runId": RUN}, headers=svc).status_code == 200
+    r = client.post(f"/api/copilot/runs/{RUN}/approval", json={"approved": True}, headers=svc)
+    assert r.status_code == 403
+    assert (
+        client.post("/api/copilot/runs", json={"siteId": "SITE-010"}, headers=svc).status_code
+        == 403
+    )

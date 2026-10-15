@@ -80,3 +80,33 @@ def test_context_api():
         assert c.get("/graph/context/SITE-004").json()["backend"] == "memory"
         assert c.get("/graph/context/DROP").status_code == 400
         assert c.get("/graph/context/SITE-099").status_code == 404
+
+
+@pytest.fixture
+def client_memory_rca():
+    with TestClient(main.app) as c:
+        yield c
+
+
+def test_rca_write_back_memory(client_memory_rca):
+    c = client_memory_rca
+    body = {
+        "runId": "RUN-0123456789",
+        "siteId": "SITE-010",
+        "incidentId": "INC-0123456789",
+        "faultType": "fibre_cut",
+        "confidence": 0.8,
+        "summary": "Fibre cut on LNK-012",
+        "approvedBy": "operator",
+        "runbookIds": ["RB-FIB-001", "RB-NOPE-999"],
+        "ticketId": "TKT-0123456789",
+    }
+    r = c.post("/graph/rca", json=body)
+    assert r.status_code == 200, r.text
+    assert r.json()["finding"]["runbookIds"] == ["RB-FIB-001"]
+    assert c.post("/graph/rca", json=body).status_code == 200  # idempotent per runId
+    items = c.get("/graph/rca/SITE-010").json()["items"]
+    assert len(items) == 1 and items[0]["ticketId"] == "TKT-0123456789"
+    assert c.post("/graph/rca", json={**body, "siteId": "SITE-999"}).status_code == 404
+    assert c.post("/graph/rca", json={**body, "bogus": 1}).status_code == 422
+    assert c.get("/graph/rca/S-1").status_code == 400

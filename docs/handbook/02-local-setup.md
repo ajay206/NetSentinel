@@ -289,6 +289,15 @@ curl -s -XPOST localhost:8000/api/tickets/TKT-XXXXXXXXXX/approve -H "authorizati
 
 The console's **Approval queue** shows drafts, including ones the copilot opened through MCP (🤖 MCP). Operators approve or reject; viewers see it read-only.
 
+## Multi-agent copilot (Step 17)
+
+```bash
+make demo                                 # core + ui + rag + copilot (+ ops for ticket drafts)
+TOKEN=$(make -s token AS=operator) make agents SITE=SITE-010   # runs to the approval node
+```
+
+New incidents also start a run on their own (`AGENT_TRIGGER=kafka`). In the console's **Copilot chat**, read the agents' messages and press **Approve plan**. The report agent then opens a ticket draft (Approval queue) and writes the finding to the knowledge graph. The **Trace view** shows every agent step with its tool calls and timings. `SMOKE_AGENTS=1 make smoke` checks the whole path.
+
 ## Copilot with a local LLM (W9) – Setup
 
 ### Prerequisites

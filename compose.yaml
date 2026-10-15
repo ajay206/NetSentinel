@@ -348,6 +348,15 @@ services:
       RAG_SERVICE_URL: http://rag-service:8004
       # Step 15: graph (Graph RAG, node-ID citations) | hybrid (W8 retrieval)
       RAG_MODE: graph
+      # Step 17: LangGraph agents start on incident.created (topic `incidents`, core + ops
+      # profiles); runs pause at the human approval node. "off" = only on demand.
+      AGENT_TRIGGER: ${AGENT_TRIGGER:-kafka}
+      KAFKA_BOOTSTRAP: kafka:29092
+      INCIDENTS_TOPIC: incidents
+      # Optional Langfuse tracing (self-hosted); unset = console trace view only
+      LANGFUSE_HOST: ${LANGFUSE_HOST:-}
+      LANGFUSE_PUBLIC_KEY: ${LANGFUSE_PUBLIC_KEY:-}
+      LANGFUSE_SECRET_KEY: ${LANGFUSE_SECRET_KEY:-}
       # Ollama runs natively on the Mac (Metal); "off" = deterministic fallback answers only
       OLLAMA_URL: http://host.docker.internal:11434
       OLLAMA_MODEL: qwen2.5:1.5b

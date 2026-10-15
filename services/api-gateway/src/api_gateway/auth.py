@@ -268,6 +268,10 @@ def required_role(method: str, path: str) -> str | None:
     # draft too, see SERVICE_ALLOWED); reading the queue and the audit trail is viewer
     if method == "POST" and _TICKET_WRITE_RE.match(path):
         return "operator"
+    # Step 17: starting agent runs and the human approval node are operator work; the KG
+    # write-back of an approved RCA is operator too (the copilot uses SERVICE_ALLOWED)
+    if method == "POST" and (_RUN_WRITE_RE.match(path) or path == "/api/graph/rca"):
+        return "operator"
     # Step 14: reloading the knowledge graph rewrites it, so admin only
     if path == "/api/graph/reload":
         return "admin"
@@ -279,7 +283,8 @@ def required_role(method: str, path: str) -> str | None:
 _ACTION_RE = re.compile(r"^/api/(incidents/[^/]+|alarms)/actions$")
 _TICKET_WRITE_RE = re.compile(r"^/api/tickets/(drafts|[^/]+/(approve|reject))$")
 # Step 16: the only write the internal service principal (MCP) gets: AI drafts, humans approve
-SERVICE_ALLOWED = {("POST", "/api/tickets/drafts")}
+SERVICE_ALLOWED = {("POST", "/api/tickets/drafts"), ("POST", "/api/graph/rca")}
+_RUN_WRITE_RE = re.compile(r"^/api/copilot/runs(/[^/]+/approval)?$")
 
 
 class RateLimiter:
