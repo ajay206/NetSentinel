@@ -478,3 +478,106 @@ Then refresh the console.
 ### 85. `ssl` assert fails while building an image
 - The Dockerfile asserts OpenSSL ≥ 3.5. Make sure the base is `python:3.12-slim-trixie`, not plain `slim` or bookworm, and that no cached old base image is used (`docker compose build --pull`).
 
+## Mac test run errors (Oct 15, 2026)
+
+### 86. Agent and PQC curl calls return `{"detail": "Missing bearer token"}`
+**Symptom**  
+`{"detail": "Missing bearer token"}`
+
+**Cause**  
+`TOKEN` is empty, so the request is sent without `Authorization: Bearer …`.
+
+**Fix**  
+```bash
+export TOKEN=$(make -s token AS=operator)
+make agent-runs TOKEN=$TOKEN
+```
+
+### 87. Login with operator/operator123 returns `Invalid credentials`
+**Symptom**  
+`Invalid credentials`
+
+**Cause**  
+The demo password is `operator`, not `operator123` (or the user has already changed it).
+
+**Fix**  
+Sign in as `operator` / `operator`. If the password was changed, use the new password (or reset it as admin).
+
+### 88. Token parse fails with `KeyError: 'access_token'`
+**Symptom**  
+`KeyError: 'access_token'`
+
+**Cause**  
+The login response field is `accessToken`, not `access_token`.
+
+**Fix**  
+Read `accessToken` from the JSON (e.g. `jq -r .accessToken`) or use `make token AS=operator`.
+
+### 89. `make token` says `login as as failed: HTTP 401`
+**Symptom**  
+`login as as failed: HTTP 401`
+
+**Cause**  
+`AS` was not set, so the Makefile logged in as the literal user `as`.
+
+**Fix**  
+```bash
+make token AS=operator
+```
+
+### 90. `No rule to make target pqc-status` / `help`
+**Symptom**  
+`No rule to make target 'pqc-status'` or `No rule to make target 'help'`
+
+**Cause**  
+Those targets do not exist.
+
+**Fix**  
+Use `pqc-init`, `pqc-probe`, `pqc-verify`, `pqc-tamper`, `pqc-bench`, or `GET /api/security/pqc` with a token.
+
+### 91. Copilot run shows `llm-gateway 503: no route available: ollama...=ConnectError / circuit-open` and `generatedBy=fallback`
+**Symptom**  
+`llm-gateway 503: no route available: ollama...=ConnectError / circuit-open` and `generatedBy=fallback`
+
+**Cause**  
+Ollama is not running or not installed on the host.
+
+**Fix**  
+```bash
+brew install ollama   # or install the app from ollama.com
+ollama serve &
+make ollama-pull
+```
+
+### 92. `make: ollama: No such file or directory` / `exit 127`
+**Symptom**  
+`make: ollama: No such file or directory` / `exit 127`
+
+**Cause**  
+Ollama is not installed.
+
+**Fix**  
+Same as #91: `brew install ollama` (or the ollama.com app), `ollama serve &`, `make ollama-pull`.
+
+### 93. Run reports `kgWriteBack: write-back failed (graph profile off?)` and `query_topology` `ok:false`
+**Symptom**  
+`kgWriteBack: write-back failed (graph profile off?)` and `query_topology` `ok:false`
+
+**Cause**  
+The `graph` profile (Neo4j + topology-service) is not running, so KG write-back and topology queries fail.
+
+**Fix**  
+```bash
+make up-graph && make topo-load
+```
+
+### 94. SITE-010 run status is `failed` with 'no evidence'
+**Symptom**  
+SITE-010 run status `failed` with 'no evidence'
+
+**Cause**  
+Expected when a site has no alarms in the window.
+
+**Fix**  
+Try `SITE-005` (or another site that has alarms in the current window).
+

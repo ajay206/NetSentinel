@@ -420,3 +420,9 @@ Built straight after Step 18; Steps 19–20 (TelcoGPT-mini) moved to the next ph
 - **Benchmark:** `scripts/bench_tls.py` measured hybrid at +0.124 ms p50 (+24.7%) and +2028 B per handshake. ML-DSA-65 verify took 203.8 µs. Details: `docs/pqc_report.md`.
 - **Docs:** ADR-019, handbook 01 (roadmap), 02, 03, 05, troubleshooting #83–85, fault-classifier model card; build plan re-planned (W19–20 moved to Phase 3).
 
+## Docs: Mac test run errors (Oct 15, 2026)
+
+- **Date:** 2026-10-15
+- **Scope:** Handbook troubleshooting #86–94 from a Mac test run (empty `TOKEN`, demo password, `accessToken`, `make token AS=…`, missing PQC Make targets, host Ollama, graph profile off, SITE-010 no-evidence). Short Ollama prerequisite note in `02-local-setup.md`.
+- **Verification:** docs-only; `make docs-check` if available.
+
