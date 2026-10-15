@@ -76,3 +76,34 @@ async def test_neo4j_matches_memory_and_is_fast(small):
         }
     finally:
         await neo.close()
+
+
+async def test_neo4j_rca_write_back_matches_memory():
+    """Step 17: the KG write-back gives the same finding on Neo4j and in memory."""
+    topo = from_netgen(seed=42, small=True)
+    rbs = read_runbooks("data/runbooks")
+    neo = Neo4jGraph(URI or "", "neo4j", os.getenv("NEO4J_TEST_PASSWORD", ""))
+    await neo.start()
+    mem = MemoryGraph()
+    await mem.load(topo, rbs)
+    finding = {
+        "runId": "RUN-00000000AB",
+        "siteId": "SITE-010",
+        "incidentId": None,
+        "faultType": "fibre_cut",
+        "confidence": 0.8,
+        "summary": "Fibre cut on LNK-012",
+        "approvedBy": "operator",
+        "recordedAt": "2026-10-15T08:00:00Z",
+        "runbookIds": ["RB-FIB-001", "RB-NOPE-999"],
+        "ticketId": "TKT-00000000AB",
+    }
+    try:
+        await neo.load(topo, rbs)
+        got = await neo.record_rca(finding)
+        await neo.record_rca(finding)  # idempotent
+        assert got == await mem.record_rca(finding)
+        assert [f["runId"] for f in await neo.rca_findings("SITE-010")].count("RUN-00000000AB") == 1
+    finally:
+        await neo._write("MATCH (r:RcaFinding {runId: 'RUN-00000000AB'}) DETACH DELETE r")
+        await neo.close()

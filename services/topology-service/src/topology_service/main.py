@@ -18,9 +18,11 @@ import os
 import re
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import FastAPI, HTTPException, Response
+from pydantic import BaseModel, ConfigDict, Field
 
 from . import queries
 from .graph import Graph, MemoryGraph, Neo4jGraph, TargetType, UnknownTarget, entity_type
@@ -183,6 +185,43 @@ async def context(entity_id: str) -> dict[str, Any]:
     except UnknownTarget as exc:
         raise HTTPException(status_code=404, detail=f"unknown {entity_id}") from exc
     return {**ctx, "backend": graph.kind}
+
+
+class RcaFindingIn(BaseModel):
+    """Step 17: an operator-approved RCA from the multi-agent copilot."""
+
+    model_config = ConfigDict(extra="forbid")
+    runId: str = Field(pattern=r"^RUN-[0-9A-F]{10}$")
+    siteId: str = Field(pattern=r"^SITE-\d{3}$")
+    incidentId: str | None = Field(default=None, pattern=r"^INC-[0-9A-F]{10}$")
+    faultType: str = Field(pattern=r"^[a-z_]{2,40}$")
+    confidence: float = Field(ge=0, le=1)
+    summary: str = Field(max_length=500)
+    approvedBy: str = Field(pattern=r"^[A-Za-z0-9_.:-]{1,64}$")
+    runbookIds: list[str] = Field(default_factory=list, max_length=10)
+    ticketId: str | None = Field(default=None, pattern=r"^TKT-[0-9A-F]{10}$")
+
+
+@app.post("/graph/rca")
+async def record_rca(body: RcaFindingIn) -> dict[str, Any]:
+    """Step 17 KG write-back: (:RcaFinding)-[:ROOT_CAUSE]->(:Site), runbooks, ticket."""
+    _require_ready()
+    finding = body.model_dump()
+    finding["recordedAt"] = datetime.now(UTC).isoformat().replace("+00:00", "Z")
+    try:
+        row = await graph.record_rca(finding)
+    except UnknownTarget as exc:
+        raise HTTPException(status_code=404, detail=f"unknown site {body.siteId}") from exc
+    return {"finding": row, "backend": graph.kind}
+
+
+@app.get("/graph/rca/{site_id}")
+async def rca_findings(site_id: str) -> dict[str, Any]:
+    """Step 17: approved RCA findings recorded for a site (newest first)."""
+    _require_ready()
+    if not re.fullmatch(r"SITE-\d{3}", site_id):
+        raise HTTPException(status_code=400, detail="expected SITE-xxx")
+    return {"items": await graph.rca_findings(site_id), "backend": graph.kind}
 
 
 @app.get("/graph/queries")

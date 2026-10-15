@@ -2,12 +2,15 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Card, StateMessage } from '../components/ui/Card';
 import { useImpact } from '../hooks/useImpact';
 import type { Topology } from '../types';
+import type { AgentRun } from '../types.agents';
 import type { ImpactResult, ImpactTarget, ImpactTargetType, ImpactedSite } from '../types.graph';
 
 type Props = {
   topology?: Topology;
   /** Called with the current answer (or null) so NetworkMap can highlight the impact radius. */
   onImpact?: (target: ImpactTarget | null, result: ImpactResult | null) => void;
+  /** Step 17: the selected multi-agent run; shows its agent path and its root site. */
+  agentRun?: Pick<AgentRun, 'runId' | 'siteId' | 'agentPath' | 'status'> | null;
 };
 
 const REASON: Record<ImpactedSite['reason'], string> = {
@@ -19,7 +22,7 @@ const REASON: Record<ImpactedSite['reason'], string> = {
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
 /** Step 14: impact / RCA panel. Pick a link, site or node; see which cells lose service. */
-export const RcaGraph: React.FC<Props> = ({ topology, onImpact }) => {
+export const RcaGraph: React.FC<Props> = ({ topology, onImpact, agentRun = null }) => {
   const [type, setType] = useState<ImpactTargetType>('link');
   const [id, setId] = useState('');
   const target = useMemo<ImpactTarget | null>(() => (id ? { type, id } : null), [type, id]);
@@ -54,6 +57,32 @@ export const RcaGraph: React.FC<Props> = ({ topology, onImpact }) => {
       info="Answered by topology-service with Cypher on the Neo4j knowledge graph (Step 14). Impacted sites are highlighted on the network map."
       testId="rca-graph"
     >
+      {agentRun && agentRun.agentPath.length > 0 && (
+        <div
+          className="mb-3 flex flex-wrap items-center gap-1 rounded bg-slate-800/60 p-2 text-xs"
+          data-testid="rca-agent-path"
+        >
+          <span className="text-slate-400">
+            Agents ({agentRun.runId}, {agentRun.status.replace('_', ' ')}):
+          </span>
+          {agentRun.agentPath.map((a, i) => (
+            <span key={`${a}-${i}`} className="text-slate-200">
+              {i > 0 && <span className="mx-1 text-slate-500">→</span>}
+              {a}
+            </span>
+          ))}
+          <button
+            type="button"
+            className="ml-auto font-mono text-sky-300 hover:underline"
+            onClick={() => {
+              setType('site');
+              setId(agentRun.siteId);
+            }}
+          >
+            impact of {agentRun.siteId}
+          </button>
+        </div>
+      )}
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <select
           aria-label="Failure type"

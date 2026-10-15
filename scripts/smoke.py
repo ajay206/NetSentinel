@@ -404,6 +404,33 @@ class Smoke:
             raise RuntimeError(f"audit chain broken at {v.get('brokenAt')}")
         return f"{tid} draft -> approved, audit chain ok ({v.get('entries')} entries)"
 
+    AGENTS_MODE = os.environ.get("SMOKE_AGENTS", "auto")  # auto | 1 (required) | 0 (skip)
+
+    def step_agents(self) -> str:
+        """Step 17: one multi-agent run -> human approval -> report (+ ticket draft)."""
+        op = self._bearer(
+            self._login_as("operator", os.environ.get("SMOKE_OPERATOR_PASSWORD", "operator"))
+        )
+        site = (self.alarm or {}).get("siteId") or "SITE-010"
+        r = self.client.post("/api/copilot/runs", json={"siteId": site}, headers=op)
+        if r.status_code == 503 and self.AGENTS_MODE != "1":
+            return "skipped: copilot profile not running (SMOKE_AGENTS=1 to require it)"
+        if r.status_code != 200:
+            raise RuntimeError(f"start run returned {r.status_code}")
+        run = r.json()
+        if run.get("status") != "awaiting_approval":
+            raise RuntimeError(f"run stopped at {run.get('status')} ({run.get('agentPath')})")
+        r = self.client.post(
+            f"/api/copilot/runs/{run['runId']}/approval",
+            json={"approved": True, "note": "smoke"},
+            headers=op,
+        )
+        if r.status_code != 200 or r.json().get("status") != "completed":
+            raise RuntimeError(f"approval returned {r.status_code}")
+        done = r.json()
+        path = "→".join(done.get("agentPath", []))
+        return f"{run['runId']} {path} ticket={done.get('ticketId') or 'none (ops off)'}"
+
     def step_console(self) -> str:
         """The dashboard container serves the SPA and proxies /health to the gateway."""
         page = self.client.get(f"{self.console_url}/")
@@ -461,6 +488,8 @@ class Smoke:
             self._run("graph_impact", self.step_graph_impact)
         if self.TICKETS_MODE != "0":
             self._run("tickets", self.step_tickets)
+        if self.AGENTS_MODE != "0":
+            self._run("agents", self.step_agents)
         return all(c.ok for c in self.checks)
 
     @staticmethod

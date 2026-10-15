@@ -119,6 +119,59 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /graph/rca:
+    post:
+      summary: Record Rca
+      description: 'Step 17 KG write-back: (:RcaFinding)-[:ROOT_CAUSE]->(:Site), runbooks, ticket.'
+      operationId: record_rca_graph_rca_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RcaFindingIn'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                additionalProperties: true
+                type: object
+                title: Response Record Rca Graph Rca Post
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /graph/rca/{site_id}:
+    get:
+      summary: Rca Findings
+      description: 'Step 17: approved RCA findings recorded for a site (newest first).'
+      operationId: rca_findings_graph_rca__site_id__get
+      parameters:
+      - name: site_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Site Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                title: Response Rca Findings Graph Rca  Site Id  Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /graph/queries:
     get:
       summary: List Queries
@@ -193,6 +246,62 @@ components:
           title: Detail
       type: object
       title: HTTPValidationError
+    RcaFindingIn:
+      properties:
+        runId:
+          type: string
+          pattern: ^RUN-[0-9A-F]{10}$
+          title: Runid
+        siteId:
+          type: string
+          pattern: ^SITE-\d{3}$
+          title: Siteid
+        incidentId:
+          anyOf:
+          - type: string
+            pattern: ^INC-[0-9A-F]{10}$
+          - type: 'null'
+          title: Incidentid
+        faultType:
+          type: string
+          pattern: ^[a-z_]{2,40}$
+          title: Faulttype
+        confidence:
+          type: number
+          maximum: 1.0
+          minimum: 0.0
+          title: Confidence
+        summary:
+          type: string
+          maxLength: 500
+          title: Summary
+        approvedBy:
+          type: string
+          pattern: ^[A-Za-z0-9_.:-]{1,64}$
+          title: Approvedby
+        runbookIds:
+          items:
+            type: string
+          type: array
+          maxItems: 10
+          title: Runbookids
+        ticketId:
+          anyOf:
+          - type: string
+            pattern: ^TKT-[0-9A-F]{10}$
+          - type: 'null'
+          title: Ticketid
+      additionalProperties: false
+      type: object
+      required:
+      - runId
+      - siteId
+      - faultType
+      - confidence
+      - summary
+      - approvedBy
+      title: RcaFindingIn
+      description: 'Step 17: an operator-approved RCA from the multi-agent copilot.'
     ValidationError:
       properties:
         loc:

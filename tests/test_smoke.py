@@ -219,6 +219,8 @@ class FakeGateway:
             if path == "/health":
                 return httpx.Response(200, json={"services": []})
 
+        if path.startswith("/api/copilot/runs"):
+            return self._runs(request)
         if path.startswith("/api/tickets"):
             return self._tickets(request)
         return httpx.Response(404, json={"detail": "Not found"})
@@ -244,7 +246,7 @@ def test_smoke_all_pass(client, monkeypatch):
     smoke = Smoke(client, user="operator", wait_s=0, poll_s=0)
     result = smoke.run()
     assert result is True
-    assert len(smoke.checks) == 14
+    assert len(smoke.checks) == 15
     assert all(c.ok for c in smoke.checks)
 
 
@@ -324,12 +326,13 @@ def test_main_json_output(monkeypatch, mock_transport, capsys):
     exit_code = main(["--base-url", "http://test", "--json", "--wait", "0"])
     assert exit_code == 0
     checks = json.loads(capsys.readouterr().out)
-    assert [c["name"] for c in checks][-5:] == [
+    assert [c["name"] for c in checks][-6:] == [
         "rbac",
         "roles",
         "password",
         "graph_impact",
         "tickets",
+        "agents",
     ] and all(c["ok"] for c in checks)
 
 
@@ -339,7 +342,7 @@ def test_main_text_output(monkeypatch, mock_transport, capsys):
     exit_code = main(["--base-url", "http://test", "--wait", "0"])
     assert exit_code == 0
     captured = capsys.readouterr()
-    assert "14/14 checks passed" in captured.out
+    assert "15/15 checks passed" in captured.out
     assert "secret-token-xyz" not in captured.out
 
 
@@ -389,7 +392,7 @@ def test_smoke_console_check(client):
     smoke = Smoke(client, user="operator", wait_s=0, poll_s=0, console_url="http://console/")
     assert smoke.run() is True
     assert [c.name for c in smoke.checks][:2] == ["health", "console"]
-    assert len(smoke.checks) == 15
+    assert len(smoke.checks) == 16
 
 
 def test_smoke_console_down(client):
@@ -564,4 +567,36 @@ def test_tickets_check(monkeypatch, mode, up, ok, needle):
     smoke = Smoke(c, user="operator", wait_s=0, poll_s=0)
     smoke.run()
     check = next(x for x in smoke.checks if x.name == "tickets")
+    assert check.ok is ok and needle in check.detail, check.detail
+
+
+def _runs(self, request):  # noqa: ANN001 - test double for the W17 endpoints
+    if not getattr(self, "agents_up", False):
+        return httpx.Response(503, json={"detail": "copilot-orchestrator unreachable"})
+    run = {"runId": "RUN-00000000AA", "status": "awaiting_approval", "agentPath": ["supervisor"]}
+    if request.url.path.endswith("/approval"):
+        path = ["supervisor", "triage", "rca", "remediation", "approval", "report"]
+        run |= {"status": "completed", "agentPath": path, "ticketId": "TKT-00000000AA"}
+    return httpx.Response(200, json=run)
+
+
+FakeGateway._runs = _runs  # type: ignore[attr-defined]
+
+
+@pytest.mark.parametrize(
+    "mode,up,ok,needle",
+    [
+        ("auto", False, True, "skipped: copilot profile not running"),
+        ("1", False, False, "503"),
+        ("auto", True, True, "approval→report ticket=TKT-00000000AA"),
+    ],
+)
+def test_agents_check(monkeypatch, mode, up, ok, needle):
+    fake = FakeGateway()
+    fake.agents_up = up
+    c = httpx.Client(transport=httpx.MockTransport(fake.handle_request), base_url="http://test")
+    monkeypatch.setattr(Smoke, "AGENTS_MODE", mode)
+    smoke = Smoke(c, user="operator", wait_s=0, poll_s=0)
+    smoke.run()
+    check = next(x for x in smoke.checks if x.name == "agents")
     assert check.ok is ok and needle in check.detail, check.detail

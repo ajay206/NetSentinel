@@ -195,15 +195,13 @@ def _raise_if_alarm_tool_failed(upstream: ToolRecorder) -> None:
     raise UpstreamError(503 if unreachable else 502, f"evidence tools failed: {warnings}"[:300])
 
 
-async def analyze(
-    req: AnalyzeRequest, upstream: ToolRecorder, llm: LLM, max_attempts: int = 3
-) -> AnalyzeResponse:
-    started = time.perf_counter()
-    ctx, _ = await gather(upstream, req)
-    if not ctx.alarms:
-        _raise_if_alarm_tool_failed(upstream)
-        raise NoEvidence()
+async def llm_answer(
+    ctx: Context, llm: LLM, max_attempts: int = 3
+) -> tuple[Answer, str, int, list[str]]:
+    """Ask the LLM for a cited answer (citation guard + retries), else the fallback.
 
+    Returns (answer, generated_by, attempts, errors). Shared by /analyze and the W17 RCA agent.
+    """
     errors: list[str] = []
     last_errors: list[str] | None = None
     answer: Answer | None = None
@@ -220,10 +218,21 @@ async def analyze(
         except LLMError as exc:
             errors.append(f"attempt {attempts}: {exc}")
             break  # LLM is down: don't hammer it, fall back now
-
-    generated_by = "llm" if answer is not None else "fallback"
     if answer is None:
-        answer = fallback_answer(ctx)
+        return fallback_answer(ctx), "fallback", attempts, errors
+    return answer, "llm", attempts, errors
+
+
+async def analyze(
+    req: AnalyzeRequest, upstream: ToolRecorder, llm: LLM, max_attempts: int = 3
+) -> AnalyzeResponse:
+    started = time.perf_counter()
+    ctx, _ = await gather(upstream, req)
+    if not ctx.alarms:
+        _raise_if_alarm_tool_failed(upstream)
+        raise NoEvidence()
+
+    answer, generated_by, attempts, errors = await llm_answer(ctx, llm, max_attempts)
     return AnalyzeResponse(
         siteId=req.site_id,
         window=req.window,

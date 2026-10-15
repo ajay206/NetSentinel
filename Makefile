@@ -1,4 +1,4 @@
-.PHONY: logs ps reset-db tools-build incidents up-core up-tools up-ui down topics test lint fmt smoke sim sim-loop sim-docker gateway console-install console console-build console-lint console-test test-all ingest up-pipeline enriched-peek ingest-stats kpi-service kpi-stats kpi-query ml ml-train anomalies topology kpis kpis-follow kpis-peek docs-check ml-train-xgb up-rag rag rag-ingest rag-eval runbooks copilot up-copilot analyze ollama-pull mcp mcp-dev mcp-contract copilot-contract gateway-contract token demo kafka-smoke incident up-incident incidents-peek incident-eval up-graph topo-load impact topology-contract rag-bench rag-bench-dev up-tickets ticket-migrate ticket-contract tickets
+.PHONY: logs ps reset-db tools-build incidents up-core up-tools up-ui down topics test lint fmt smoke sim sim-loop sim-docker gateway console-install console console-build console-lint console-test test-all ingest up-pipeline enriched-peek ingest-stats kpi-service kpi-stats kpi-query ml ml-train anomalies topology kpis kpis-follow kpis-peek docs-check ml-train-xgb up-rag rag rag-ingest rag-eval runbooks copilot up-copilot analyze ollama-pull mcp mcp-dev mcp-contract copilot-contract gateway-contract token demo kafka-smoke incident up-incident incidents-peek incident-eval up-graph topo-load impact topology-contract rag-bench rag-bench-dev up-tickets ticket-migrate ticket-contract tickets agents agent-runs
 
 # Targets marked (dev) run on the host and need uv / Node; everything else needs only Docker.
 
@@ -238,6 +238,16 @@ incidents-peek:
 # (dev) needs uv/Node on the host
 incident-eval:
 	uv run incident-eval --out evals/rca_report.md
+
+# Step 17: one multi-agent run on a seeded fibre-cut site (needs `make demo` + TOKEN=operator JWT);
+# it stops at the human approval node: approve it in the console (Copilot chat)
+SITE ?= SITE-010
+agents:
+	curl -s -XPOST localhost:8000/api/copilot/runs -H "Authorization: Bearer $(TOKEN)" \
+		-H 'content-type: application/json' -d '{"siteId":"$(SITE)"}'; echo
+
+agent-runs:
+	curl -s -H "Authorization: Bearer $(TOKEN)" localhost:8000/api/copilot/runs; echo
 
 # Step 16: ticket-service (drafts + approvals + audit) on TimescaleDB
 up-tickets:

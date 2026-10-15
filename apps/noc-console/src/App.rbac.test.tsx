@@ -52,6 +52,27 @@ const TKT = {
   version: 1,
 };
 
+const RUN = {
+  runId: 'RUN-00000000AA',
+  incidentId: 'INC-0123456789',
+  siteId: 'SITE-011',
+  status: 'awaiting_approval',
+  createdAt: '2026-01-01T00:06:00Z',
+  updatedAt: '2026-01-01T00:06:01Z',
+  agentPath: ['supervisor', 'triage', 'rca', 'remediation'],
+  messages: [{ agent: 'rca', text: 'Fibre cut', ts: '' }],
+  plan: {
+    summary: '1 step',
+    steps: [{ text: 'Splice', runbookId: 'RB-FIB-001', section: 'Remediation' }],
+    ticketDraft: { title: 'Fibre cut', severity: 'critical', description: '' },
+  },
+  ticketId: null,
+  kgWriteBack: null,
+  trace: [],
+  report: null,
+  tracing: { langfuse: false },
+};
+
 const json = (body: unknown, ok = true) =>
   Promise.resolve({ ok, json: () => Promise.resolve(body) });
 
@@ -92,6 +113,7 @@ beforeEach(() => {
     if (url.startsWith('/api/admin/audit')) return json({ items: [] });
     if (url.endsWith('/audit') && url.startsWith('/api/tickets/'))
       return json({ ticketId: TKT.id, entries: [] });
+    if (url.startsWith('/api/copilot/runs')) return json({ items: [RUN] });
     if (url.startsWith('/api/tickets'))
       return json({ items: [TKT], counts: { draft: 1, approved: 0, rejected: 0 } });
     if (url.startsWith('/api/admin/settings'))
@@ -190,5 +212,26 @@ describe('approval queue (Step 16)', () => {
     renderAs('viewer');
     fireEvent.click(await screen.findByTestId('ticket-row'));
     expect(screen.getByRole('button', { name: 'Approve' })).toBeDisabled();
+  });
+});
+
+describe('multi-agent copilot (Step 17)', () => {
+  it('operator approves the agents plan; RCA graph shows the agent path', async () => {
+    renderAs('operator');
+    const box = await screen.findByTestId('approval-box');
+    expect(screen.getByTestId('rca-agent-path')).toHaveTextContent('triage');
+    fireEvent.click(within(box).getByRole('button', { name: 'Approve plan' }));
+    await waitFor(() =>
+      expect(globalThis.fetch).toHaveBeenCalledWith(
+        `/api/copilot/runs/${RUN.runId}/approval`,
+        expect.objectContaining({ method: 'POST' }),
+      ),
+    );
+  });
+
+  it('viewer reads the trace but cannot approve', async () => {
+    renderAs('viewer');
+    await screen.findByTestId('approval-box');
+    expect(screen.getByRole('button', { name: 'Approve plan' })).toBeDisabled();
   });
 });

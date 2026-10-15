@@ -381,3 +381,20 @@ Introduces the topology‑aware incident clustering service, its API, and the ne
   - pytest: state machine, roles, service principal drafts only, validation, internal token, trigger and tamper detection; gateway RBAC matrix rows and an end-to-end test against the real ticket-service (MCP draft → viewer 403 → operator approve → both audits); MCP tool (no approve tool); contract drift;
   - Vitest: ApprovalQueue and App role flows (operator approves via the related-draft link, viewer read-only);
   - smoke: `tickets` check (skips when `ops` is off).
+
+### Step 17 — LangGraph multi-agent copilot + chat and trace view (W17)
+- **copilot-orchestrator v2** (`graph/`):
+  - LangGraph supervisor with triage, RCA, remediation, a human **approval** node (`interrupt`) and report agents; `InMemorySaver` checkpointer;
+  - per-step trace with tool calls and timings; optional Langfuse export;
+  - `incident.created` trigger (`AGENT_TRIGGER=kafka`);
+  - `/v2/runs` API; `/analyze` keeps working (shared `llm_answer`).
+- **KG write-back:** topology-service `POST /graph/rca` and `GET /graph/rca/{site}` (Neo4j + memory, integration-tested).
+- **Gateway:** `/api/copilot/runs*` (start and approval need operator, reads need viewer; audited) and `/api/graph/rca*`. The service token may also write back RCA findings.
+- **Console:** **Copilot chat** (start, messages, approve/reject plan), **Trace view** (agent path, steps, tool calls), and the agent path in the Impact / RCA graph.
+- **Compose / Make:** copilot `AGENT_TRIGGER`, `KAFKA_BOOTSTRAP`, optional `LANGFUSE_*`; `make agents`, `make agent-runs`.
+- **Docs:** ADR-017, `03-services.md`, `02-local-setup.md`, troubleshooting #77–79; gateway-auth, copilot and topology contracts regenerated.
+- **Tests:**
+  - CI graph test with a mocked LLM: the full path to a ticket draft, reject, fallback, no evidence, ticket outage, trigger, Langfuse events, HTTP API;
+  - topology write-back (memory + Neo4j); gateway RBAC rows;
+  - Vitest: chat, trace and App flows;
+  - smoke: `agents` check.

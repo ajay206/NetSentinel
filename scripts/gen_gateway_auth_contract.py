@@ -48,6 +48,12 @@ ROLES = {
     "/api/tickets/{ticket_id}/audit": "viewer",
     "/api/tickets/drafts": "operator",
     "/api/tickets/{ticket_id}/{decision}": "operator",
+    # Step 17 (GET viewer; POST operator; the copilot's service token may POST /api/graph/rca)
+    "/api/copilot/runs": "operator",
+    "/api/copilot/runs/{run_id}": "viewer",
+    "/api/copilot/runs/{run_id}/approval": "operator",
+    "/api/graph/rca": "operator",
+    "/api/graph/rca/{site_id}": "viewer",
 }
 PATHS = tuple(ROLES)
 

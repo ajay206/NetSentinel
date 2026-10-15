@@ -536,6 +536,35 @@ The **copilot-orchestrator** service provides the AI‑driven analysis for Step�
 
 # NetSentinel Handbook – Step 10 (W10) Services
 
+### Multi-agent copilot v2 (Step 17, W17, LangGraph)
+
+`graph/agents.py` is a LangGraph `StateGraph`. A **supervisor** routes plan-and-execute style (a deterministic policy: the next specialist whose output is missing) through these agents (ADR-017):
+
+| Agent | Does | Tools |
+|---|---|---|
+| triage | resolves the incident's root site, gathers alarms, anomalies, fault prediction and Graph RAG runbooks | `get_incident`, `get_alarms`, `kpi_anomalies`, `predict_fault`, `search_runbooks` |
+| rca | cited answer from the LLM (W9 citation guard, deterministic fallback), plus topology impact | `llm:*`, `query_topology` |
+| remediation | plan and a proposed ticket draft | – |
+| approval | **human-in-the-loop**: LangGraph `interrupt()`; the run waits as `awaiting_approval` | – |
+| report | on approval, opens the ticket **draft** (still needs approval in the queue) and writes the RCA back to the KG; always writes a report | `open_ticket_draft`, `kg_write_back` |
+
+- **State:** checkpointed per run (`thread_id` = run id, in-memory `InMemorySaver`). A paused run resumes with `Command(resume=…)`.
+- **Trace:** every agent step records its duration and tool calls (the console Trace view). Langfuse export is optional (`LANGFUSE_HOST` / `LANGFUSE_PUBLIC_KEY` / `LANGFUSE_SECRET_KEY`, public ingestion API, no SDK).
+- **Trigger:** `AGENT_TRIGGER=kafka` (compose default) starts a run on `incident.created`, the first sighting of an incident id on the `incidents` topic. Runs also start on demand.
+- **KG write-back:** `POST /graph/rca` on topology-service creates `(:RcaFinding)-[:ROOT_CAUSE]->(:Site)`, `-[:REMEDIATED_BY]->(:Runbook)` and `-[:PROPOSED]->(:Ticket)`, idempotent per run. `GET /graph/rca/{siteId}` reads them back. Both work on Neo4j and in memory.
+
+| Method | Gateway path (copilot: `/v2/runs…`) | Role |
+|---|---|---|
+| POST | `/api/copilot/runs` `{incidentId \| siteId, window?}` | operator |
+| GET | `/api/copilot/runs`, `/api/copilot/runs/{runId}` | viewer |
+| POST | `/api/copilot/runs/{runId}/approval` `{approved, note?}` | operator (409 if the run is not waiting) |
+| POST / GET | `/api/graph/rca`, `/api/graph/rca/{siteId}` | operator or copilot service token / viewer |
+
+**Console:**
+- **Copilot chat** (`views/CopilotChat.tsx`): start a run on the selected incident or site, read the agents' messages, then approve or reject the plan.
+- **Trace view** (`views/TraceView.tsx`): the agent path, plus per-step timings and tool calls.
+- **Impact / RCA graph:** shows the run's agent path and a shortcut to the impact of its root site.
+
 ## mcp-server (W10)
 
 The **mcp-server** provides the internal MCP tool layer used by the Copilot orchestrator. It aggregates four tools behind a single HTTP endpoint.
@@ -660,7 +689,7 @@ still depends only on the core tier (Kafka, TimescaleDB):
 |------|----------------------|
 | `viewer` | All `/api/*` (except admin/operator only), all `/ws/*`, `/health`, `/docs`, `/openapi.json` |
 | `operator` | All viewer endpoints **plus** `POST /api/copilot/analyze`, incident/alarm actions, `POST /api/tickets/drafts`, `POST /api/tickets/{id}/approve\|reject` (Step 16) |
-| service token (MCP, copilot) | viewer reads **plus** `POST /api/tickets/drafts` only: AI may draft, never approve |
+| service token (MCP, copilot) | viewer reads **plus** `POST /api/tickets/drafts` and `POST /api/graph/rca` (Step 17 write-back) only: AI may draft, never approve |
 | `admin` | All viewer & operator endpoints **plus** `GET /api/auth/users` |
 
 ### OpenAPI contract
