@@ -31,6 +31,20 @@ const FOCUSABLE = new Set(['button', 'a', 'input', 'select', 'textarea', 'summar
 const GAP = 8;
 const MARGIN = 8;
 
+function isFocusableTag(el: React.ReactElement): boolean {
+  return typeof el.type === 'string' && FOCUSABLE.has(el.type);
+}
+
+function wrapsControl(
+  el: React.ReactElement<{ children?: React.ReactNode }>,
+  disabled: boolean,
+): boolean {
+  return React.Children.toArray(el.props.children).some((c) => {
+    if (!isValidElement(c) || !isFocusableTag(c as React.ReactElement)) return false;
+    return Boolean((c as React.ReactElement<{ disabled?: boolean }>).props.disabled) === disabled;
+  });
+}
+
 export function Tooltip({ content, children, side = 'top', delay = 150 }: TooltipProps) {
   const id = useId();
   const [open, setOpen] = useState(false);
@@ -88,9 +102,18 @@ export function Tooltip({ content, children, side = 'top', delay = 150 }: Toolti
   }, [open, side, content]);
 
   if (!isValidElement(children)) return children;
-  const child = children as React.ReactElement<Record<string, unknown>>;
+  let child = children as React.ReactElement<Record<string, unknown>>;
+  // Disabled native controls drop pointer and focus events; wrap so the tip still opens.
+  if (isFocusableTag(child) && child.props.disabled) {
+    child = <span className="inline-flex">{child}</span>;
+  }
   const tag = typeof child.type === 'string' ? child.type : '';
-  const needsTab = !FOCUSABLE.has(tag) && child.props.tabIndex === undefined;
+  const wrapsEnabled = wrapsControl(child, false);
+  const wrapsDisabled = wrapsControl(child, true);
+  const needsTab =
+    child.props.tabIndex === undefined &&
+    !wrapsEnabled &&
+    (wrapsDisabled || !FOCUSABLE.has(tag));
   const call = (name: string, e: unknown) => {
     const fn = child.props[name];
     if (typeof fn === 'function') fn(e);

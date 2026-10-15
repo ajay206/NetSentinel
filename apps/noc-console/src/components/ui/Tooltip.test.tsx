@@ -52,6 +52,34 @@ describe('Tooltip', () => {
     expect(screen.queryByRole('tooltip')).toBeNull();
   });
 
+  it('lets hover and keyboard reach a disabled button via the wrapper', () => {
+    render(
+      <Tooltip content="Why this is off">
+        <button type="button" disabled>
+          Run
+        </button>
+      </Tooltip>,
+    );
+    const btn = screen.getByRole('button', { name: 'Run' });
+    expect(btn).toBeDisabled();
+    const wrap = btn.parentElement!;
+    expect(wrap).toHaveAttribute('tabindex', '0');
+    fireEvent.focus(wrap);
+    expect(screen.getByRole('tooltip')).toHaveTextContent('Why this is off');
+  });
+
+  it('does not add a second tab stop when the trigger already wraps an enabled button', () => {
+    render(
+      <Tooltip content="Approve">
+        <span className="inline-flex">
+          <button type="button">Approve</button>
+        </span>
+      </Tooltip>,
+    );
+    const wrap = screen.getByRole('button', { name: 'Approve' }).parentElement!;
+    expect(wrap).not.toHaveAttribute('tabindex');
+  });
+
   it('keeps the child handlers working', () => {
     const onFocus = vi.fn();
     render(
