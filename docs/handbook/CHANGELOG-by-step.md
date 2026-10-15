@@ -331,3 +331,24 @@ Introduces the topology‑aware incident clustering service, its API, and the ne
 ### Fix 2 — smoke vs the login rate limiter
 - `scripts/smoke.py` reuses one token per user and backs off on login 429s, honouring `Retry-After` within a bounded total wait (`SMOKE_LOGIN_MAX_WAIT`, default 75 s). Production limiter defaults are unchanged.
 - Tests cover the back-off and token reuse (5 logins per run) and the wait bound. Troubleshooting #66 explains it.
+
+### Step 14 — topology-service on Neo4j + impact / RCA graph panel (W14)
+- **topology-service** (new, port 8008, profile `graph`):
+  - Neo4j knowledge graph Site→Node→Cell, `LINK` between sites, a `PARENT_OF` homing tree, `Alarm`, `Runbook`, and `Ticket` (constraint reserved);
+  - the loader rebuilds it in one transaction on start (`make topo-load`);
+  - `/graph/impact` for link, site or node failure, plus a catalogue of 20 named read-only Cypher queries;
+  - an in-memory backend for tests and low-RAM machines.
+- **compose:** `neo4j:5.26-community` (multi-arch) with 512 MB heap, 256 MB page cache and `mem_limit: 1g`, ports bound to localhost; `topology-service` at 192 MB. New targets `make up-graph`, `make impact`, `make topo-load`. `NEO4J_PASSWORD` is in `env.example.txt`.
+- **Gateway:** `/api/graph/impact|summary|queries` and `POST /api/graph/queries/{name}` need viewer; `POST /api/graph/reload` needs admin and is audited. The contract is regenerated.
+- **MCP:** new `query_topology` tool; the contract is regenerated.
+- **Console:** **Impact / RCA graph** panel (`views/RcaGraph.tsx`). NetworkMap highlights the impact radius and the failed link or site.
+- **Results:**
+  - "which cells lose service if LNK-012 fails?" returns SITE-010's 3 cells;
+  - Neo4j matches the in-memory graph for every link, site and node on both topologies (27 + 138 targets);
+  - impact latency on Neo4j 5.26 is about 5–6 ms p50, against a target of < 100 ms.
+- **Docs:** `03-services.md` (service, API, RBAC rows, console panel), `02-local-setup.md`, troubleshooting #67–70, ADR-014, `contracts/openapi/topology-service.yaml`.
+- **Tests:**
+  - pytest: impact against a brute-force check for every link and site on both topologies; the LNK-012 answer and latency; API validation; the catalogue (read-only, params match); fake-driver loading; gateway RBAC matrix, proxy and audit; MCP tool;
+  - an opt-in Neo4j integration test (`NEO4J_TEST_URI`);
+  - Vitest: RcaGraph panel and map highlight;
+  - smoke: `graph_impact` check.

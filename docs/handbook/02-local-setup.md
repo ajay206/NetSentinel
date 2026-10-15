@@ -448,3 +448,20 @@ PASS  copilot          9500 ms  llm, 6 sources
 PASS  rbac                2 ms  401 as expected
 10/10 checks passed
 ```
+
+## Knowledge graph and impact analysis (Step 14)
+
+Neo4j runs in its own compose profile so the default stack stays small:
+
+```bash
+echo "NEO4J_PASSWORD=$(openssl rand -hex 12)" >> .env   # once; local only
+make up-graph                 # neo4j + topology-service (~1.2 GB RAM in total)
+make impact LINK=LNK-012      # which cells lose service? (through the gateway, as viewer)
+make topo-load                # re-load topology + runbooks (inside the container)
+```
+
+- RAM: Neo4j is capped at 512 MB heap + 256 MB page cache (`mem_limit: 1g`), topology-service at 192 MB. On an 8 GB Mac, run it with `make demo` but stop `rag`/`copilot` if memory is tight.
+- Images are multi-arch (`neo4j:5.26-community`, python:3.12-slim), so Apple Silicon works natively. Nothing is needed on the host besides Docker.
+- Neo4j Browser: http://localhost:7474 (bound to 127.0.0.1; user `neo4j`, password from `.env`).
+- The console's **Impact / RCA graph** panel needs the `ui` and `graph` profiles together. `make smoke` runs a `graph_impact` check automatically when the graph is up (`SMOKE_GRAPH=1` makes it required, `0` skips it).
+- No Neo4j? The service also runs with `GRAPH_BACKEND=memory` (same impact answers, no named queries): `GRAPH_BACKEND=memory uv run uvicorn topology_service.main:app --port 8008` (dev, needs uv).

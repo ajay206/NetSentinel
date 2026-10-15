@@ -321,6 +321,39 @@ class Smoke:
             self.client.patch(f"/api/admin/users/{name}", json={"disabled": True}, headers=admin)
         return "changed; old token revoked; throwaway user disabled"
 
+    # --- Step 14: knowledge-graph impact ("which cells lose service if LNK-012 fails?") ----
+
+    GRAPH_MODE = os.environ.get("SMOKE_GRAPH", "auto")  # auto | 1 (required) | 0 (skip)
+    GRAPH_MAX_MS = float(os.environ.get("SMOKE_GRAPH_MAX_MS", "100"))
+
+    def step_graph_impact(self) -> str:
+        viewer = self._bearer(
+            self._login_as("viewer", os.environ.get("SMOKE_VIEWER_PASSWORD", "viewer"))
+        )
+        summary = self.client.get("/api/graph/summary", headers=viewer)
+        if summary.status_code == 503 and self.GRAPH_MODE != "1":
+            return "skipped: graph profile not running (SMOKE_GRAPH=1 to require it)"
+        if summary.status_code != 200:
+            raise RuntimeError(f"graph summary returned {summary.status_code}")
+        counts = summary.json().get("counts", {})
+        path = "/api/graph/impact?linkId=LNK-012"
+        self.client.get(path, headers=viewer)  # warm-up: first Cypher run plans the query
+        r = self.client.get(path, headers=viewer)
+        if r.status_code != 200:
+            raise RuntimeError(f"impact LNK-012 returned {r.status_code}")
+        body = r.json()
+        sites = body.get("impactedSites", [])
+        if body.get("cellsLost") != sum(len(s.get("cells", [])) for s in sites):
+            raise RuntimeError("cellsLost does not match the impacted cells")
+        if counts.get("sites") == 12 and [s.get("siteId") for s in sites] != ["SITE-010"]:
+            raise RuntimeError(
+                f"expected SITE-010 isolated, got {[s.get('siteId') for s in sites]}"
+            )
+        ms = float(body.get("elapsedMs", 0))
+        if ms >= self.GRAPH_MAX_MS:
+            raise RuntimeError(f"impact query took {ms:.0f} ms (target < {self.GRAPH_MAX_MS:.0f})")
+        return f"LNK-012 -> {body.get('cellsLost')} cells lost, {ms:.1f} ms ({body.get('backend')})"
+
     def step_console(self) -> str:
         """The dashboard container serves the SPA and proxies /health to the gateway."""
         page = self.client.get(f"{self.console_url}/")
@@ -365,6 +398,8 @@ class Smoke:
         self._run("rbac", self.step_rbac)
         self._run("roles", self.step_roles)
         self._run("password", self.step_password)
+        if self.GRAPH_MODE != "0":
+            self._run("graph_impact", self.step_graph_impact)
         return all(c.ok for c in self.checks)
 
     @staticmethod

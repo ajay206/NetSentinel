@@ -84,6 +84,9 @@ class FakeGateway:
         self.tokens: dict[str, str] = {self.token: "operator"}
         self.disabled: set[str] = set()
         self.issued = 0
+        # Step 14: graph profile up? (False -> 503 like the gateway when topology-service is down)
+        self.graph_up = True
+        self.impact_ms = 4.2
 
     def _user(self, request: httpx.Request) -> str | None:
         return self.tokens.get(request.headers.get("Authorization", "").removeprefix("Bearer "))
@@ -147,6 +150,25 @@ class FakeGateway:
                 self.disabled.add(path.rsplit("/", 1)[-1])
                 return httpx.Response(200, json={})
 
+        if path.startswith("/api/graph/"):
+            if not self._user(request):
+                return httpx.Response(401, json={"detail": "Unauthorized"})
+            if not self.graph_up:
+                return httpx.Response(503, json={"detail": "topology-service unreachable"})
+            if path == "/api/graph/summary":
+                return httpx.Response(200, json={"counts": {"sites": 12}})
+            if path == "/api/graph/impact" and request.url.params.get("linkId") == "LNK-012":
+                cells = ["SITE-010-N1-C1", "SITE-010-N1-C2", "SITE-010-N1-C3"]
+                return httpx.Response(
+                    200,
+                    json={
+                        "impactedSites": [{"siteId": "SITE-010", "cells": cells}],
+                        "cellsLost": 3,
+                        "elapsedMs": self.impact_ms,
+                        "backend": "neo4j",
+                    },
+                )
+
         if path == "/api/alarms/enriched/recent" and method == "GET":
             if not self._check_auth(request):
                 return httpx.Response(401, json={"detail": "Unauthorized"})
@@ -206,7 +228,7 @@ def test_smoke_all_pass(client, monkeypatch):
     smoke = Smoke(client, user="operator", wait_s=0, poll_s=0)
     result = smoke.run()
     assert result is True
-    assert len(smoke.checks) == 11
+    assert len(smoke.checks) == 12
     assert all(c.ok for c in smoke.checks)
 
 
@@ -286,9 +308,12 @@ def test_main_json_output(monkeypatch, mock_transport, capsys):
     exit_code = main(["--base-url", "http://test", "--json", "--wait", "0"])
     assert exit_code == 0
     checks = json.loads(capsys.readouterr().out)
-    assert [c["name"] for c in checks][-3:] == ["rbac", "roles", "password"] and all(
-        c["ok"] for c in checks
-    )
+    assert [c["name"] for c in checks][-4:] == [
+        "rbac",
+        "roles",
+        "password",
+        "graph_impact",
+    ] and all(c["ok"] for c in checks)
 
 
 def test_main_text_output(monkeypatch, mock_transport, capsys):
@@ -297,7 +322,7 @@ def test_main_text_output(monkeypatch, mock_transport, capsys):
     exit_code = main(["--base-url", "http://test", "--wait", "0"])
     assert exit_code == 0
     captured = capsys.readouterr()
-    assert "11/11 checks passed" in captured.out
+    assert "12/12 checks passed" in captured.out
     assert "secret-token-xyz" not in captured.out
 
 
@@ -347,7 +372,7 @@ def test_smoke_console_check(client):
     smoke = Smoke(client, user="operator", wait_s=0, poll_s=0, console_url="http://console/")
     assert smoke.run() is True
     assert [c.name for c in smoke.checks][:2] == ["health", "console"]
-    assert len(smoke.checks) == 12
+    assert len(smoke.checks) == 13
 
 
 def test_smoke_console_down(client):
@@ -458,3 +483,30 @@ def test_smoke_login_backoff_is_bounded(monkeypatch):
     smoke._run("login", smoke.step_login)
     assert smoke.checks[-1].ok is False and "429" in smoke.checks[-1].detail
     assert sum(sleeps) <= 20.0 and sleeps == [7.0, 7.0]
+
+
+@pytest.mark.parametrize(
+    "mode,graph_up,ms,ok,needle",
+    [
+        ("auto", True, 4.2, True, "LNK-012 -> 3 cells lost"),
+        ("auto", False, 4.2, True, "skipped: graph profile not running"),
+        ("1", False, 4.2, False, "503"),
+        ("1", True, 250.0, False, "target < 100"),
+    ],
+)
+def test_graph_impact_check(monkeypatch, mode, graph_up, ms, ok, needle):
+    fake = FakeGateway()
+    fake.graph_up, fake.impact_ms = graph_up, ms
+    c = httpx.Client(transport=httpx.MockTransport(fake.handle_request), base_url="http://test")
+    monkeypatch.setattr(Smoke, "GRAPH_MODE", mode)
+    smoke = Smoke(c, user="operator", wait_s=0, poll_s=0)
+    smoke.run()
+    check = next(x for x in smoke.checks if x.name == "graph_impact")
+    assert check.ok is ok and needle in check.detail, check.detail
+
+
+def test_graph_check_off(client, monkeypatch):
+    monkeypatch.setattr(Smoke, "GRAPH_MODE", "0")
+    smoke = Smoke(client, user="operator", wait_s=0, poll_s=0)
+    smoke.run()
+    assert "graph_impact" not in {c.name for c in smoke.checks}

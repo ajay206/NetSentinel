@@ -1,4 +1,4 @@
-.PHONY: logs ps reset-db tools-build incidents up-core up-tools up-ui down topics test lint fmt smoke sim sim-loop sim-docker gateway console-install console console-build console-lint console-test test-all ingest up-pipeline enriched-peek ingest-stats kpi-service kpi-stats kpi-query ml ml-train anomalies topology kpis kpis-follow kpis-peek docs-check ml-train-xgb up-rag rag rag-ingest rag-eval runbooks copilot up-copilot analyze ollama-pull mcp mcp-dev mcp-contract copilot-contract gateway-contract token demo kafka-smoke incident up-incident incidents-peek incident-eval
+.PHONY: logs ps reset-db tools-build incidents up-core up-tools up-ui down topics test lint fmt smoke sim sim-loop sim-docker gateway console-install console console-build console-lint console-test test-all ingest up-pipeline enriched-peek ingest-stats kpi-service kpi-stats kpi-query ml ml-train anomalies topology kpis kpis-follow kpis-peek docs-check ml-train-xgb up-rag rag rag-ingest rag-eval runbooks copilot up-copilot analyze ollama-pull mcp mcp-dev mcp-contract copilot-contract gateway-contract token demo kafka-smoke incident up-incident incidents-peek incident-eval up-graph topo-load impact topology-contract
 
 # Targets marked (dev) run on the host and need uv / Node; everything else needs only Docker.
 
@@ -12,7 +12,7 @@ up-ui:
 	docker compose --profile core --profile ui up --build -d
 
 # Every compose profile: `docker compose logs/ps/down` only see services whose profile is enabled
-PROFILES := --profile core --profile tools --profile ui --profile sim --profile pipeline --profile rag --profile copilot --profile ops --profile cli
+PROFILES := --profile core --profile tools --profile ui --profile sim --profile pipeline --profile rag --profile copilot --profile ops --profile graph --profile cli
 # One-shot tools container (netgen-sim, smoke.py, gw.py) on the compose network
 TOOLS := docker compose --profile cli run --rm --no-deps -T tools
 
@@ -187,6 +187,9 @@ copilot-contract:
 gateway-contract:
 	uv run python scripts/gen_gateway_auth_contract.py
 
+topology-contract:
+	uv run python scripts/gen_topology_contract.py
+
 # W11: get a JWT from the gateway (demo users; synthetic data only)
 AS ?= operator
 token:
@@ -223,3 +226,15 @@ incidents-peek:
 # (dev) needs uv/Node on the host
 incident-eval:
 	uv run incident-eval --out evals/rca_report.md
+
+# Step 14: Neo4j knowledge graph + topology-service (~1 GB RAM)
+up-graph:
+	docker compose --profile graph up -d --build neo4j topology-service
+
+# Re-load topology + runbooks into Neo4j (idempotent MERGE); runs inside the container
+topo-load:
+	docker compose --profile graph exec -T topology-service topology-load
+
+LINK ?= LNK-012
+impact:
+	@$(TOOLS) python scripts/gw.py call GET "/api/graph/impact?linkId=$(LINK)" --as viewer

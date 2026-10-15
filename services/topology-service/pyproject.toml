@@ -1,0 +1,32 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "topology-service"
+version = "0.1.0"
+description = "Network knowledge graph on Neo4j with an impact / RCA API (W14)"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+    "aiokafka>=0.11",
+    "neo4j>=5.20",
+    "netgen",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0", "pytest-asyncio>=0.23", "httpx>=0.27"]
+
+[project.scripts]
+topology-load = "topology_service.load:main"
+
+[tool.uv.sources]
+netgen = { workspace = true }
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/topology_service"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"

@@ -201,3 +201,26 @@ class Backends:
                 return resp.json()
             except (httpx.HTTPError, ValueError) as exc:
                 self._raise_backend_error("rag", exc)
+
+    async def query_topology(
+        self, target: dict[str, str] | None, query: str | None, params: dict[str, Any]
+    ) -> dict[str, Any]:
+        """W14: impact analysis or a named catalogue query, via the gateway (graph profile)."""
+        async with self._client() as client:
+            try:
+                if target is not None:
+                    resp = await client.get(
+                        f"{self.gateway_url}/api/graph/impact",
+                        params=target,
+                        headers=gateway_headers(),
+                    )
+                else:
+                    resp = await client.post(
+                        f"{self.gateway_url}/api/graph/queries/{query}",
+                        json=params,
+                        headers=gateway_headers(),
+                    )
+                resp.raise_for_status()
+                return resp.json()
+            except (httpx.HTTPError, ValueError) as exc:
+                self._raise_backend_error("topology", exc)

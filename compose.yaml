@@ -86,6 +86,7 @@ services:
       ALARM_INGEST_URL: http://alarm-ingest:8001
       MCP_SERVER_URL: http://mcp-server:8006
       INCIDENT_SERVICE_URL: http://incident-service:8007
+      TOPOLOGY_SERVICE_URL: http://topology-service:8008
       # W11: JWT/RBAC. Dev-only defaults; set real values in .env (never commit them)
       JWT_SECRET: ${JWT_SECRET:-dev-only-change-me-0123456789abcdefghij}
       GATEWAY_SERVICE_TOKEN: ${GATEWAY_SERVICE_TOKEN:-dev-only-service-token}
@@ -164,6 +165,64 @@ services:
       test: ["CMD-SHELL", "python -c \"import urllib.request;urllib.request.urlopen('http://localhost:8007/healthz')\""]
       interval: 10s
       retries: 5
+    restart: unless-stopped
+
+  # Step 14 (W14): network knowledge graph. ~1 GB total, opt-in: --profile graph
+  neo4j:
+    image: neo4j:5.26-community  # multi-arch (amd64 + arm64)
+    profiles: ["graph"]
+    ports:
+      - "127.0.0.1:7474:7474"  # browser, local only
+      - "127.0.0.1:7687:7687"  # bolt, local only
+    environment:
+      NEO4J_AUTH: neo4j/${NEO4J_PASSWORD:-change-me-graph}
+      # Modest caps for 8 GB laptops: 512 MB heap + 256 MB page cache (graph is tiny)
+      NEO4J_server_memory_heap_initial__size: 512m
+      NEO4J_server_memory_heap_max__size: 512m
+      NEO4J_server_memory_pagecache_size: 256m
+      NEO4J_server_jvm_additional: -XX:+ExitOnOutOfMemoryError
+      NEO4J_dbms_usage__report_enabled: "false"
+    mem_limit: 1g
+    volumes:
+      - neo4j-data:/data
+    healthcheck:
+      # no curl/wget in the image; bolt accepts connections once the database is up
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/7687"]
+      interval: 10s
+      timeout: 5s
+      retries: 18
+      start_period: 20s
+    restart: unless-stopped
+
+  topology-service:
+    build:
+      context: .
+      dockerfile: services/topology-service/Dockerfile
+    profiles: ["graph"]
+    ports:
+      - "8008:8008"
+    environment:
+      GRAPH_BACKEND: neo4j
+      NEO4J_URI: bolt://neo4j:7687
+      NEO4J_USER: neo4j
+      NEO4J_PASSWORD: ${NEO4J_PASSWORD:-change-me-graph}
+      # same synthetic topology as incident-service / the console (netgen, deterministic)
+      TOPOLOGY_SEED: "42"
+      TOPOLOGY_FULL: "0"
+      RUNBOOKS_DIR: /app/data/runbooks
+      # Mirror live enriched alarms into the graph when Kafka is up (core profile): set to 0
+      DISABLE_KAFKA: ${TOPOLOGY_DISABLE_KAFKA:-1}
+      KAFKA_BOOTSTRAP: kafka:29092
+      ENRICHED_TOPIC: alarms.enriched
+    mem_limit: 192m
+    depends_on:
+      neo4j:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request;urllib.request.urlopen('http://localhost:8008/readyz')\""]
+      interval: 10s
+      retries: 12
+      start_period: 10s
     restart: unless-stopped
 
   kpi-service:
@@ -343,6 +402,8 @@ services:
       SMOKE_VIEWER_PASSWORD: ${SMOKE_VIEWER_PASSWORD:-viewer}
       SMOKE_OPERATOR_PASSWORD: ${SMOKE_OPERATOR_PASSWORD:-operator}
       SMOKE_ADMIN_PASSWORD: ${SMOKE_ADMIN_PASSWORD:-admin}
+      # Step 14: graph_impact check. auto = run if the graph profile is up, 1 = required, 0 = skip
+      SMOKE_GRAPH: ${SMOKE_GRAPH:-auto}
     mem_limit: 192m
     restart: "no"
 
@@ -350,3 +411,4 @@ volumes:
   kafka-data: {}
   qdrant-data: {}
   pg-data: {}
+  neo4j-data: {}

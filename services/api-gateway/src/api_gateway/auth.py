@@ -264,6 +264,9 @@ def required_role(method: str, path: str) -> str | None:
     # Step 13b: incident and alarm workflow actions (ack / assign / resolve with notes)
     if method == "POST" and _ACTION_RE.match(path):
         return "operator"
+    # Step 14: reloading the knowledge graph rewrites it, so admin only
+    if path == "/api/graph/reload":
+        return "admin"
     if path.startswith("/api") or path.startswith("/ws"):
         return "viewer"
     return None

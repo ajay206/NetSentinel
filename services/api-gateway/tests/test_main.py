@@ -499,3 +499,40 @@ def test_copilot_analyze_siteid_through_gateway(monkeypatch) -> None:
     finally:
         gw.copilot_transport = None
         copilot_app.dependency_overrides.clear()
+
+
+def test_graph_proxy_end_to_end_with_real_topology_service(monkeypatch) -> None:
+    """W14: gateway -> topology-service (memory backend) answers the L-12 question."""
+    monkeypatch.setenv("GRAPH_BACKEND", "memory")
+    from topology_service import main as topo
+
+    with TestClient(topo.app) as tc:
+
+        def forward(req: httpx.Request) -> httpx.Response:
+            r = tc.request(
+                req.method,
+                req.url.path,
+                params=req.url.params,
+                content=req.content,
+                headers={"Content-Type": "application/json"},
+            )
+            return httpx.Response(r.status_code, content=r.content, headers=r.headers)
+
+        monkeypatch.setattr(main, "topology_transport", httpx.MockTransport(forward))
+        with TestClient(app) as client:
+            body = client.get("/api/graph/impact?linkId=LNK-012").json()
+            assert [s["siteId"] for s in body["impactedSites"]] == ["SITE-010"]
+            assert client.get("/api/graph/impact?linkId=LNK-999").status_code == 404
+            assert client.get("/api/graph/impact").status_code == 400
+            assert len(client.get("/api/graph/queries").json()["items"]) == 20
+            assert client.post("/api/graph/queries/BAD-NAME", json={}).status_code == 404
+
+
+def test_graph_proxy_down_is_503(monkeypatch) -> None:
+    def refuse(request: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectError("refused", request=request)
+
+    monkeypatch.setattr(main, "topology_transport", httpx.MockTransport(refuse))
+    with TestClient(app) as client:
+        r = client.get("/api/graph/impact?linkId=LNK-012")
+        assert r.status_code == 503 and "graph" in r.json()["detail"]

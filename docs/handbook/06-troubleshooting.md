@@ -415,3 +415,18 @@ Then refresh the console.
 - Cause: the gateway allows `LOGIN_RATE_PER_MIN` (default 10) logins per client IP per minute. Smoke, `make demo` (`gw.py token`) and any console sign-ins all count against it, and in compose they all come from the same Docker network.
 - Fixed in fix 2: smoke reuses one token per user (5 logins instead of 7). On 429 it waits for `Retry-After` (1–65 s per wait) and retries, for at most `SMOKE_LOGIN_MAX_WAIT` seconds in total (default 75). A smoke run may therefore take up to about a minute longer when the limiter is hot. The report still prints no tokens or passwords.
 - Still failing? Wait a minute and rerun. The limiter is enforced by the gateway, so the smoke/tools container cannot relax it. For a dev-only stack you can raise `LOGIN_RATE_PER_MIN` for the gateway in `.env`, but keep the default in production.
+
+### 67. Impact panel says "topology-service unreachable (start the `graph` compose profile)"
+- The gateway returns 503 when topology-service is not running. Start it with `make up-graph` (Neo4j + topology-service). `make down` stops every profile, including `graph`.
+- `docker compose --profile graph ps` should show `neo4j` and `topology-service` as healthy. topology-service waits up to ~2 minutes for Neo4j, then `/readyz` reports `{error}`.
+
+### 68. Neo4j exits or the Mac swaps
+- Neo4j is capped at 512 MB heap + 256 MB page cache inside a 1 GB container. Do not raise the heap above ~700 MB without raising `mem_limit`, or the container is OOM-killed (`-XX:+ExitOnOutOfMemoryError` makes it exit cleanly and restart).
+- On 8 GB machines, run the `graph` profile without `rag` and `copilot`, or stop it when you do not need impact analysis.
+
+### 69. Neo4j "authentication failure" / unauthorized in topology-service logs
+- Neo4j stores the password in its volume on first start; changing `NEO4J_PASSWORD` in `.env` later does not change it. Either set it back, or reset the graph volume: `docker compose --profile graph down` then `docker volume rm netsentinel_neo4j-data` (only topology data; it is rebuilt on start).
+
+### 70. Impact answer looks wrong or stale after switching to the 60-site topology
+- The graph is rebuilt from `TOPOLOGY_SEED` / `TOPOLOGY_FULL` (or `TOPOLOGY_FILE`) on every start in one transaction, and `make topo-load` rebuilds it on demand. Set `TOPOLOGY_FULL: "1"` for topology-service *and* incident-service so they agree. Link IDs differ between the small (14 links) and full (77 links) topologies, so LNK-012 is a different link in each.
+- Named queries return 501 on `GRAPH_BACKEND=memory`; only `/graph/impact` and `/graph/summary` work without Neo4j.
