@@ -37,8 +37,8 @@ export const AnomaliesPanel: React.FC<Props> = ({ data, isLoading, isError, kpi,
         <span className={`px-1.5 py-0.5 rounded ${bg} text-xs font-mono`}>
           z {score.toFixed(1)}
         </span>
-        <span className={direction === 'high' ? 'text-red-400' : 'text-sky-400'}>{dirArrow}</span>
-        <span className="text-slate-500">{method}</span>
+        <span className={direction === 'high' ? 'text-red-400' : 'text-sky-700'}>{dirArrow}</span>
+        <span className="text-slate-600">{method}</span>
       </span>
     );
   };
@@ -57,7 +57,7 @@ export const AnomaliesPanel: React.FC<Props> = ({ data, isLoading, isError, kpi,
           <select
             value={kpi}
             onChange={(e) => onKpiChange(e.target.value)}
-            className="bg-slate-800 text-slate-200 border border-slate-600 rounded px-1 py-0.5 text-xs"
+            className="bg-bento-bg text-navy border border-bento-border rounded px-1 py-0.5 text-xs"
           >
             {KPI_OPTIONS.map((opt) => (
               <option key={opt} value={opt}>
@@ -65,18 +65,18 @@ export const AnomaliesPanel: React.FC<Props> = ({ data, isLoading, isError, kpi,
               </option>
             ))}
           </select>
-          <span className="px-2 py-0.5 bg-slate-700 rounded text-slate-300 text-xs">{count}</span>
+          <span className="px-2 py-0.5 bg-slate-200 rounded text-slate-600 text-xs">{count}</span>
         </div>
       </header>
 
-      {isLoading && <p className="text-slate-400">Loading…</p>}
+      {isLoading && <p className="text-bento-muted">Loading…</p>}
       {isError && <p className="text-red-400">ml-service unreachable — run make ml</p>}
       {!isLoading && !isError && data && items.length === 0 && (
-        <p className="text-slate-400">No anomalies in the last {data.hours ?? 24} h</p>
+        <p className="text-bento-muted">No anomalies in the last {data.hours ?? 24} h</p>
       )}
       {!isLoading && !isError && items.length > 0 && (
         <table className="w-full table-auto">
-          <thead className="text-slate-400">
+          <thead className="text-bento-muted">
             <tr>
               <th className="text-left">
                 <Tip tip={TIPS.colCell}>Cell</Tip>
@@ -94,7 +94,7 @@ export const AnomaliesPanel: React.FC<Props> = ({ data, isLoading, isError, kpi,
           </thead>
           <tbody>
             {items.map((item) => (
-              <tr key={item.cellId + item.ts} className="border-t border-slate-700">
+              <tr key={item.cellId + item.ts} className="border-t border-bento-border">
                 <td>{item.cellId}</td>
                 <td>{item.region}</td>
                 <td>{formatIST(item.ts)}</td>

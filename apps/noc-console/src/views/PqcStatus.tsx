@@ -20,17 +20,17 @@ const MODEL: Record<PqcModel["status"], { cls: string; tip: string }> = {
   fail: { cls: "bg-red-900 text-red-200", tip: TIPS.chipModelFail },
   unsigned: { cls: "bg-amber-900 text-amber-200", tip: TIPS.chipModelUnsigned },
   off: {
-    cls: "bg-slate-800 text-slate-300",
+    cls: "bg-bento-bg text-slate-600",
     tip: "Signature checking is switched off.",
   },
-  unknown: { cls: "bg-slate-800 text-slate-300", tip: TIPS.chipModelUnknown },
+  unknown: { cls: "bg-bento-bg text-slate-600", tip: TIPS.chipModelUnknown },
 };
 
 function tlsLabel(t: PqcTls): { text: string; cls: string; tip: string } {
   if (!t.tls)
     return {
       text: "plaintext (compose network)",
-      cls: "text-slate-400",
+      cls: "text-bento-muted",
       tip: TIPS.chipPlaintext,
     };
   if (t.hybridOnly)
@@ -89,7 +89,7 @@ export function PqcStatus({
         actions={
           data && (
             <span
-              className="text-[11px] text-slate-500"
+              className="text-[11px] text-slate-600"
               data-testid="pqc-checked"
             >
               checked {when(data.checkedAt)}
@@ -98,12 +98,12 @@ export function PqcStatus({
         }
       />
       {error && <p className="text-sm text-red-400">{error.message}</p>}
-      {isLoading && !data && <p className="text-sm text-slate-400">Probing…</p>}
+      {isLoading && !data && <p className="text-sm text-bento-muted">Probing…</p>}
       {data && (
         <div className="flex min-h-0 flex-1 flex-col gap-3">
           <div className="grid grid-cols-2 gap-2 text-xs">
-            <div className="rounded-lg border border-slate-800 bg-slate-950/60 p-2">
-              <div className="text-slate-400">
+            <div className="rounded-lg border border-bento-border bg-bento-bg p-2">
+              <div className="text-bento-muted">
                 <Tip tip="Is the AI model the ml-service serves exactly the one that was signed?">
                   Model signature
                 </Tip>
@@ -114,7 +114,7 @@ export function PqcStatus({
                     <>
                       {m.tip}{" "}
                       {model.reason && (
-                        <span className="block text-slate-400">
+                        <span className="block text-bento-muted">
                           {model.reason}
                         </span>
                       )}
@@ -132,25 +132,25 @@ export function PqcStatus({
               </div>
               {model.modelVersion && (
                 <div
-                  className="mt-1 truncate font-mono text-[11px] text-slate-500"
+                  className="mt-1 truncate font-mono text-[11px] text-slate-600"
                   title={model.modelVersion}
                 >
                   {model.modelVersion} · {model.policy}
                 </div>
               )}
             </div>
-            <div className="rounded-lg border border-slate-800 bg-slate-950/60 p-2">
-              <div className="text-slate-400">
+            <div className="rounded-lg border border-bento-border bg-bento-bg p-2">
+              <div className="text-bento-muted">
                 <Tip tip="How many services only accept post-quantum (hybrid) encryption. The rest are listed below.">
                   Hybrid TLS
                 </Tip>
               </div>
               <div
-                className="mt-1 text-lg font-semibold tabular-nums text-slate-100"
+                className="mt-1 text-lg font-semibold tabular-nums text-navy"
                 data-testid="pqc-count"
               >
                 {hybrid}{" "}
-                <span className="text-xs font-normal text-slate-400">
+                <span className="text-xs font-normal text-bento-muted">
                   of {tls.length} services
                 </span>
               </div>
@@ -175,9 +175,9 @@ export function PqcStatus({
                     <tr
                       key={t.service}
                       data-testid="pqc-row"
-                      className="border-t border-slate-800/70"
+                      className="border-t border-bento-border"
                     >
-                      <td className="truncate py-1 pr-2 font-mono text-slate-200">
+                      <td className="truncate py-1 pr-2 font-mono text-navy">
                         {t.service}
                       </td>
                       <td className="py-1">
@@ -186,7 +186,7 @@ export function PqcStatus({
                             t.hybridDetail ? (
                               <>
                                 {l.tip}{" "}
-                                <span className="block text-slate-400">
+                                <span className="block text-bento-muted">
                                   {t.hybridDetail}
                                 </span>
                               </>
@@ -206,7 +206,7 @@ export function PqcStatus({
           </div>
           <Tooltip content={TIPS.btnBenchmarks}>
             <a
-              className="self-start text-[11px] text-sky-400 underline hover:text-sky-300"
+              className="self-start text-[11px] text-sky-700 underline hover:text-sky-700"
               href={REPO + data.report}
               target="_blank"
               rel="noreferrer"

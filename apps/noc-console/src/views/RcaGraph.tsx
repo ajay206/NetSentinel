@@ -64,14 +64,14 @@ export const RcaGraph: React.FC<Props> = ({ topology, onImpact, agentRun = null 
     >
       {agentRun && agentRun.agentPath.length > 0 && (
         <div
-          className="mb-3 flex flex-wrap items-center gap-1 rounded bg-slate-800/60 p-2 text-xs"
+          className="mb-3 flex flex-wrap items-center gap-1 rounded bg-bento-bg p-2 text-xs"
           data-testid="rca-agent-path"
         >
-          <span className="text-slate-400">
+          <span className="text-bento-muted">
             Agents ({agentRun.runId}, {agentRun.status.replace('_', ' ')}):
           </span>
           {agentRun.agentPath.map((a, i) => (
-            <span key={`${a}-${i}`} className="text-slate-200">
+            <span key={`${a}-${i}`} className="text-navy">
               {i > 0 && <span className="mx-1 text-slate-500">→</span>}
               {a}
             </span>
@@ -79,7 +79,7 @@ export const RcaGraph: React.FC<Props> = ({ topology, onImpact, agentRun = null 
           <Tooltip content={TIPS.btnImpact}>
             <button
               type="button"
-              className="ml-auto font-mono text-sky-300 hover:underline"
+              className="ml-auto font-mono text-sky-700 hover:underline"
               onClick={() => {
                 setType('site');
                 setId(agentRun.siteId);
@@ -98,7 +98,7 @@ export const RcaGraph: React.FC<Props> = ({ topology, onImpact, agentRun = null 
             setType(e.target.value as ImpactTargetType);
             setId('');
           }}
-          className="rounded border border-slate-600 bg-slate-800 px-2 py-1 text-sm text-slate-200"
+          className="rounded border border-bento-border bg-bento-bg px-2 py-1 text-sm text-navy"
         >
           <option value="link">Link</option>
           <option value="site">Site</option>
@@ -109,7 +109,7 @@ export const RcaGraph: React.FC<Props> = ({ topology, onImpact, agentRun = null 
           value={id}
           onChange={(e) => setId(e.target.value)}
           disabled={options.length === 0}
-          className="rounded border border-slate-600 bg-slate-800 px-2 py-1 text-sm text-slate-200 min-w-0 flex-1"
+          className="rounded border border-bento-border bg-bento-bg px-2 py-1 text-sm text-navy min-w-0 flex-1"
         >
           <option value="">— select —</option>
           {options.map((o) => (
@@ -123,7 +123,7 @@ export const RcaGraph: React.FC<Props> = ({ topology, onImpact, agentRun = null 
             type="button"
             onClick={() => setId('')}
             disabled={!id}
-            className="rounded px-2 py-1 text-xs font-medium text-sky-300 hover:text-sky-200 disabled:opacity-40"
+            className="rounded px-2 py-1 text-xs font-medium text-sky-700 hover:text-sky-200 disabled:opacity-40"
           >
             Clear
           </button>
@@ -151,7 +151,7 @@ export const RcaGraph: React.FC<Props> = ({ topology, onImpact, agentRun = null 
             </span>
             <Tooltip content="Where the answer came from (Neo4j graph or in-memory copy) and how long the query took.">
               <span
-                className="rounded bg-slate-800 px-2 py-0.5 text-xs text-slate-300"
+                className="rounded bg-bento-bg px-2 py-0.5 text-xs text-slate-600"
                 data-testid="impact-latency"
               >
                 {result.backend} · {result.elapsedMs.toFixed(1)} ms
@@ -187,7 +187,7 @@ export const RcaGraph: React.FC<Props> = ({ topology, onImpact, agentRun = null 
                 </thead>
                 <tbody>
                   {result.impactedSites.map((s) => (
-                    <tr key={s.siteId} className="border-t border-slate-800">
+                    <tr key={s.siteId} className="border-t border-bento-border">
                       <td className="py-1 pr-2 font-mono">{s.siteId}</td>
                       <td className="py-1 pr-2">{s.kind}</td>
                       <td className="py-1 pr-2">{REASON[s.reason]}</td>

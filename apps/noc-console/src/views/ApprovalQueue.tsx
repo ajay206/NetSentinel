@@ -88,7 +88,7 @@ export const ApprovalQueue: React.FC<ApprovalQueueProps> = ({
           aria-label="Status"
           value={status}
           onChange={handleStatus}
-          className="rounded border border-slate-700 bg-slate-800 px-2 py-1 text-sm"
+          className="rounded border border-bento-border bg-bento-bg px-2 py-1 text-sm"
         >
           <option value="all">All</option>
           <option value="draft">Draft</option>
@@ -97,10 +97,10 @@ export const ApprovalQueue: React.FC<ApprovalQueueProps> = ({
         </select>
       </div>
 
-      {isLoading && <p className="text-slate-400 text-sm">Loading tickets…</p>}
+      {isLoading && <p className="text-bento-muted text-sm">Loading tickets…</p>}
       {isError && <p className="text-red-400">ticket-service unavailable</p>}
       {!isLoading && !isError && tickets.length === 0 && (
-        <p className="text-slate-400 text-sm">No tickets</p>
+        <p className="text-bento-muted text-sm">No tickets</p>
       )}
 
       <div className="grid gap-4 lg:grid-cols-2">
@@ -113,7 +113,7 @@ export const ApprovalQueue: React.FC<ApprovalQueueProps> = ({
                 aria-pressed={selectedId === ticket.id}
                 onClick={() => onSelect(ticket.id)}
                 className={`w-full text-left p-2 rounded border ${
-                  selectedId === ticket.id ? 'border-emerald-500' : 'border-slate-600'
+                  selectedId === ticket.id ? 'border-emerald-500' : 'border-bento-border'
                 }`}
               >
                 <div className="flex justify-between items-center">
@@ -126,19 +126,19 @@ export const ApprovalQueue: React.FC<ApprovalQueueProps> = ({
                   {ticket.siteId && <span className="ml-2">Site: {ticket.siteId}</span>}
                   {ticket.incidentId && <span className="ml-2">Inc: {ticket.incidentId}</span>}
                   {ticket.createdVia === 'mcp' && (
-                    <span data-testid="via-mcp" className="ml-2 text-xs bg-slate-700 rounded px-1">
+                    <span data-testid="via-mcp" className="ml-2 text-xs bg-slate-200 rounded px-1">
                       🤖 MCP
                     </span>
                   )}
                 </div>
-                <div className="mt-1 text-xs text-slate-500">By {ticket.createdBy}</div>
+                <div className="mt-1 text-xs text-slate-600">By {ticket.createdBy}</div>
               </button>
             </li>
           ))}
         </ul>
 
         {selectedTicket && (
-          <section data-testid="ticket-detail" className="border-l border-slate-600 pl-4">
+          <section data-testid="ticket-detail" className="border-l border-bento-border pl-4">
             <h4 className="font-medium">{selectedTicket.title}</h4>
             <p className="mt-2 whitespace-pre-wrap">{selectedTicket.description}</p>
 
@@ -146,13 +146,13 @@ export const ApprovalQueue: React.FC<ApprovalQueueProps> = ({
               {selectedTicket.runbookIds.map((id) => (
                 <span
                   key={id}
-                  className="inline-block mr-1 mb-1 px-2 py-0.5 bg-slate-700 rounded text-xs font-mono"
+                  className="inline-block mr-1 mb-1 px-2 py-0.5 bg-slate-200 rounded text-xs font-mono"
                 >
                   {id}
                 </span>
               ))}
               {selectedTicket.incidentId && (
-                <span className="inline-block mr-1 mb-1 px-2 py-0.5 bg-slate-800 rounded text-xs font-mono text-slate-300">
+                <span className="inline-block mr-1 mb-1 px-2 py-0.5 bg-bento-bg rounded text-xs font-mono text-slate-600">
                   {selectedTicket.incidentId}
                 </span>
               )}
@@ -180,7 +180,7 @@ export const ApprovalQueue: React.FC<ApprovalQueueProps> = ({
                   placeholder="Why are you approving or rejecting? (required to reject)"
                   value={note}
                   onChange={(e) => setNote(e.target.value)}
-                  className="w-full rounded border-slate-600 bg-slate-800 p-2"
+                  className="w-full rounded border-bento-border bg-bento-bg p-2"
                 />
                 <div className="mt-2 flex gap-2">
                   <Tooltip
@@ -221,7 +221,7 @@ export const ApprovalQueue: React.FC<ApprovalQueueProps> = ({
                   </Tooltip>
                 </div>
                 {!canApprove && (
-                  <p role="note" className="mt-1 text-sm text-slate-400">
+                  <p role="note" className="mt-1 text-sm text-bento-muted">
                     Read-only: approving needs the operator role.
                   </p>
                 )}
@@ -231,7 +231,7 @@ export const ApprovalQueue: React.FC<ApprovalQueueProps> = ({
 
             <div className="mt-4">
               <h5 className="font-medium">Audit trail</h5>
-              {auditLoading && <p className="text-slate-400 text-sm">Loading audit…</p>}
+              {auditLoading && <p className="text-bento-muted text-sm">Loading audit…</p>}
               {!auditLoading && (
                 <ol data-testid="audit-trail" className="list-decimal ml-4">
                   {audit.map((entry) => (

@@ -26,7 +26,7 @@ export const RetrievalModeBadge: React.FC<{ mode?: string | null }> = ({ mode })
     <span
       data-testid="retrieval-mode"
       className={`text-[11px] px-2 py-0.5 rounded ${
-        mode === 'graph' ? 'bg-teal-900 text-teal-200' : 'bg-slate-800 text-slate-400'
+        mode === 'graph' ? 'bg-teal-900 text-teal-200' : 'bg-bento-bg text-bento-muted'
       }`}
     >
       retrieval mode: {mode}

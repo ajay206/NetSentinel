@@ -28,4 +28,4 @@ export const space = {
   pad: 'p-4',
 };
 
-export const card = 'bg-white rounded-[20px] shadow-sm shadow-navy/5 p-4.5 border border-transparent';
+export const card = 'bg-white rounded-[20px] shadow-sm shadow-navy/5 p-4.5 border border-bento-border';

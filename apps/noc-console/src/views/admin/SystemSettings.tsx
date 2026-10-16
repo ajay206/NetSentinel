@@ -35,8 +35,8 @@ export const SystemSettings: React.FC = () => {
       >
         {rows.map(([k, v]) => (
           <React.Fragment key={k}>
-            <dt className="text-slate-400">{k}</dt>
-            <dd className="text-slate-100">{v}</dd>
+            <dt className="text-bento-muted">{k}</dt>
+            <dd className="text-navy">{v}</dd>
           </React.Fragment>
         ))}
       </dl>

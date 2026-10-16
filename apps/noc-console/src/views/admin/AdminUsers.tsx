@@ -8,9 +8,9 @@ import { ROLE_STYLE } from '../../lib/rbac';
 
 const ROLES: AdminUser['role'][] = ['viewer', 'operator', 'admin'];
 const SELF = 'You cannot change your own account here';
-const input = 'rounded border border-slate-700 bg-slate-950 px-2 py-1 text-sm text-slate-200';
+const input = 'rounded border border-bento-border bg-bento-bg px-2 py-1 text-sm text-navy';
 const btn =
-  'rounded px-2 py-0.5 text-xs border border-slate-700 text-slate-200 hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed';
+  'rounded px-2 py-0.5 text-xs border border-bento-border text-navy hover:bg-bento-bg disabled:opacity-40 disabled:cursor-not-allowed';
 
 /** Step 13b (admin): create users, change roles, disable/enable, unlock and reset passwords. */
 export const AdminUsers: React.FC<{ currentUser: string }> = ({ currentUser }) => {
@@ -67,10 +67,10 @@ export const AdminUsers: React.FC<{ currentUser: string }> = ({ currentUser }) =
             {users.data.map((u) => {
               const self = u.username === currentUser;
               return (
-                <tr key={u.username} className="border-t border-slate-800 align-top">
-                  <td className="px-2 py-2 font-mono text-slate-100">
+                <tr key={u.username} className="border-t border-bento-border align-top">
+                  <td className="px-2 py-2 font-mono text-navy">
                     {u.username}
-                    {self && <span className="ml-1 text-xs text-slate-500">(you)</span>}
+                    {self && <span className="ml-1 text-xs text-slate-600">(you)</span>}
                   </td>
                   <td className="px-2 py-2">
                     <select
@@ -98,7 +98,7 @@ export const AdminUsers: React.FC<{ currentUser: string }> = ({ currentUser }) =
                     <span
                       className={`rounded px-2 py-0.5 text-xs ${
                         u.disabled
-                          ? 'bg-slate-700 text-slate-300'
+                          ? 'bg-slate-200 text-slate-600'
                           : u.locked
                             ? 'bg-red-500/15 text-red-700'
                             : 'bg-emerald-500/15 text-emerald-700'
@@ -107,7 +107,7 @@ export const AdminUsers: React.FC<{ currentUser: string }> = ({ currentUser }) =
                       {u.disabled ? 'Disabled' : u.locked ? 'Locked' : 'Active'}
                     </span>
                   </td>
-                  <td className="px-2 py-2 tabular-nums text-slate-400">{u.failedLogins}</td>
+                  <td className="px-2 py-2 tabular-nums text-bento-muted">{u.failedLogins}</td>
                   <td className="px-2 py-2">
                     <div className="flex flex-wrap gap-1.5">
                       <button
@@ -204,7 +204,7 @@ export const AdminUsers: React.FC<{ currentUser: string }> = ({ currentUser }) =
         className="mb-3 flex flex-wrap items-end gap-2"
         aria-label="Create user"
       >
-        <label className="flex flex-col text-xs text-slate-400">
+        <label className="flex flex-col text-xs text-bento-muted">
           Username
           <input
             value={form.username}
@@ -212,7 +212,7 @@ export const AdminUsers: React.FC<{ currentUser: string }> = ({ currentUser }) =
             className={input}
           />
         </label>
-        <label className="flex flex-col text-xs text-slate-400">
+        <label className="flex flex-col text-xs text-bento-muted">
           Role
           <select
             value={form.role}
@@ -226,7 +226,7 @@ export const AdminUsers: React.FC<{ currentUser: string }> = ({ currentUser }) =
             ))}
           </select>
         </label>
-        <label className="flex flex-col text-xs text-slate-400">
+        <label className="flex flex-col text-xs text-bento-muted">
           Initial password
           <input
             type="password"
@@ -241,7 +241,7 @@ export const AdminUsers: React.FC<{ currentUser: string }> = ({ currentUser }) =
           disabled={
             !form.username.trim() || !form.password || createProblems.length > 0 || action.isPending
           }
-          className="rounded bg-sky-600 px-3 py-1 text-sm text-white hover:bg-sky-500 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
+          className="rounded bg-sky-600 px-3 py-1 text-sm text-white hover:bg-sky-500 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-bento-muted"
         >
           Create user
         </button>

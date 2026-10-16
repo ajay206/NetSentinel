@@ -34,13 +34,13 @@ export const RunbooksPanel: React.FC<RunbooksPanelProps> = ({
 }) => {
   let body: React.ReactNode;
   if (!alarmLabel) {
-    body = <p className="text-slate-400 text-sm">Click an enriched alarm to see runbooks.</p>;
+    body = <p className="text-bento-muted text-sm">Click an enriched alarm to see runbooks.</p>;
   } else if (isLoading) {
-    body = <p className="text-slate-400 text-sm">Searching runbooks…</p>;
+    body = <p className="text-bento-muted text-sm">Searching runbooks…</p>;
   } else if (isError) {
     body = <p className="text-red-400 text-sm">rag-service unavailable</p>;
   } else if (hits.length === 0) {
-    body = <p className="text-slate-400 text-sm">No matching runbooks</p>;
+    body = <p className="text-bento-muted text-sm">No matching runbooks</p>;
   } else {
     body = (
       <ol className="space-y-2">
@@ -55,24 +55,24 @@ export const RunbooksPanel: React.FC<RunbooksPanelProps> = ({
                 aria-pressed={selected}
                 className={`w-full text-left p-3 rounded-lg border transition-colors ${
                   selected
-                    ? 'bg-slate-700 border-sky-500'
-                    : 'bg-slate-800 border-slate-700 hover:bg-slate-700/60'
+                    ? 'bg-slate-200 border-sky-500'
+                    : 'bg-bento-bg border-bento-border hover:bg-slate-200'
                 }`}
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex-1 min-w-0">
-                    <div className="font-medium text-slate-100 truncate">{hit.title}</div>
+                    <div className="font-medium text-navy truncate">{hit.title}</div>
                     <div className="text-xs text-slate-500 mt-0.5">
                       <span className="font-mono">{hit.runbookId}</span> · {hit.section}
                     </div>
-                    <div className="text-sm text-slate-400 line-clamp-2 mt-1">{hit.snippet}</div>
+                    <div className="text-sm text-bento-muted line-clamp-2 mt-1">{hit.snippet}</div>
                     <NodeChips ids={hit.nodeIds} />
                   </div>
                   <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                    <span className="text-xs font-mono text-slate-300 bg-slate-700 px-2 py-0.5 rounded">
+                    <span className="text-xs font-mono text-slate-600 bg-slate-200 px-2 py-0.5 rounded">
                       {hit.score.toFixed(3)}
                     </span>
-                    <span className="text-xs text-slate-400 bg-slate-700 px-2 py-0.5 rounded">
+                    <span className="text-xs text-bento-muted bg-slate-200 px-2 py-0.5 rounded">
                       {hit.faultType.replace(/_/g, ' ')}
                     </span>
                   </div>
@@ -103,20 +103,20 @@ export const RunbooksPanel: React.FC<RunbooksPanelProps> = ({
       />
       {body}
       {alarmLabel && selectedId && (
-        <div className="border-t border-slate-700 mt-4 pt-3">
+        <div className="border-t border-bento-border mt-4 pt-3">
           <div className="flex items-center justify-between mb-2">
-            <h4 className="text-slate-100 font-medium">{doc?.title ?? selectedId}</h4>
+            <h4 className="text-navy font-medium">{doc?.title ?? selectedId}</h4>
             <button
               type="button"
               onClick={onClosePreview}
               aria-label="Close preview"
-              className="text-slate-400 hover:text-slate-200 px-2"
+              className="text-bento-muted hover:text-navy px-2"
             >
               ×
             </button>
           </div>
           {docLoading || !doc ? (
-            <p className="text-slate-400 text-sm">Loading runbook…</p>
+            <p className="text-bento-muted text-sm">Loading runbook…</p>
           ) : (
             <div className="max-h-80 overflow-y-auto">
               <MarkdownPreview markdown={doc.markdown} />

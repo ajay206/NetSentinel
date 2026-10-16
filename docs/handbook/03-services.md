@@ -888,21 +888,25 @@ Why runbooks used to look missing: the runbook list was a separate panel at the 
 
 ### Bento theme (palette and fonts)
 
-The console uses a **Modern bento** layout: soft off-white page, white rounded tiles, one navy hero KPI, and short colour accents. Fonts stay as in the Phase 1 study deck: **Urbanist** for headings and **Nunito** for body text (bundled with `@fontsource`, no CDN).
+The console uses a **Modern bento** layout: soft off-white page, white rounded tiles with light borders, a navy hero KPI, colour-tinted secondary KPIs, and navy tooltips. Fonts: **Urbanist** for headings and **Nunito** for body (bundled with `@fontsource`, no CDN). Body and heading text meet **WCAG AA** (≥ 4.5:1) on the page and on tiles.
 
 | Token | Hex | Use |
 |---|---|---|
-| page `bento.bg` | `#F4F1EA` | page background (`html` / `body`) |
-| tile | `#FFFFFF` | cards / tiles (`rounded-[20px]` / `rounded-bento`) |
-| `navy` | `#09254A` | headings, body text, NS badge, focus ring |
+| page `bento.bg` | `#F4F1EA` | page background |
+| tile | `#FFFFFF` | cards (`rounded-[20px]`, `border-bento-border`) |
+| `navy` | `#09254A` | headings, body, tooltips (white text on navy), focus ring |
 | `navy.mid` / `navy.light` | `#0E3A6B` / `#12507A` | hero KPI gradient |
-| `cyan` | `#6DCFF6` | accents, focus accents, warning severity, NS badge type |
-| `bento.muted` | `#6B7280` | muted labels |
-| `bento.border` | `#EEE8DC` | light borders / table headers |
+| `cyan` | `#6DCFF6` | accents, warning severity |
+| `bento.muted` | `#6B7280` | muted labels (AA on white) |
+| `bento.border` | `#EEE8DC` | card / table borders |
 
-**Layout.** KPI summary is a bento grid: one full-height navy **hero** tile (Active Alarms) with a cyan radial glow, plus four white secondary tiles with left border accents (cyan, violet, amber, green). Cards use 20 px radius and a light navy shadow. Header sits on the page background (no full-width navy bar). Severity colours are unchanged: critical `#EF4444`, major `#F97316`, minor `#F59E0B`, warning `#6DCFF6`, cleared muted grey.
+**KPI colour accents.** Hero (Active Alarms) is the navy gradient with a coral glow. Secondary tiles use a soft tint + left accent + icon chip: **cyan** (incidents), **violet** (compression), **coral** (anomalies), **teal** (services).
 
-**Responsive.** Checked from 375 px phones through 768 tablets, 1280 laptops and 1920 wide screens. KPI tiles wrap 1 → 2 → 3 columns; panels stack below `lg`; tables scroll inside the card; header and nav collapse on small screens. Tokens live in `apps/noc-console/src/theme.ts`, `tailwind.config.js` and `src/index.css` (Tailwind `slate` / `sky` scales still map to the light tokens so older classes keep working).
+**Tooltips.** `Tooltip` / `InfoIcon` render navy (`#09254A`) panels with **white** text so helper copy stays readable on the light page. The ⓘ control uses a navy ring on white.
+
+**Charts.** Timeline bars use severity colours with cyan→teal and coral peak gradients. Severity chips keep critical / major / minor / warning / cleared as before.
+
+**Responsive.** 375 → 768 → 1280 → 1920. KPI tiles wrap 1 / 2 / 3 columns; panels stack below `lg`; tables scroll inside the card; headers share one underline style. Tokens: `theme.ts`, `tailwind.config.js`, `index.css`.
 
 ### Tooltips and layout (UI polish)
 

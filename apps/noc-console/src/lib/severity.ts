@@ -25,7 +25,7 @@ export const severityStyles: Record<
     rowBorder: 'border-l-4 border-amber-500',
   },
   warning: {
-    badge: 'bg-sky-500/15 text-sky-400 ring-sky-500/30',
+    badge: 'bg-sky-500/15 text-sky-700 ring-sky-500/30',
     rowBorder: 'border-l-4 border-sky-500',
   },
   cleared: {

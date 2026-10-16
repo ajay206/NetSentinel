@@ -38,7 +38,7 @@ const SourceChip: React.FC<{ id: string; graphNodes: Set<string> }> = ({
     </span>
   ) : (
     <span
-      className="inline-block font-mono text-[10px] bg-slate-700 text-slate-300 px-1.5 py-0.5 rounded mr-1 mb-1"
+      className="inline-block font-mono text-[10px] bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded mr-1 mb-1"
       title={id}
       data-testid="source-chip"
     >
@@ -110,13 +110,13 @@ export const CopilotPanel: React.FC<CopilotPanelProps> = ({
           value={siteId}
           onChange={(e) => setSiteId(e.target.value.toUpperCase())}
           placeholder="SITE-012"
-          className="bg-slate-800 border border-slate-600 rounded px-2 py-1 text-sm text-slate-100 w-28 font-mono"
+          className="bg-bento-bg border border-bento-border rounded px-2 py-1 text-sm text-navy w-28 font-mono"
         />
         <select
           aria-label="Window"
           value={window}
           onChange={(e) => setWindow(e.target.value)}
-          className="bg-slate-800 border border-slate-600 rounded px-2 py-1 text-sm text-slate-100"
+          className="bg-bento-bg border border-bento-border rounded px-2 py-1 text-sm text-navy"
         >
           {WINDOWS.map((w) => (
             <option key={w} value={w}>
@@ -135,7 +135,7 @@ export const CopilotPanel: React.FC<CopilotPanelProps> = ({
             <button
               type="submit"
               disabled={!valid || isPending || !canAnalyze}
-              className="bg-sky-600 hover:bg-sky-500 disabled:bg-slate-700 disabled:text-slate-500 text-white text-sm px-3 py-1 rounded"
+              className="bg-sky-600 hover:bg-sky-500 disabled:bg-slate-200 disabled:text-slate-500 text-white text-sm px-3 py-1 rounded"
             >
               {isPending ? "Analyzing…" : "Analyze site"}
             </button>
@@ -144,13 +144,13 @@ export const CopilotPanel: React.FC<CopilotPanelProps> = ({
       </form>
 
       {!canAnalyze && (
-        <p className="text-amber-300 text-xs mb-2" role="note">
+        <p className="text-amber-700 text-xs mb-2" role="note">
           Read-only: analyze needs the operator role.
         </p>
       )}
       {error && <p className="text-red-400 text-sm">{error.message}</p>}
       {!error && !result && !isPending && (
-        <p className="text-slate-400 text-sm">
+        <p className="text-bento-muted text-sm">
           Pick a site (or click an alarm) and press Analyze. Model calls go
           through llm-gateway (local SLM first).
         </p>
@@ -208,7 +208,7 @@ export const CopilotPanel: React.FC<CopilotPanelProps> = ({
               </Tooltip>
             )}
             <Tooltip content={TIPS.chipAttempts}>
-              <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-400">
+              <span className="px-2 py-0.5 rounded bg-bento-bg text-bento-muted">
                 {result.attempts} attempt{result.attempts === 1 ? "" : "s"} ·{" "}
                 {result.durationMs} ms
               </span>
@@ -217,7 +217,7 @@ export const CopilotPanel: React.FC<CopilotPanelProps> = ({
               <Tooltip
                 content={`${TIPS.chipWarnings} ${result.warnings.join("; ")}`}
               >
-                <span className="px-2 py-0.5 rounded bg-slate-800 text-amber-300">
+                <span className="px-2 py-0.5 rounded bg-bento-bg text-amber-700">
                   {result.warnings.length} upstream warning
                   {result.warnings.length === 1 ? "" : "s"}
                 </span>
@@ -241,24 +241,24 @@ export const CopilotPanel: React.FC<CopilotPanelProps> = ({
             <ToolCallChips calls={result.toolCalls} />
           )}
 
-          <section className="bg-slate-800 rounded p-3">
-            <h4 className="text-xs uppercase tracking-wide text-slate-400 mb-1">
+          <section className="bg-bento-bg rounded p-3">
+            <h4 className="text-xs uppercase tracking-wide text-bento-muted mb-1">
               Suspected cause
             </h4>
-            <p className="text-slate-100">{result.answer.suspectedCause}</p>
-            <p className="text-xs text-slate-400 mt-1">
+            <p className="text-navy">{result.answer.suspectedCause}</p>
+            <p className="text-xs text-bento-muted mt-1">
               {result.answer.faultType.replace(/_/g, " ")} ·{" "}
               {Math.round(result.answer.confidence * 100)}%
             </p>
           </section>
 
-          <section className="bg-slate-800 rounded p-3">
-            <h4 className="text-xs uppercase tracking-wide text-slate-400 mb-1">
+          <section className="bg-bento-bg rounded p-3">
+            <h4 className="text-xs uppercase tracking-wide text-bento-muted mb-1">
               Evidence
             </h4>
             <ul className="space-y-2">
               {result.answer.evidence.map((c, i) => (
-                <li key={i} className="text-sm text-slate-200">
+                <li key={i} className="text-sm text-navy">
                   <div>{c.text}</div>
                   <div className="mt-1">
                     {c.sources.map((s) => (
@@ -270,22 +270,22 @@ export const CopilotPanel: React.FC<CopilotPanelProps> = ({
             </ul>
           </section>
 
-          <section className="bg-slate-800 rounded p-3">
-            <h4 className="text-xs uppercase tracking-wide text-slate-400 mb-1">
+          <section className="bg-bento-bg rounded p-3">
+            <h4 className="text-xs uppercase tracking-wide text-bento-muted mb-1">
               Runbook steps
             </h4>
             {result.answer.steps.length === 0 ? (
-              <p className="text-sm text-slate-400">
+              <p className="text-sm text-bento-muted">
                 No runbook matched; escalate per procedure.
               </p>
             ) : (
               <ol className="list-decimal list-inside space-y-1">
                 {result.answer.steps.map((s, i) => (
-                  <li key={i} className="text-sm text-slate-200">
+                  <li key={i} className="text-sm text-navy">
                     {s.text}{" "}
                     <button
                       type="button"
-                      className="font-mono text-xs text-sky-300 hover:underline"
+                      className="font-mono text-xs text-sky-700 hover:underline"
                       onClick={() => onOpenRunbook?.(s.runbookId)}
                     >
                       {s.runbookId} §{s.section}

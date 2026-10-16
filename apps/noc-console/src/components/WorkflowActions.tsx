@@ -19,8 +19,8 @@ interface WorkflowActionsProps {
 }
 
 const STATE_CHIP: Record<string, string> = {
-  new: 'bg-slate-700/60 text-slate-200',
-  acknowledged: 'bg-amber-500/15 text-amber-300',
+  new: 'bg-slate-200 text-navy',
+  acknowledged: 'bg-amber-500/15 text-amber-700',
   resolved: 'bg-emerald-500/15 text-emerald-300',
 };
 
@@ -56,11 +56,11 @@ export const WorkflowActions: React.FC<WorkflowActionsProps> = ({
           {state === 'new' ? 'New' : state === 'acknowledged' ? 'Acknowledged' : 'Resolved'}
         </span>
         {workflow?.assignee && (
-          <span className="text-slate-400">
-            Assigned to <span className="text-slate-200">{workflow.assignee}</span>
+          <span className="text-bento-muted">
+            Assigned to <span className="text-navy">{workflow.assignee}</span>
           </span>
         )}
-        {workflow?.resolvedBy && <span className="text-slate-400">by {workflow.resolvedBy}</span>}
+        {workflow?.resolvedBy && <span className="text-bento-muted">by {workflow.resolvedBy}</span>}
       </div>
 
       {canAct ? (
@@ -72,7 +72,7 @@ export const WorkflowActions: React.FC<WorkflowActionsProps> = ({
             onChange={(e) => setNote(e.target.value)}
             maxLength={1000}
             rows={2}
-            className="w-full rounded border border-slate-700 bg-slate-950 px-2 py-1 text-slate-200"
+            className="w-full rounded border border-bento-border bg-bento-bg px-2 py-1 text-navy"
           />
           <div className="flex flex-wrap gap-2">
             <Tooltip content={TIPS.btnAck}>
@@ -93,7 +93,7 @@ export const WorkflowActions: React.FC<WorkflowActionsProps> = ({
                   <span className="inline-flex">
                     <button
                       type="button"
-                      className={`${btn} bg-slate-700 text-slate-100 hover:bg-slate-600`}
+                      className={`${btn} bg-slate-200 text-navy hover:bg-slate-300`}
                       disabled={isPending || resolved || workflow?.assignee === currentUser}
                       onClick={() => run('assign', { assignee: currentUser })}
                     >
@@ -106,11 +106,11 @@ export const WorkflowActions: React.FC<WorkflowActionsProps> = ({
                   placeholder="username"
                   value={assignee}
                   onChange={(e) => setAssignee(e.target.value.toLowerCase())}
-                  className="w-28 rounded border border-slate-700 bg-slate-950 px-2 py-1 text-slate-200"
+                  className="w-28 rounded border border-bento-border bg-bento-bg px-2 py-1 text-navy"
                 />
                 <button
                   type="button"
-                  className={`${btn} bg-slate-700 text-slate-100 hover:bg-slate-600`}
+                  className={`${btn} bg-slate-200 text-navy hover:bg-slate-300`}
                   disabled={isPending || resolved || !assignee.trim()}
                   onClick={() => {
                     run('assign', { assignee: assignee.trim() });
@@ -137,7 +137,7 @@ export const WorkflowActions: React.FC<WorkflowActionsProps> = ({
               <span className="inline-flex">
                 <button
                   type="button"
-                  className={`${btn} border border-slate-700 text-slate-300 hover:bg-slate-800`}
+                  className={`${btn} border border-bento-border text-slate-600 hover:bg-bento-bg`}
                   disabled={isPending || !note.trim()}
                   onClick={() => run('note')}
                 >
@@ -153,17 +153,17 @@ export const WorkflowActions: React.FC<WorkflowActionsProps> = ({
           )}
         </div>
       ) : (
-        <p className="text-slate-500" data-testid="workflow-readonly">
+        <p className="text-slate-600" data-testid="workflow-readonly">
           Read-only: operators can acknowledge, assign and resolve.
         </p>
       )}
 
       {workflow && workflow.notes.length > 0 && (
-        <ol className="max-h-32 space-y-1 overflow-y-auto border-l border-slate-700 pl-3">
+        <ol className="max-h-32 space-y-1 overflow-y-auto border-l border-bento-border pl-3">
           {[...workflow.notes].reverse().map((n, i) => (
-            <li key={`${n.ts}-${i}`} className="text-slate-400">
-              <span className="text-slate-500">{formatIST(new Date(n.ts * 1000))}</span>{' '}
-              <span className="text-slate-200">{n.by}</span> {n.action}
+            <li key={`${n.ts}-${i}`} className="text-bento-muted">
+              <span className="text-slate-600">{formatIST(new Date(n.ts * 1000))}</span>{' '}
+              <span className="text-navy">{n.by}</span> {n.action}
               {n.assignee ? ` → ${n.assignee}` : ''}
               {n.text ? `: ${n.text}` : ''}
             </li>

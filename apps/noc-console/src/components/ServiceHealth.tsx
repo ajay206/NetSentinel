@@ -18,7 +18,7 @@ export const ServiceHealth: React.FC<ServiceHealthProps> = ({ health, isError })
           subtitle="Is every backend service up?"
           info={TIPS.panelServiceHealth}
         />
-        <div className="text-center py-8 text-slate-500">
+        <div className="text-center py-8 text-slate-600">
           <p>Gateway unreachable</p>
           <p className="text-xs mt-1">Health endpoint not responding</p>
         </div>
@@ -48,7 +48,7 @@ export const ServiceHealth: React.FC<ServiceHealthProps> = ({ health, isError })
         {health.services.map((svc) => (
           <div
             key={svc.name}
-            className="flex items-center justify-between px-2.5 py-1.5 bg-slate-800/50 rounded text-sm"
+            className="flex items-center justify-between px-2.5 py-1.5 bg-bento-bg/50 rounded text-sm"
           >
             <div className="flex items-center space-x-2">
               <span
@@ -56,9 +56,9 @@ export const ServiceHealth: React.FC<ServiceHealthProps> = ({ health, isError })
                   svc.status === 'up' ? 'bg-emerald-400' : 'bg-red-400'
                 }`}
               ></span>
-              <span className="text-slate-300">{svc.name}</span>
+              <span className="text-slate-600">{svc.name}</span>
             </div>
-            {svc.detail && <span className="text-xs text-slate-500">{svc.detail}</span>}
+            {svc.detail && <span className="text-xs text-slate-600">{svc.detail}</span>}
           </div>
         ))}
       </div>
