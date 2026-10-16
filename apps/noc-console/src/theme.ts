@@ -5,8 +5,8 @@ export const severityHex: Record<Sev | 'cleared', string> = {
   critical: '#ef4444',
   major: '#f97316',
   minor: '#eab308',
-  warning: '#38bdf8',
-  cleared: '#64748b',
+  warning: '#6DCFF6', // deck cyan
+  cleared: '#7A748A', // deck mauve
 };
 
 export const severityChip: Record<string, string> = {

@@ -22,7 +22,7 @@ const severityColor: Record<PerceivedSeverity, string> = {
   critical: '#ef4444',
   major: '#f97316',
   minor: '#f59e0b',
-  warning: '#38bdf8',
+  warning: '#6DCFF6',
   cleared: '#10b981',
 };
 
@@ -101,10 +101,10 @@ export const NetworkMap: React.FC<Props> = ({
       const strokeWidth = role === 'core' ? 2.5 : role === 'ring' ? 1.5 : 1;
       const strokeColor =
         role === 'core'
-          ? '#94a3b8' // slate-400
+          ? '#B4BCCB' // slate-400
           : role === 'ring'
-            ? '#0284c7' // sky-700
-            : '#64748b'; // slate-600
+            ? '#1A7AAB' // deck cyan-600
+            : '#7A748A'; // deck mauve
       const failed = link.linkId === failedLinkId;
       const dashArray = failed ? '5 3' : isMicrowave ? '4 2' : undefined;
 
@@ -205,7 +205,7 @@ export const NetworkMap: React.FC<Props> = ({
           x={padding + 4}
           y={p.y}
           textAnchor="start"
-          className="text-[11px] uppercase tracking-widest fill-slate-600"
+          className="text-[11px] uppercase tracking-widest fill-deck-mauve"
         >
           {region}
         </text>
@@ -233,19 +233,19 @@ export const NetworkMap: React.FC<Props> = ({
       <div className="flex flex-wrap gap-x-3 gap-y-1 mb-2 text-xs text-slate-400">
         <span className="flex items-center gap-1">
           <svg className="w-4 h-4">
-            <rect width="10" height="10" fill="#94a3b8" />
+            <rect width="10" height="10" fill="#B4BCCB" />
           </svg>
           Core link
         </span>
         <span className="flex items-center gap-1">
           <svg className="w-4 h-4">
-            <line x1="0" y1="5" x2="10" y2="5" stroke="#0284c7" strokeWidth="1.5" />
+            <line x1="0" y1="5" x2="10" y2="5" stroke="#1A7AAB" strokeWidth="1.5" />
           </svg>
           Ring link
         </span>
         <span className="flex items-center gap-1">
           <svg className="w-4 h-4">
-            <line x1="0" y1="5" x2="10" y2="5" stroke="#64748b" strokeWidth="1" />
+            <line x1="0" y1="5" x2="10" y2="5" stroke="#7A748A" strokeWidth="1" />
           </svg>
           Access link
         </span>
@@ -256,7 +256,7 @@ export const NetworkMap: React.FC<Props> = ({
               y1="5"
               x2="10"
               y2="5"
-              stroke="#64748b"
+              stroke="#7A748A"
               strokeWidth="1"
               strokeDasharray="4 2"
             />

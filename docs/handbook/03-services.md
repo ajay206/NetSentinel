@@ -886,6 +886,22 @@ What you see, top to bottom (described screenshot, 1440 px, synthetic data):
 
 Why runbooks used to look missing: the runbook list was a separate panel at the bottom of the page. The fixed SHAP drawer that opened on alarm click covered it (small_s6), so clicking an alarm looked like nothing happened. Runbooks now live inside that drawer. The gateway route `/api/rag/search` does need the bearer token. The console adds it through `installAuthFetch`, which is now installed before the app mounts, so the very first queries are authenticated too.
 
+### Deck theme (palette and fonts)
+
+The console takes its colours and fonts from the Phase 1 study deck (`NetSentinel_Phase1_Study.pptx`). The deck's `ppt/theme/theme1.xml` sets the fonts: **Urbanist** for headings and **Nunito** for body text. Its colour scheme is the stock Office one, so the palette comes from the colours the slides actually use:
+
+| Token | Hex | Deck use | Console use |
+|---|---|---|---|
+| `deck.navy` | `#09254A` | titles, dark fills | base of the neutral scale (page `slate-950` `#061a35`, cards `slate-900` `#0d2c55`) |
+| `deck.navyMid` | `#2A4A73` | secondary navy | borders (`slate-700`) |
+| `deck.cyan` | `#6DCFF6` | accent | primary accent (`sky-400`), focus ring, "warning" severity |
+| `deck.cyanLight` | `#A3E5F9` | light accent | `sky-300`, table headers |
+| `deck.mauve` | `#7A748A` | body text | muted text (lifted to `#9D9BB0` for contrast on navy), "cleared" |
+| `deck.copper` | `#C89B7B` | warm highlight | spare token for highlights |
+| `deck.mist` | `#D9DEE5` | light grey | `slate-300` text |
+
+How it is wired up: `tailwind.config.js` rebuilds the `slate` and `sky` scales from these colours, so the existing classes pick up the deck look and the layout, grid and tooltips from PR #25 stay as they were. Severity reds, oranges and ambers are unchanged, because they carry meaning. The fonts are bundled with `@fontsource` and no CDN is used, so the Docker image works offline. Main text reaches WCAG AA contrast: muted text on cards is 5.1:1 and white on the primary button is 4.8:1.
+
 ### Tooltips and layout (UI polish)
 
 Every panel title has an **ⓘ** button. Hover it, or Tab to it, to read what the panel shows and how to read it. Chips and badges (route, PII, guard, hybrid, role, live status), status pills, table column headers (dotted underline) and action buttons also have tooltips. Buttons that are greyed out explain why, for example "Requires the operator role".
