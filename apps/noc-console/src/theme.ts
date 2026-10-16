@@ -2,20 +2,20 @@ export const SEVERITIES = ['critical', 'major', 'minor', 'warning'] as const;
 export type Sev = (typeof SEVERITIES)[number];
 
 export const severityHex: Record<Sev | 'cleared', string> = {
-  critical: '#ef4444',
-  major: '#f97316',
-  minor: '#eab308',
+  critical: '#EF4444',
+  major: '#F97316',
+  minor: '#F59E0B',
   warning: '#6DCFF6', // deck cyan
-  cleared: '#7A748A', // deck mauve
+  cleared: '#6B7280', // muted grey
 };
 
 export const severityChip: Record<string, string> = {
-  critical: 'bg-red-500/15 text-red-700 ring-1 ring-red-500/40',
-  major: 'bg-orange-500/15 text-orange-700 ring-1 ring-orange-500/40',
-  minor: 'bg-amber-500/15 text-amber-700 ring-1 ring-amber-500/40',
-  warning: 'bg-sky-500/15 text-sky-300 ring-1 ring-sky-500/40',
-  indeterminate: 'bg-slate-800 text-slate-400 ring-1 ring-slate-700',
-  cleared: 'bg-slate-800 text-slate-400 ring-1 ring-slate-700',
+  critical: 'bg-red-500/15 text-red-700 ring-1 ring-red-500/40 font-bold',
+  major: 'bg-orange-500/15 text-orange-700 ring-1 ring-orange-500/40 font-bold',
+  minor: 'bg-amber-500/15 text-amber-700 ring-1 ring-amber-500/40 font-bold',
+  warning: 'bg-sky-500/15 text-sky-800 ring-1 ring-sky-500/40 font-bold',
+  indeterminate: 'bg-slate-500/15 text-slate-700 ring-1 ring-slate-500/40 font-bold',
+  cleared: 'bg-slate-700/15 text-slate-600 ring-1 ring-slate-700/40 font-bold',
 };
 
 export function severityLabel(sev: string): string {
@@ -24,9 +24,8 @@ export function severityLabel(sev: string): string {
 }
 
 export const space = {
-  gutter: 'gap-4',
+  gutter: 'gap-3.5', // 14px grid gap matching mockup
   pad: 'p-4',
 };
 
-export const card =
-  'bg-slate-900 border border-slate-700 rounded-xl shadow-card';
+export const card = 'bg-white rounded-[20px] shadow-sm shadow-navy/5 p-4.5 border border-transparent';

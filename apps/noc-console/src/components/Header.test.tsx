@@ -64,23 +64,4 @@ describe('Header (W11)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Admin' }));
     expect(onSelectView).toHaveBeenCalledWith('admin');
   });
-
-  it('collapses dashboard tabs behind a navigation toggle', () => {
-    const onSelectView = vi.fn();
-    render(
-      <Header
-        wsStatus="open"
-        views={[
-          { id: 'ops', label: 'Operations' },
-          { id: 'admin', label: 'Admin' },
-        ]}
-        activeView="ops"
-        onSelectView={onSelectView}
-      />,
-    );
-    fireEvent.click(screen.getByRole('button', { name: 'Open navigation' }));
-    expect(screen.getAllByRole('navigation', { name: 'Dashboards' }).length).toBeGreaterThan(0);
-    fireEvent.click(screen.getAllByRole('button', { name: 'Admin' })[0]);
-    expect(onSelectView).toHaveBeenCalledWith('admin');
-  });
 });

@@ -22,7 +22,7 @@ describe('panel tooltips', () => {
     render(<Header wsStatus="open" user={{ username: 'ops1', role: 'operator' }} />);
     expect(tipFor(screen.getByTestId('live-status'))).toHaveTextContent(TIPS.chipLive);
     expect(tipFor(screen.getByText('Synthetic data'))).toHaveTextContent(TIPS.chipSynthetic);
-    expect(tipFor(screen.getByText(/^IST /))).toHaveTextContent(TIPS.chipClock);
+    expect(tipFor(screen.getByText(/IST$/))).toHaveTextContent(TIPS.chipClock);
     expect(tipFor(screen.getByRole('button', { name: /ops1/ }))).toHaveTextContent(
       TIPS.chipRole,
     );

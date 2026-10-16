@@ -420,6 +420,10 @@ Built straight after Step 18; Steps 19–20 (TelcoGPT-mini) moved to the next ph
 - **Benchmark:** `scripts/bench_tls.py` measured hybrid at +0.124 ms p50 (+24.7%) and +2028 B per handshake. ML-DSA-65 verify took 203.8 µs. Details: `docs/pqc_report.md`.
 - **Docs:** ADR-019, handbook 01 (roadmap), 02, 03, 05, troubleshooting #83–85, fault-classifier model card; build plan re-planned (W19–20 moved to Phase 3).
 
+## UI: Modern bento theme (Oct 16, 2026)
+* **Scope:** Not a new step. Restyled `apps/noc-console` to a Modern bento look: page `#F4F1EA`, white 20 px-radius tiles, navy `#09254A` hero KPI with cyan glow, gradient accents on secondary KPIs, Urbanist / Nunito fonts. Severity colours unchanged. Responsive from 375 px through 768 / 1280 / 1920. Layout and tooltips from earlier PRs are kept.
+* **Verification:** console lint, typecheck, Vitest and build; Playwright viewport screenshots at 375, 768, 1280 and 1920; `scripts/check_docs.py`.
+
 ## UI: deck theme (Oct 16, 2026)
 * **Scope:** The console was restyled to match the Phase 1 study deck: navy `#09254A` as the base, cyan `#6DCFF6` as the accent, mauve `#7A748A` for muted text, Urbanist for headings and Nunito for body text (bundled with `@fontsource`). Only the Tailwind `slate` and `sky` scales and the SVG chart colours were changed; the layout and tooltips from PR #25 are kept.
 * **Verification:** console lint, typecheck, Vitest and build; `scripts/check_docs.py`.

@@ -22,18 +22,18 @@ export const Card: React.FC<CardProps> = ({
   testId,
 }) => (
   <section className={`${card} flex flex-col h-full min-h-0 ${className}`} data-testid={testId}>
-    <header className="px-4 pt-4 flex items-start justify-between gap-3">
+    <header className="px-1 pt-1 pb-2 flex items-start justify-between gap-3">
       <div className="min-w-0">
         <div className="flex items-center gap-2">
-          <h2 className="text-sm font-semibold text-slate-100 tracking-wide">{title}</h2>
+          <h2 className="text-[15px] font-bold font-display text-navy tracking-tight">{title}</h2>
           {info && <InfoTip text={info} label={title} />}
         </div>
-        {subtitle && <p className="text-xs text-slate-400 mt-0.5">{subtitle}</p>}
+        {subtitle && <p className="text-xs text-bento-muted mt-0.5">{subtitle}</p>}
       </div>
       {actions && <div className="flex shrink-0 flex-wrap items-center gap-1.5">{actions}</div>}
     </header>
     {/* flex column + min-h-0 so an inner .ns-scroll can shrink and scroll instead of spilling */}
-    <div className="flex flex-1 min-h-0 flex-col overflow-hidden p-4 pt-3">{children}</div>
+    <div className="flex flex-1 min-h-0 flex-col overflow-hidden pt-1">{children}</div>
   </section>
 );
 
@@ -53,20 +53,20 @@ type StateMessageProps = {
 };
 
 export const StateMessage: React.FC<StateMessageProps> = ({ kind, children }) => {
-  const base = 'flex flex-col items-center justify-center min-h-[8rem] text-sm';
+  const base = 'flex flex-col items-center justify-center min-h-[8rem] text-sm text-bento-muted font-medium';
   let content: React.ReactNode;
 
   if (kind === 'loading') {
     content = (
       <>
-        <div className="animate-spin border-2 border-deck-mauve border-t-sky-400 rounded-full w-4 h-4 mb-2" />
+        <div className="animate-spin border-2 border-slate-300 border-t-navy rounded-full w-4 h-4 mb-2" />
         {children}
       </>
     );
   } else if (kind === 'error') {
     content = (
       <>
-        <div className="text-red-600 mb-2">❗</div>
+        <div className="text-red-500 mb-2 font-bold">❗</div>
         {children}
       </>
     );
@@ -87,12 +87,12 @@ type SeverityChipProps = {
 
 export const SeverityChip: React.FC<SeverityChipProps> = ({ severity }) => {
   const chipClass = severityChip[severity] ?? severityChip.indeterminate;
-  const dotColor = (severityHex as Record<string, string>)[severity] ?? '#B4BCCB';
+  const dotColor = (severityHex as Record<string, string>)[severity] ?? '#6B7280';
   return (
     <span
-      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium ${chipClass}`}
+      className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-extrabold uppercase tracking-wider ${chipClass}`}
     >
-      <span className="inline-block w-2 h-2 rounded-full" style={{ backgroundColor: dotColor }} />
+      <span className="inline-block w-1.5 h-1.5 rounded-full" style={{ backgroundColor: dotColor }} />
       {severityLabel(severity)}
     </span>
   );
@@ -114,13 +114,13 @@ export const CardHeader: React.FC<CardHeaderProps> = ({
   actions,
   as: Tag = 'h2',
 }) => (
-  <div className="mb-3 flex items-start justify-between gap-3">
+  <div className="mb-2 flex items-start justify-between gap-3">
     <div className="min-w-0">
       <div className="flex items-center gap-2">
-        <Tag className="text-sm font-semibold tracking-wide text-slate-100">{title}</Tag>
+        <Tag className="text-[15px] font-bold font-display text-navy tracking-tight">{title}</Tag>
         {info && <InfoTip text={info} label={typeof title === 'string' ? title : undefined} />}
       </div>
-      {subtitle && <p className="mt-0.5 text-xs text-slate-400">{subtitle}</p>}
+      {subtitle && <p className="mt-0.5 text-xs text-bento-muted">{subtitle}</p>}
     </div>
     {actions && <div className="flex shrink-0 flex-wrap items-center gap-1.5">{actions}</div>}
   </div>
