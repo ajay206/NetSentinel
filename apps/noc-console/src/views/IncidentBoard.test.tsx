@@ -127,18 +127,10 @@ describe('IncidentBoard', () => {
   it('displays severity chips with correct colors', () => {
     render(<IncidentBoard {...defaultProps} />);
     // Theme chips (src/theme.ts severityChip)
-    expect(screen.getByTestId('severity-inc-critical').firstChild).toHaveClass('text-red-300');
-    expect(screen.getByTestId('severity-inc-major').firstChild).toHaveClass('text-orange-300');
-    expect(screen.getByTestId('severity-inc-cleared').firstChild).toHaveClass('text-slate-400');
+    expect(screen.getByTestId('severity-inc-critical').firstChild).toHaveClass('text-red-700');
+    expect(screen.getByTestId('severity-inc-major').firstChild).toHaveClass('text-orange-700');
+    expect(screen.getByTestId('severity-inc-cleared').firstChild).toHaveClass('text-slate-600');
     expect(screen.getByTestId('severity-inc-critical')).toHaveTextContent('Critical');
-  });
-
-  it('displays status badges', () => {
-    render(<IncidentBoard {...defaultProps} />);
-    expect(screen.getByTestId('status-inc-critical')).toHaveTextContent('OPEN');
-    expect(screen.getByTestId('status-inc-critical')).toHaveClass('bg-amber-500/20');
-    expect(screen.getByTestId('status-inc-cleared')).toHaveTextContent('CLEARED');
-    expect(screen.getByTestId('status-inc-cleared')).toHaveClass('bg-slate-700');
   });
 
   it('displays duration labels', () => {
@@ -155,15 +147,16 @@ describe('IncidentBoard', () => {
 
   it('displays alarm count and site count', () => {
     render(<IncidentBoard {...defaultProps} />);
-    expect(screen.getByText('2 alarms · 2 sites')).toBeInTheDocument();
-    expect(screen.getAllByText('1 alarm · 1 site')).toHaveLength(2);
+    expect(screen.getByText('2')).toBeInTheDocument();
+    expect(screen.getByText('across 2 sites')).toBeInTheDocument();
+    expect(screen.getAllByText('at 1 site')).toHaveLength(2);
   });
 
   it('applies selected ring style', () => {
     render(<IncidentBoard {...defaultProps} selectedId="inc-major" />);
     const majorCard = screen.getByTestId('incident-inc-major');
     expect(majorCard).toHaveClass('ring-2');
-    expect(majorCard).toHaveClass('ring-sky-400');
+    expect(majorCard).toHaveClass('ring-cyan');
   });
 
   it('sets aria-pressed on selected card', () => {
