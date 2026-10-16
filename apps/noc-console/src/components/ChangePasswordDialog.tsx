@@ -168,7 +168,7 @@ export const ChangePasswordDialog: React.FC<{
           {error && (
             <div
               role="alert"
-              className="text-sm text-red-300 bg-red-950 border border-red-800 p-2 rounded"
+              className="text-sm text-red-700 bg-red-50 border border-red-200 p-2 rounded"
             >
               {error}
             </div>
@@ -187,7 +187,7 @@ export const ChangePasswordDialog: React.FC<{
               disabled={!canSubmit}
               className={`px-3 py-1 rounded ${
                 canSubmit
-                  ? 'bg-sky-600 hover:bg-sky-500'
+                  ? 'bg-sky-600 hover:bg-sky-500 text-white'
                   : 'bg-slate-700 text-slate-400 cursor-not-allowed'
               }`}
             >

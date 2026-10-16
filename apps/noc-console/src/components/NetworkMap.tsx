@@ -101,10 +101,10 @@ export const NetworkMap: React.FC<Props> = ({
       const strokeWidth = role === 'core' ? 2.5 : role === 'ring' ? 1.5 : 1;
       const strokeColor =
         role === 'core'
-          ? '#B4BCCB' // slate-400
+          ? '#2A4A73' // navy mid
           : role === 'ring'
-            ? '#1A7AAB' // deck cyan-600
-            : '#7A748A'; // deck mauve
+            ? '#1677A0' // deck cyan dark
+            : '#5A5566'; // muted mauve
       const failed = link.linkId === failedLinkId;
       const dashArray = failed ? '5 3' : isMicrowave ? '4 2' : undefined;
 
@@ -205,7 +205,7 @@ export const NetworkMap: React.FC<Props> = ({
           x={padding + 4}
           y={p.y}
           textAnchor="start"
-          className="text-[11px] uppercase tracking-widest fill-deck-mauve"
+          className="text-[11px] uppercase tracking-widest fill-deck-navy"
         >
           {region}
         </text>
@@ -233,19 +233,19 @@ export const NetworkMap: React.FC<Props> = ({
       <div className="flex flex-wrap gap-x-3 gap-y-1 mb-2 text-xs text-slate-400">
         <span className="flex items-center gap-1">
           <svg className="w-4 h-4">
-            <rect width="10" height="10" fill="#B4BCCB" />
+            <rect width="10" height="10" fill="#2A4A73" />
           </svg>
           Core link
         </span>
         <span className="flex items-center gap-1">
           <svg className="w-4 h-4">
-            <line x1="0" y1="5" x2="10" y2="5" stroke="#1A7AAB" strokeWidth="1.5" />
+            <line x1="0" y1="5" x2="10" y2="5" stroke="#1677A0" strokeWidth="1.5" />
           </svg>
           Ring link
         </span>
         <span className="flex items-center gap-1">
           <svg className="w-4 h-4">
-            <line x1="0" y1="5" x2="10" y2="5" stroke="#7A748A" strokeWidth="1" />
+            <line x1="0" y1="5" x2="10" y2="5" stroke="#5A5566" strokeWidth="1" />
           </svg>
           Access link
         </span>
@@ -256,7 +256,7 @@ export const NetworkMap: React.FC<Props> = ({
               y1="5"
               x2="10"
               y2="5"
-              stroke="#7A748A"
+              stroke="#5A5566"
               strokeWidth="1"
               strokeDasharray="4 2"
             />
@@ -275,7 +275,7 @@ export const NetworkMap: React.FC<Props> = ({
 
       <svg
         viewBox={viewBox}
-        className="w-full h-auto bg-slate-900/30 border border-slate-700 rounded"
+        className="w-full h-auto max-h-[min(380px,50vh)] bg-slate-950 border border-slate-700 rounded"
       >
         {renderRegions()}
         {renderLinks()}

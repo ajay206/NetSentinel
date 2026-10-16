@@ -42,7 +42,7 @@ export const AdminUsers: React.FC<{ currentUser: string }> = ({ currentUser }) =
   else if (!users.data?.length) body = <StateMessage kind="empty">No users yet.</StateMessage>;
   else
     body = (
-      <div className="ns-scroll">
+      <div className="ns-table-wrap">
         <table className="w-full text-sm" data-testid="users-table">
           <thead className="ns-thead">
             <tr className="text-left">
@@ -100,8 +100,8 @@ export const AdminUsers: React.FC<{ currentUser: string }> = ({ currentUser }) =
                         u.disabled
                           ? 'bg-slate-700 text-slate-300'
                           : u.locked
-                            ? 'bg-red-500/15 text-red-300'
-                            : 'bg-emerald-500/15 text-emerald-300'
+                            ? 'bg-red-500/15 text-red-700'
+                            : 'bg-emerald-500/15 text-emerald-700'
                       }`}
                     >
                       {u.disabled ? 'Disabled' : u.locked ? 'Locked' : 'Active'}
@@ -246,11 +246,11 @@ export const AdminUsers: React.FC<{ currentUser: string }> = ({ currentUser }) =
           Create user
         </button>
         {createProblems.length > 0 && (
-          <span className="text-xs text-amber-300">Password needs {createProblems.join(', ')}</span>
+          <span className="text-xs text-amber-700">Password needs {createProblems.join(', ')}</span>
         )}
       </form>
       {action.error && (
-        <p role="alert" className="mb-2 text-sm text-red-300">
+        <p role="alert" className="mb-2 text-sm text-red-700">
           {action.error.message}
         </p>
       )}

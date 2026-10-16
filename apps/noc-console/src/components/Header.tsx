@@ -20,9 +20,9 @@ interface HeaderProps {
 }
 
 const LIVE: Record<ConnectionStatus, { label: string; dot: string; pill: string }> = {
-  open: { label: 'Live', dot: 'bg-emerald-400', pill: 'bg-emerald-500/10 text-emerald-300' },
-  connecting: { label: 'Connecting…', dot: 'bg-amber-400', pill: 'bg-amber-500/10 text-amber-300' },
-  closed: { label: 'Offline', dot: 'bg-red-400', pill: 'bg-red-500/10 text-red-300' },
+  open: { label: 'Live', dot: 'bg-emerald-400', pill: 'bg-emerald-400/15 text-emerald-100' },
+  connecting: { label: 'Connecting…', dot: 'bg-amber-400', pill: 'bg-amber-400/15 text-amber-100' },
+  closed: { label: 'Offline', dot: 'bg-red-400', pill: 'bg-red-400/15 text-red-100' },
 };
 
 export const Header: React.FC<HeaderProps> = ({
@@ -35,6 +35,7 @@ export const Header: React.FC<HeaderProps> = ({
   onSelectView,
 }) => {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [navOpen, setNavOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!menuOpen) return;
@@ -61,115 +62,147 @@ export const Header: React.FC<HeaderProps> = ({
   }, []);
 
   const live = LIVE[wsStatus];
+  const showNav = views.length > 1;
+
+  const navButtons = (compact: boolean) =>
+    views.map((v) => (
+      <button
+        key={v.id}
+        type="button"
+        aria-current={v.id === activeView ? 'page' : undefined}
+        onClick={() => {
+          onSelectView?.(v.id);
+          setNavOpen(false);
+        }}
+        className={`rounded px-3 py-1 text-sm ${compact ? 'w-full text-left' : ''} ${
+          v.id === activeView
+            ? 'bg-deck-cyanDark text-white'
+            : 'text-white/75 hover:bg-white/10 hover:text-white'
+        }`}
+      >
+        {v.label}
+      </button>
+    ));
 
   return (
-    <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-slate-800 bg-slate-900/95 px-6 backdrop-blur">
-      <div className="flex items-center gap-3">
-        <span className="grid h-7 w-7 place-items-center rounded-md bg-sky-500 text-xs font-bold text-slate-950">
-          NS
-        </span>
-        <span className="font-semibold text-slate-100">NetSentinel</span>
-        <span className="text-slate-400">NOC Console</span>
-        <Tooltip content={TIPS.chipSynthetic} side="bottom">
-          <span className="rounded-full bg-slate-800 px-2 py-0.5 text-[11px] text-sky-300">
-            Synthetic data
-          </span>
-        </Tooltip>
-        {views.length > 1 && (
-          <nav className="ml-4 flex gap-1" aria-label="Dashboards">
-            {views.map((v) => (
-              <button
-                key={v.id}
-                type="button"
-                aria-current={v.id === activeView ? 'page' : undefined}
-                onClick={() => onSelectView?.(v.id)}
-                className={`rounded px-3 py-1 text-sm ${
-                  v.id === activeView
-                    ? 'bg-slate-800 text-slate-100'
-                    : 'text-slate-400 hover:bg-slate-800/60 hover:text-slate-200'
-                }`}
-              >
-                {v.label}
-              </button>
-            ))}
-          </nav>
-        )}
-      </div>
-      <div className="flex items-center gap-4 text-sm">
-        <Tooltip content={TIPS.chipLive} side="bottom">
-          <span
-            className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ${live.pill}`}
-            data-testid="live-status"
-          >
-            <span
-              className={`h-2 w-2 rounded-full ${live.dot} ${wsStatus === 'open' ? 'animate-pulse' : ''}`}
-            />
-            {live.label}
-          </span>
-        </Tooltip>
-        <Tooltip content={TIPS.chipClock} side="bottom">
-          <span className="font-mono text-xs text-slate-400">IST {istTime}</span>
-        </Tooltip>
-        {user && (
-          <div className="relative" ref={menuRef} data-testid="user-badge">
-            <Tooltip
-              content={`${ROLE_BLURB[user.role] ?? ''} ${TIPS.chipRole}`.trim()}
-              side="bottom"
+    <header className="sticky top-0 z-30 border-b border-white/10 bg-deck-navy text-white">
+      <div className="flex min-h-14 flex-wrap items-center justify-between gap-2 px-3 py-2 sm:px-6">
+        <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+          {showNav && (
+            <button
+              type="button"
+              className="inline-flex h-8 w-8 items-center justify-center rounded md:hidden hover:bg-white/10"
+              aria-label={navOpen ? 'Close navigation' : 'Open navigation'}
+              aria-expanded={navOpen}
+              onClick={() => setNavOpen((o) => !o)}
             >
-              <button
-                type="button"
-                aria-haspopup="menu"
-                aria-expanded={menuOpen}
-                onClick={() => setMenuOpen((o) => !o)}
-                className="flex items-center gap-2 rounded px-2 py-1 hover:bg-slate-800"
+              <span aria-hidden="true" className="text-lg leading-none">
+                {navOpen ? '✕' : '☰'}
+              </span>
+            </button>
+          )}
+          <span className="grid h-7 w-7 shrink-0 place-items-center rounded-md bg-deck-cyan text-xs font-bold text-deck-navy">
+            NS
+          </span>
+          <span className="font-display font-semibold">NetSentinel</span>
+          <span className="hidden text-white/70 sm:inline">NOC Console</span>
+          <Tooltip content={TIPS.chipSynthetic} side="bottom">
+            <span className="hidden rounded-full bg-white/10 px-2 py-0.5 text-[11px] text-deck-cyan xs:inline sm:inline">
+              Synthetic data
+            </span>
+          </Tooltip>
+          {showNav && (
+            <nav className="ml-2 hidden gap-1 md:flex" aria-label="Dashboards">
+              {navButtons(false)}
+            </nav>
+          )}
+        </div>
+        <div className="flex min-w-0 items-center gap-2 text-sm sm:gap-4">
+          <Tooltip content={TIPS.chipLive} side="bottom">
+            <span
+              className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ${live.pill}`}
+              data-testid="live-status"
+            >
+              <span
+                className={`h-2 w-2 rounded-full ${live.dot} ${wsStatus === 'open' ? 'animate-pulse' : ''}`}
+              />
+              <span className="hidden sm:inline">{live.label}</span>
+            </span>
+          </Tooltip>
+          <Tooltip content={TIPS.chipClock} side="bottom">
+            <span className="hidden font-mono text-xs text-white/70 md:inline">IST {istTime}</span>
+          </Tooltip>
+          {user && (
+            <div className="relative" ref={menuRef} data-testid="user-badge">
+              <Tooltip
+                content={`${ROLE_BLURB[user.role] ?? ''} ${TIPS.chipRole}`.trim()}
+                side="bottom"
               >
-                <span className="text-slate-200">{user.username}</span>
-                <span
-                  className={`rounded px-2 py-0.5 font-mono text-xs ${ROLE_STYLE[user.role] ?? ''}`}
-                  data-testid="role-badge"
+                <button
+                  type="button"
+                  aria-haspopup="menu"
+                  aria-expanded={menuOpen}
+                  onClick={() => setMenuOpen((o) => !o)}
+                  className="flex max-w-[12rem] items-center gap-2 rounded px-2 py-1 hover:bg-white/10 sm:max-w-none"
                 >
-                  {user.role}
-                </span>
-                <span aria-hidden="true" className="text-slate-500">
-                  ▾
-                </span>
-              </button>
-            </Tooltip>
-            {menuOpen && (
-              <div
-                role="menu"
-                aria-label="Profile"
-                className="absolute right-0 z-40 mt-1 w-64 rounded-lg border border-slate-700 bg-slate-900 p-1 shadow-xl"
-              >
-                <p className="px-3 py-2 text-xs text-slate-400">{ROLE_BLURB[user.role]}</p>
-                {onChangePassword && (
-                  <button
-                    type="button"
-                    role="menuitem"
-                    onClick={() => {
-                      setMenuOpen(false);
-                      onChangePassword();
-                    }}
-                    className="block w-full rounded px-3 py-1.5 text-left text-sm text-slate-200 hover:bg-slate-800"
+                  <span className="truncate">{user.username}</span>
+                  <span
+                    className="hidden rounded bg-white/15 px-2 py-0.5 font-mono text-xs text-white ring-1 ring-white/30 sm:inline"
+                    data-testid="role-badge"
                   >
-                    Change password
-                  </button>
-                )}
-                {onLogout && (
-                  <button
-                    type="button"
-                    role="menuitem"
-                    onClick={onLogout}
-                    className="block w-full rounded px-3 py-1.5 text-left text-sm text-slate-200 hover:bg-slate-800"
+                    {user.role}
+                  </span>
+                  <span aria-hidden="true" className="text-white/50">
+                    ▾
+                  </span>
+                </button>
+              </Tooltip>
+              {menuOpen && (
+                <div
+                  role="menu"
+                  aria-label="Profile"
+                  className="absolute right-0 z-40 mt-1 w-64 rounded-lg border border-slate-700 bg-white p-1 text-slate-100 shadow-card"
+                >
+                  <p className="px-3 py-2 text-xs text-slate-400">{ROLE_BLURB[user.role]}</p>
+                  <span
+                    className={`mx-3 mb-1 inline-flex rounded px-2 py-0.5 font-mono text-xs sm:hidden ${ROLE_STYLE[user.role] ?? ''}`}
                   >
-                    Sign out
-                  </button>
-                )}
-              </div>
-            )}
-          </div>
-        )}
+                    {user.role}
+                  </span>
+                  {onChangePassword && (
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        setMenuOpen(false);
+                        onChangePassword();
+                      }}
+                      className="block w-full rounded px-3 py-1.5 text-left text-sm text-slate-200 hover:bg-slate-800"
+                    >
+                      Change password
+                    </button>
+                  )}
+                  {onLogout && (
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={onLogout}
+                      className="block w-full rounded px-3 py-1.5 text-left text-sm text-slate-200 hover:bg-slate-800"
+                    >
+                      Sign out
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
+      {showNav && navOpen && (
+        <nav className="flex flex-col gap-1 border-t border-white/10 px-3 py-2 md:hidden" aria-label="Dashboards">
+          {navButtons(true)}
+        </nav>
+      )}
     </header>
   );
 };

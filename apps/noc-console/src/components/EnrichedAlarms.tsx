@@ -67,7 +67,7 @@ export const EnrichedAlarms: React.FC<EnrichedAlarmsProps> = ({
           <p>Waiting for enriched alarms — run `make ingest` and `make sim`</p>
         </div>
       ) : (
-        <div className="ns-scroll">
+        <div className="ns-table-wrap">
           <table className="w-full text-xs">
             <thead>
               <tr className="ns-thead">

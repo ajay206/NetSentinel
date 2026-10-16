@@ -215,7 +215,7 @@ export const App: React.FC<AppProps> = ({
   }, [alarms, incidents.data, health, anomalies.data]);
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-200 flex flex-col">
+    <div className="min-h-screen min-w-0 bg-slate-950 text-slate-200 flex flex-col overflow-x-hidden">
       <Header
         wsStatus={wsStatus}
         user={session}
@@ -250,7 +250,7 @@ export const App: React.FC<AppProps> = ({
         />
       )}
       {isAdmin && view === "admin" ? (
-        <main className="mx-auto w-full max-w-[1600px] flex-1 px-6 py-5">
+        <main className="mx-auto w-full max-w-[1600px] min-w-0 flex-1 px-3 py-4 sm:px-6 sm:py-5">
           <AdminDashboard
             currentUser={me}
             health={health}
@@ -259,14 +259,14 @@ export const App: React.FC<AppProps> = ({
         </main>
       ) : (
         /* 12-column grid, 16px gutters; rows share a fixed height so neighbouring panels align */
-        <main className="mx-auto w-full max-w-[1600px] flex-1 space-y-4 px-6 py-5">
+        <main className="mx-auto w-full max-w-[1600px] min-w-0 flex-1 space-y-4 px-3 py-4 sm:px-6 sm:py-5">
           <KpiSummary {...summary} />
 
           <DemoPath stages={stages} />
 
           {/* Row: what is happening now */}
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
-            <div className="lg:col-span-6 lg:h-[440px] 2xl:col-span-7">
+            <div className="min-w-0 min-h-[280px] lg:col-span-6 lg:h-[440px] 2xl:col-span-7">
               <AlarmTimeline
                 data={timeline.data}
                 isLoading={timeline.isLoading}
@@ -274,7 +274,7 @@ export const App: React.FC<AppProps> = ({
                 rootSiteId={summary.stormRoot}
               />
             </div>
-            <div className="lg:col-span-6 lg:h-[440px] 2xl:col-span-5">
+            <div className="min-w-0 min-h-[280px] lg:col-span-6 lg:h-[440px] 2xl:col-span-5">
               <IncidentBoard
                 data={incidents.data}
                 isLoading={incidents.isLoading}
@@ -354,15 +354,15 @@ export const App: React.FC<AppProps> = ({
 
           {/* Row: alarm tables (filtered by the selected incident) + service health */}
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
-            <div className="lg:col-span-9 lg:h-[420px]">
+            <div className="min-w-0 min-h-[240px] lg:col-span-9 lg:h-[420px]">
               <LiveAlarms alarms={shownAlarms} />
             </div>
-            <div className="lg:col-span-3 lg:h-[420px]">
+            <div className="min-w-0 min-h-[200px] lg:col-span-3 lg:h-[420px]">
               <ServiceHealth health={health} isError={isError} />
             </div>
           </div>
 
-          <div className="lg:h-[460px]">
+          <div className="min-w-0 min-h-[240px] lg:h-[460px]">
             <EnrichedAlarms
               alarms={shownEnriched}
               status={enrichedStatus}
@@ -380,7 +380,7 @@ export const App: React.FC<AppProps> = ({
 
           {/* Row: network + KPIs */}
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
-            <div className="lg:col-span-7 lg:h-[500px]">
+            <div className="min-w-0 min-h-[280px] lg:col-span-7 lg:h-[500px]">
               <NetworkMap
                 topology={topology}
                 isLoading={topoLoading}
@@ -395,7 +395,7 @@ export const App: React.FC<AppProps> = ({
                 }
               />
             </div>
-            <div className="lg:col-span-5 lg:h-[500px]">
+            <div className="min-w-0 min-h-[240px] lg:col-span-5 lg:h-[500px]">
               <section className="ns-card">
                 <CardHeader
                   title="KPI activity"
@@ -411,14 +411,14 @@ export const App: React.FC<AppProps> = ({
 
           {/* Row: Step 14 impact / RCA (highlights the map above) + Step 21 PQC status */}
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
-            <div className="lg:col-span-7 lg:h-[460px]">
+            <div className="min-w-0 min-h-[280px] lg:col-span-7 lg:h-[460px]">
               <RcaGraph
                 topology={topology}
                 onImpact={onImpact}
                 agentRun={run}
               />
             </div>
-            <div className="lg:col-span-5 lg:h-[460px]">
+            <div className="min-w-0 min-h-[240px] lg:col-span-5 lg:h-[460px]">
               <PqcStatus
                 data={pqc.data}
                 error={pqc.error}
@@ -434,7 +434,7 @@ export const App: React.FC<AppProps> = ({
 
           {/* Row: W17 multi-agent copilot chat + per-agent trace (equal height, both scroll) */}
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
-            <div className="lg:col-span-7 lg:h-[640px]">
+            <div className="min-w-0 min-h-[320px] lg:col-span-7 lg:h-[640px]">
               <CopilotChat
                 incidentId={incidentId}
                 siteId={selected?.siteId ?? null}
@@ -456,7 +456,7 @@ export const App: React.FC<AppProps> = ({
                 }
               />
             </div>
-            <div className="ns-card lg:col-span-5 lg:h-[640px]">
+            <div className="ns-card min-w-0 min-h-[280px] lg:col-span-5 lg:h-[640px]">
               <TraceView run={run} />
             </div>
           </div>

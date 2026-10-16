@@ -66,7 +66,7 @@ export const StateMessage: React.FC<StateMessageProps> = ({ kind, children }) =>
   } else if (kind === 'error') {
     content = (
       <>
-        <div className="text-red-300 mb-2">❗</div>
+        <div className="text-red-600 mb-2">❗</div>
         {children}
       </>
     );
