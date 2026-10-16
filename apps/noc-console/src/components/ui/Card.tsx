@@ -59,7 +59,7 @@ export const StateMessage: React.FC<StateMessageProps> = ({ kind, children }) =>
   if (kind === 'loading') {
     content = (
       <>
-        <div className="animate-spin border-2 border-slate-600 border-t-sky-400 rounded-full w-4 h-4 mb-2" />
+        <div className="animate-spin border-2 border-deck-mauve border-t-sky-400 rounded-full w-4 h-4 mb-2" />
         {children}
       </>
     );
@@ -87,7 +87,7 @@ type SeverityChipProps = {
 
 export const SeverityChip: React.FC<SeverityChipProps> = ({ severity }) => {
   const chipClass = severityChip[severity] ?? severityChip.indeterminate;
-  const dotColor = (severityHex as Record<string, string>)[severity] ?? '#94a3b8';
+  const dotColor = (severityHex as Record<string, string>)[severity] ?? '#B4BCCB';
   return (
     <span
       className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium ${chipClass}`}

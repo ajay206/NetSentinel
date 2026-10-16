@@ -145,7 +145,7 @@ export const KpiCharts: React.FC<Props> = ({
             <path
               d={d}
               fill="none"
-              stroke="#38bdf8"
+              stroke="#6DCFF6"
               strokeWidth="2"
               vectorEffect="non-scaling-stroke"
             />
@@ -157,7 +157,7 @@ export const KpiCharts: React.FC<Props> = ({
                 cy={m.y}
                 r={4}
                 fill="#f87171"
-                stroke="#0f172a"
+                stroke="#0d2c55"
               />
             ))}
           </svg>

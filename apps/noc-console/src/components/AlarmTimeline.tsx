@@ -103,15 +103,15 @@ export function AlarmTimeline({ data, isLoading, isError, rootSiteId }: AlarmTim
       >
         {ticks.map((t) => (
           <g key={t}>
-            <line x1={M.left} x2={W - M.right} y1={y(t)} y2={y(t)} stroke="#1e293b" />
-            <text x={M.left - 6} y={y(t) + 3} fill="#94a3b8" fontSize={10} textAnchor="end">
+            <line x1={M.left} x2={W - M.right} y1={y(t)} y2={y(t)} stroke="#163862" />
+            <text x={M.left - 6} y={y(t) + 3} fill="#B4BCCB" fontSize={10} textAnchor="end">
               {t}
             </text>
           </g>
         ))}
         <text
           transform={`translate(12 ${M.top + PLOT_H / 2}) rotate(-90)`}
-          fill="#94a3b8"
+          fill="#B4BCCB"
           fontSize={10}
           textAnchor="middle"
         >
@@ -122,7 +122,7 @@ export function AlarmTimeline({ data, isLoading, isError, rootSiteId }: AlarmTim
           x2={W - M.right}
           y1={M.top + PLOT_H}
           y2={M.top + PLOT_H}
-          stroke="#475569"
+          stroke="#4A6489"
         />
 
         {buckets.map((b, i) => {
@@ -165,7 +165,7 @@ export function AlarmTimeline({ data, isLoading, isError, rootSiteId }: AlarmTim
                   width={barW + 4}
                   height={y(0) - y(b.total) + 2}
                   fill="none"
-                  stroke={isPeak ? '#f8fafc' : '#38bdf8'}
+                  stroke={isPeak ? '#f8fafc' : '#6DCFF6'}
                   strokeWidth={1.5}
                   strokeDasharray={isPeak ? undefined : '3 2'}
                 />
@@ -174,7 +174,7 @@ export function AlarmTimeline({ data, isLoading, isError, rootSiteId }: AlarmTim
                 <text
                   x={cx}
                   y={M.top + PLOT_H + 14}
-                  fill="#94a3b8"
+                  fill="#B4BCCB"
                   fontSize={10}
                   textAnchor="middle"
                 >
@@ -197,7 +197,7 @@ export function AlarmTimeline({ data, isLoading, isError, rootSiteId }: AlarmTim
         >
           {`Peak ${peak.bucket.total} @ ${formatHHMM(peak.bucket.start)}`}
         </text>
-        <text x={M.left + PLOT_W / 2} y={H - 4} fill="#94a3b8" fontSize={10} textAnchor="middle">
+        <text x={M.left + PLOT_W / 2} y={H - 4} fill="#B4BCCB" fontSize={10} textAnchor="middle">
           Time (IST)
         </text>
       </svg>
