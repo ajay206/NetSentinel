@@ -863,7 +863,7 @@ For UI development, stop the container (`docker compose --profile ui stop noc-co
 
 ### NOC console UI guide (Fix 1 redesign)
 
-The console uses one layout grid (12 columns, 16 px gutters, 24 px page padding) and one design-token theme (`apps/noc-console/src/theme.ts`). The theme sets spacing, card surfaces and the severity palette: critical red, major orange, minor yellow, warning sky and cleared slate. It is tested down to a 1280 px laptop. Below `lg` the panels stack in one column. Every card header has a title, a one-line subtitle and an ⓘ tooltip.
+The console uses one layout grid (12 columns, 16 px gutters, 12–24 px page padding) and one design-token theme (`apps/noc-console/src/theme.ts`). The theme sets spacing, card surfaces and the severity palette: critical red, major orange, minor yellow, warning sky and cleared mauve. It is tested from a 360 px phone through 768 / 1024 tablets, a 1280 px laptop and 1920 px wide screens. Below `lg` the panels stack in one column. KPI tiles wrap 1 / 2 / 3 / 5 columns. Tables scroll horizontally inside the card. Every card header has a title, a one-line subtitle and an ⓘ tooltip.
 
 What you see, top to bottom (described screenshot, 1440 px, synthetic data):
 
@@ -888,19 +888,21 @@ Why runbooks used to look missing: the runbook list was a separate panel at the 
 
 ### Deck theme (palette and fonts)
 
-The console takes its colours and fonts from the Phase 1 study deck (`NetSentinel_Phase1_Study.pptx`). The deck's `ppt/theme/theme1.xml` sets the fonts: **Urbanist** for headings and **Nunito** for body text. Its colour scheme is the stock Office one, so the palette comes from the colours the slides actually use:
+The console takes its colours and fonts from the Phase 1 study deck (`NetSentinel_Phase1_Study.pptx`). The deck's `ppt/theme/theme1.xml` sets the fonts: **Urbanist** for headings and **Nunito** for body text. The deck itself is a **light** theme (navy type on white), and the console matches that.
 
 | Token | Hex | Deck use | Console use |
 |---|---|---|---|
-| `deck.navy` | `#09254A` | titles, dark fills | base of the neutral scale (page `slate-950` `#061a35`, cards `slate-900` `#0d2c55`) |
-| `deck.navyMid` | `#2A4A73` | secondary navy | borders (`slate-700`) |
-| `deck.cyan` | `#6DCFF6` | accent | primary accent (`sky-400`), focus ring, "warning" severity |
-| `deck.cyanLight` | `#A3E5F9` | light accent | `sky-300`, table headers |
-| `deck.mauve` | `#7A748A` | body text | muted text (lifted to `#9D9BB0` for contrast on navy), "cleared" |
-| `deck.copper` | `#C89B7B` | warm highlight | spare token for highlights |
-| `deck.mist` | `#D9DEE5` | light grey | `slate-300` text |
+| `deck.navy` | `#09254A` | titles | headings, body text, header bar (white type on navy) |
+| `deck.navyMid` | `#2A4A73` | secondary navy | map core links |
+| `deck.cyan` | `#6DCFF6` | accent | sky accent, focus ring, "warning" severity, NS badge |
+| `deck.cyanDark` | `#1677A0` | — | active nav, accent text (WCAG AA on white) |
+| `deck.mauve` | `#7A748A` | body/muted | "cleared" severity |
+| `deck.mauveDark` | `#5A5566` | — | muted text (darkened mauve, AA on white) |
+| `deck.mist` | `#D9DEE5` | light grey | card borders |
+| page | `#F4F7FB` | slide canvas | page (`slate-950`) |
+| white | `#FFFFFF` | cards | cards (`slate-900`) with `shadow-card` |
 
-How it is wired up: `tailwind.config.js` rebuilds the `slate` and `sky` scales from these colours, so the existing classes pick up the deck look and the layout, grid and tooltips from PR #25 stay as they were. Severity reds, oranges and ambers are unchanged, because they carry meaning. The fonts are bundled with `@fontsource` and no CDN is used, so the Docker image works offline. Main text reaches WCAG AA contrast: muted text on cards is 5.1:1 and white on the primary button is 4.8:1.
+How it is wired up: `tailwind.config.js` rebuilds the `slate` and `sky` scales from these colours, so the existing classes pick up the light deck look and the layout, grid and tooltips from PR #25 stay as they were. Chart grids and labels in NetworkMap, AlarmTimeline and KpiCharts use mist / mauve / navy so they read on white. Severity reds, oranges and ambers are unchanged (darker text tints on chips for AA). The fonts are bundled with `@fontsource` and no CDN is used, so the Docker image works offline. Muted text on cards is about 7:1; navy on white is 15:1; white on the navy header is 15:1.
 
 ### Tooltips and layout (UI polish)
 
@@ -908,7 +910,7 @@ Every panel title has an **ⓘ** button. Hover it, or Tab to it, to read what th
 
 - **One component:** `src/components/ui/Tooltip.tsx` (`Tooltip`, `Tip` for labels, `InfoIcon`). It opens on hover after 150 ms, or straight away on keyboard focus, and closes on mouse-out, blur, Escape or scroll. The trigger gets `aria-describedby` pointing at a `role="tooltip"` element. Plain elements get `tabIndex=0` so the keyboard can reach them. The tip renders in a portal with fixed positioning, so scrolling tables cannot clip it, and it flips below when there is no room above.
 - **Copy:** all text lives in `src/lib/tooltips.ts` (`TIPS`), in short plain English. Change wording there, not in the panels. Run-status labels and colours live in `src/lib/statusTips.ts`.
-- **Layout rules:** cards in the same row share a fixed height at `lg` (timeline | incidents 440 px; map | KPI activity 500 px; RCA | PQC 460 px; copilot chat | agent trace 640 px; admin audit | settings + health 560 px). Only the card body scrolls (`.ns-scroll`), and the card body is a flex column, so long tables (for example the audit log) never spill past the border. Every card uses the same header: an `text-sm` title, ⓘ, a subtitle and actions on the right. The page background is set on `html` and `body`, so scrolling past the content stays dark.
+- **Layout rules:** cards in the same row share a fixed height at `lg` (timeline | incidents 440 px; map | KPI activity 500 px; RCA | PQC 460 px; copilot chat | agent trace 640 px; admin audit | settings + health 560 px). Below `lg` they stack and grow with content. Only the card body scrolls (`.ns-scroll` / `.ns-table-wrap`), so wide tables scroll horizontally inside the card. The header collapses: dashboard tabs sit behind a menu control under `md`, the IST clock hides on small screens, and the user menu stays reachable. Demo-path steps stack on phones and scroll horizontally from `sm` up. Every card uses the same header: an `text-sm` title, ⓘ, a subtitle and actions on the right. The page background is set on `html` and `body` (`#F4F7FB`).
 - **Timestamps** in PQC status and the audit log are shown in IST.
 - Tests: `Tooltip.test.tsx` (hover, focus, Escape, aria-describedby, tabIndex) and `views/panelTooltips.test.tsx` (panel ⓘ, header chips, copy length).
 

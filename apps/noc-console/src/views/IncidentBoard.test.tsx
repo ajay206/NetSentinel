@@ -127,8 +127,8 @@ describe('IncidentBoard', () => {
   it('displays severity chips with correct colors', () => {
     render(<IncidentBoard {...defaultProps} />);
     // Theme chips (src/theme.ts severityChip)
-    expect(screen.getByTestId('severity-inc-critical').firstChild).toHaveClass('text-red-300');
-    expect(screen.getByTestId('severity-inc-major').firstChild).toHaveClass('text-orange-300');
+    expect(screen.getByTestId('severity-inc-critical').firstChild).toHaveClass('text-red-700');
+    expect(screen.getByTestId('severity-inc-major').firstChild).toHaveClass('text-orange-700');
     expect(screen.getByTestId('severity-inc-cleared').firstChild).toHaveClass('text-slate-400');
     expect(screen.getByTestId('severity-inc-critical')).toHaveTextContent('Critical');
   });

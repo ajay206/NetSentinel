@@ -90,6 +90,8 @@ export function IncidentBoard({
             {selectedFooter}
           </div>
         )}
+        <div className="ns-scroll">
+        <div className="min-w-[36rem]">
         <div className={`${ROW} ns-thead px-3 py-1.5`} role="row">
           <span>Severity</span>
           <span>Root site</span>
@@ -97,7 +99,7 @@ export function IncidentBoard({
           <span>Duration</span>
           <span>Status</span>
         </div>
-        <ul className="ns-scroll space-y-1">
+        <ul className="space-y-1">
           {sortedIncidents.map((incident) => {
             const isSelected = selectedId === incident.id;
             return (
@@ -137,7 +139,7 @@ export function IncidentBoard({
                     data-testid={`status-${incident.id}`}
                     className={`w-fit rounded px-1.5 py-0.5 text-[11px] font-medium ${
                       incident.status === 'open'
-                        ? 'bg-amber-500/20 text-amber-300'
+                        ? 'bg-amber-500/20 text-amber-700'
                         : 'bg-slate-700 text-slate-400'
                     }`}
                   >
@@ -154,6 +156,8 @@ export function IncidentBoard({
             );
           })}
         </ul>
+        </div>
+        </div>
       </div>
     </Card>
   );

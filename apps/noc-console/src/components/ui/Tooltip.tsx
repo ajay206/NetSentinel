@@ -155,7 +155,7 @@ export function Tooltip({ content, children, side = 'top', delay = 150 }: Toolti
         top: pos?.top ?? -9999,
         left: pos?.left ?? -9999,
       }}
-      className="pointer-events-none z-[100] max-w-xs whitespace-normal rounded-md border border-slate-700 bg-slate-800 px-2.5 py-1.5 text-left text-xs font-normal normal-case leading-snug tracking-normal text-slate-100 shadow-lg"
+      className="pointer-events-none z-[100] max-w-xs whitespace-normal rounded-md border border-deck-navy/20 bg-deck-navy px-2.5 py-1.5 text-left text-xs font-normal normal-case leading-snug tracking-normal text-white shadow-lg"
     >
       {content}
     </div>

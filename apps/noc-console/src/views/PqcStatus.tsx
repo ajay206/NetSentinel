@@ -36,24 +36,24 @@ function tlsLabel(t: PqcTls): { text: string; cls: string; tip: string } {
   if (t.hybridOnly)
     return {
       text: `hybrid only · ${t.group}`,
-      cls: "text-emerald-300",
+      cls: "text-emerald-700",
       tip: TIPS.chipHybrid,
     };
   if (t.hybrid)
     return {
       text: "hybrid · classical still accepted",
-      cls: "text-amber-300",
+      cls: "text-amber-700",
       tip: TIPS.chipHybridMixed,
     };
   if (t.classical)
     return {
       text: "classical only · X25519",
-      cls: "text-red-300",
+      cls: "text-red-700",
       tip: TIPS.chipClassical,
     };
   return {
     text: "unreachable",
-    cls: "text-red-300",
+    cls: "text-red-700",
     tip: TIPS.chipUnreachable,
   };
 }

@@ -40,7 +40,7 @@ export const KpiSummary: React.FC<KpiSummaryProps> = ({
       value: String(activeAlarms),
       hint: `${criticalAlarms} critical`,
       info: 'Alarms in the live feed that are not cleared yet.',
-      tone: criticalAlarms > 0 ? 'text-red-300' : 'text-slate-100',
+      tone: criticalAlarms > 0 ? 'text-red-600' : 'text-slate-100',
     },
     {
       id: 'incidents',
@@ -48,7 +48,7 @@ export const KpiSummary: React.FC<KpiSummaryProps> = ({
       value: String(openIncidents),
       hint: 'Related alarms grouped by topology',
       info: 'The incident service groups alarms that are close in time and in the network.',
-      tone: openIncidents > 0 ? 'text-orange-300' : 'text-slate-100',
+      tone: openIncidents > 0 ? 'text-orange-600' : 'text-slate-100',
     },
     {
       id: 'compression',
@@ -67,7 +67,7 @@ export const KpiSummary: React.FC<KpiSummaryProps> = ({
       value: String(anomalies),
       hint: 'Cells outside their normal baseline',
       info: 'Cells whose KPIs moved far from their learned baseline in the last 24 hours.',
-      tone: anomalies > 0 ? 'text-amber-300' : 'text-slate-100',
+      tone: anomalies > 0 ? 'text-amber-600' : 'text-slate-100',
     },
     {
       id: 'services',
@@ -75,12 +75,15 @@ export const KpiSummary: React.FC<KpiSummaryProps> = ({
       value: `${servicesUp}/${servicesTotal}`,
       hint: healthUnknown ? 'Waiting for health' : allUp ? 'All systems go' : 'Check service health',
       info: 'Backend services reporting healthy to the API gateway.',
-      tone: healthUnknown ? 'text-slate-100' : allUp ? 'text-emerald-300' : 'text-amber-300',
+      tone: healthUnknown ? 'text-slate-100' : allUp ? 'text-emerald-600' : 'text-amber-600',
     },
   ];
 
   return (
-    <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-5" data-testid="kpi-summary">
+    <div
+      className="grid grid-cols-1 gap-3 min-[400px]:grid-cols-2 md:grid-cols-3 xl:grid-cols-5"
+      data-testid="kpi-summary"
+    >
       {tiles.map((t) => (
         <div key={t.id} className={`${card} p-4`} data-testid={`kpi-${t.id}`}>
           <div className="flex items-center justify-between">

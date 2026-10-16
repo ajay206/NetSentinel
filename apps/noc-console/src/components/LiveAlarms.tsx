@@ -77,7 +77,7 @@ export const LiveAlarms: React.FC<LiveAlarmsProps> = ({ alarms }) => {
           <p>No {activeFilter} alarms</p>
         </div>
       ) : (
-        <div className="ns-scroll">
+        <div className="ns-table-wrap">
           <table className="w-full text-xs">
             <thead>
               <tr className="ns-thead">

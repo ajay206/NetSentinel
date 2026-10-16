@@ -66,7 +66,7 @@ export const KpiCharts: React.FC<Props> = ({
           </span>
         )}
       </div>
-      <div className="flex flex-wrap gap-2 mb-4">
+      <div className="flex flex-wrap gap-2 mb-4 min-w-0">
         <select
           className="bg-slate-800 text-slate-200 text-xs p-1 rounded"
           value={cellId ?? ''}
@@ -136,7 +136,7 @@ export const KpiCharts: React.FC<Props> = ({
             </span>
           </div>
           <svg
-            className="w-full h-40 bg-slate-950/40 rounded"
+            className="w-full h-40 bg-slate-950 rounded border border-slate-700"
             viewBox="0 0 600 160"
             preserveAspectRatio="none"
             role="img"
@@ -145,7 +145,7 @@ export const KpiCharts: React.FC<Props> = ({
             <path
               d={d}
               fill="none"
-              stroke="#6DCFF6"
+              stroke="#1677A0"
               strokeWidth="2"
               vectorEffect="non-scaling-stroke"
             />
@@ -157,7 +157,7 @@ export const KpiCharts: React.FC<Props> = ({
                 cy={m.y}
                 r={4}
                 fill="#f87171"
-                stroke="#0d2c55"
+                stroke="#FFFFFF"
               />
             ))}
           </svg>

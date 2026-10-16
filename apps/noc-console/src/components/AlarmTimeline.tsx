@@ -88,7 +88,7 @@ export function AlarmTimeline({ data, isLoading, isError, rootSiteId }: AlarmTim
       {annotation && (
         <p
           data-testid="storm-annotation"
-          className="mb-2 inline-flex items-center gap-2 rounded-md bg-red-500/10 px-2.5 py-1 text-sm font-medium text-red-300 ring-1 ring-red-500/30"
+          className="mb-2 inline-flex max-w-full items-center gap-2 rounded-md bg-red-500/10 px-2.5 py-1 text-sm font-medium text-red-700 ring-1 ring-red-500/30"
         >
           <span className="h-2 w-2 rounded-full bg-red-400" aria-hidden />
           {annotation}
@@ -103,15 +103,15 @@ export function AlarmTimeline({ data, isLoading, isError, rootSiteId }: AlarmTim
       >
         {ticks.map((t) => (
           <g key={t}>
-            <line x1={M.left} x2={W - M.right} y1={y(t)} y2={y(t)} stroke="#163862" />
-            <text x={M.left - 6} y={y(t) + 3} fill="#B4BCCB" fontSize={10} textAnchor="end">
+            <line x1={M.left} x2={W - M.right} y1={y(t)} y2={y(t)} stroke="#D9DEE5" />
+            <text x={M.left - 6} y={y(t) + 3} fill="#5A5566" fontSize={10} textAnchor="end">
               {t}
             </text>
           </g>
         ))}
         <text
           transform={`translate(12 ${M.top + PLOT_H / 2}) rotate(-90)`}
-          fill="#B4BCCB"
+          fill="#5A5566"
           fontSize={10}
           textAnchor="middle"
         >
@@ -122,7 +122,7 @@ export function AlarmTimeline({ data, isLoading, isError, rootSiteId }: AlarmTim
           x2={W - M.right}
           y1={M.top + PLOT_H}
           y2={M.top + PLOT_H}
-          stroke="#4A6489"
+          stroke="#09254A"
         />
 
         {buckets.map((b, i) => {
@@ -165,7 +165,7 @@ export function AlarmTimeline({ data, isLoading, isError, rootSiteId }: AlarmTim
                   width={barW + 4}
                   height={y(0) - y(b.total) + 2}
                   fill="none"
-                  stroke={isPeak ? '#f8fafc' : '#6DCFF6'}
+                  stroke={isPeak ? '#09254A' : '#1677A0'}
                   strokeWidth={1.5}
                   strokeDasharray={isPeak ? undefined : '3 2'}
                 />
@@ -174,7 +174,7 @@ export function AlarmTimeline({ data, isLoading, isError, rootSiteId }: AlarmTim
                 <text
                   x={cx}
                   y={M.top + PLOT_H + 14}
-                  fill="#B4BCCB"
+                  fill="#5A5566"
                   fontSize={10}
                   textAnchor="middle"
                 >
@@ -190,14 +190,14 @@ export function AlarmTimeline({ data, isLoading, isError, rootSiteId }: AlarmTim
           data-testid="storm-callout"
           x={peakX}
           y={Math.max(12, y(peak.bucket.total) - 8)}
-          fill="#fca5a5"
+          fill="#b91c1c"
           fontSize={11}
           fontWeight={600}
           textAnchor={calloutAnchor}
         >
           {`Peak ${peak.bucket.total} @ ${formatHHMM(peak.bucket.start)}`}
         </text>
-        <text x={M.left + PLOT_W / 2} y={H - 4} fill="#B4BCCB" fontSize={10} textAnchor="middle">
+        <text x={M.left + PLOT_W / 2} y={H - 4} fill="#5A5566" fontSize={10} textAnchor="middle">
           Time (IST)
         </text>
       </svg>
@@ -247,7 +247,7 @@ export function AlarmTimeline({ data, isLoading, isError, rootSiteId }: AlarmTim
             </span>
           ))}
           {isBurst(selected, data.peak) && (
-            <span className="rounded bg-red-500/15 px-2 py-0.5 font-medium text-red-300 ring-1 ring-red-500/30">
+            <span className="rounded bg-red-500/15 px-2 py-0.5 font-medium text-red-700 ring-1 ring-red-500/30">
               Burst
             </span>
           )}

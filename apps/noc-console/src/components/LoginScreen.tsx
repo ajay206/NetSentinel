@@ -68,7 +68,7 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
           {error && (
             <div
               role="alert"
-              className="text-sm text-red-400 bg-red-900/30 border border-red-800 rounded-md p-3"
+              className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-md p-3"
             >
               {error}
             </div>
@@ -76,7 +76,7 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
           <button
             type="submit"
             disabled={pending}
-            className="w-full bg-sky-600 hover:bg-sky-500 disabled:bg-sky-600/50 disabled:cursor-not-allowed text-slate-100 font-medium py-2 px-4 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-2 focus:ring-offset-slate-900"
+            className="w-full bg-sky-600 hover:bg-sky-500 disabled:bg-sky-600/50 disabled:cursor-not-allowed text-white font-medium py-2 px-4 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-2 focus:ring-offset-slate-900"
           >
             {pending ? 'Signing in…' : 'Sign in'}
           </button>
