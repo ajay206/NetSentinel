@@ -27,9 +27,9 @@ export function can(role: Role | undefined | null, permission: Permission): bool
 }
 
 export const ROLE_STYLE: Record<Role, string> = {
-  viewer: 'bg-slate-700/60 text-slate-200',
-  operator: 'bg-sky-500/15 text-sky-300',
-  admin: 'bg-violet-500/15 text-violet-300',
+  viewer: 'bg-slate-800 text-slate-200 ring-1 ring-slate-700',
+  operator: 'bg-sky-500/15 text-sky-300 ring-1 ring-sky-500/40',
+  admin: 'bg-violet-500/15 text-violet-700 ring-1 ring-violet-500/40',
 };
 
 export const ROLE_BLURB: Record<Role, string> = {

@@ -32,8 +32,8 @@ export const AuditLog: React.FC = () => {
   else if (!rows.length) body = <StateMessage kind="empty">No matching entries.</StateMessage>;
   else
     body = (
-      <div className="ns-scroll">
-        <table className="w-full table-fixed text-sm" data-testid="audit-table">
+      <div className="ns-table-wrap">
+        <table className="w-max min-w-full text-sm" data-testid="audit-table">
           <thead className="ns-thead">
             <tr className="text-left">
               <th className="px-2 py-1.5">

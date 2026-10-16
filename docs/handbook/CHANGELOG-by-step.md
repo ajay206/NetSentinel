@@ -428,6 +428,10 @@ Built straight after Step 18; Steps 19–20 (TelcoGPT-mini) moved to the next ph
 * **Scope:** The console was restyled to match the Phase 1 study deck: navy `#09254A` as the base, cyan `#6DCFF6` as the accent, mauve `#7A748A` for muted text, Urbanist for headings and Nunito for body text (bundled with `@fontsource`). Only the Tailwind `slate` and `sky` scales and the SVG chart colours were changed; the layout and tooltips from PR #25 are kept.
 * **Verification:** console lint, typecheck, Vitest and build; `scripts/check_docs.py`.
 
+## UI: light deck theme and responsive console (Oct 16, 2026)
+* **Scope:** Not a new step. Follow-up to the deck theme: the console is now a **light** theme matching the Phase 1 slides (page `#F4F7FB`, white cards, navy `#09254A` type, cyan accents, navy header). Muted text uses darkened mauve `#5A5566` for WCAG AA. Layout is responsive from 360 px phones through 768 / 1024 tablets, 1280 px laptops and 1920 px: KPI tiles wrap 1/2/3/5 columns, demo-path steps stack or scroll, timeline and incident board stack below `lg`, tables scroll inside the card, header/nav collapse, Admin page included.
+* **Verification:** console lint, typecheck, Vitest and build; Playwright/headless screenshots at 375, 768, 1024, 1280 and 1920; `scripts/check_docs.py`.
+
 ## UI polish: layout and tooltips (Oct 15, 2026)
 * **Scope:** Not a new step. This fixes the layout problems seen in five console screenshots and adds accessible tooltips everywhere.
   * Layout: equal card heights per row; all card headers use one style; the Card body is a flex column so lists scroll inside the card; dark page background; RCA and PQC side by side; chat and trace at equal height; admin audit, settings and health at equal height.

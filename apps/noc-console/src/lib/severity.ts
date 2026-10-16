@@ -13,15 +13,15 @@ export const severityStyles: Record<
   { badge: string; rowBorder: string }
 > = {
   critical: {
-    badge: 'bg-red-500/15 text-red-400 ring-red-500/30',
+    badge: 'bg-red-500/15 text-red-700 ring-red-500/30',
     rowBorder: 'border-l-4 border-red-500',
   },
   major: {
-    badge: 'bg-orange-500/15 text-orange-400 ring-orange-500/30',
+    badge: 'bg-orange-500/15 text-orange-700 ring-orange-500/30',
     rowBorder: 'border-l-4 border-orange-500',
   },
   minor: {
-    badge: 'bg-amber-500/15 text-amber-400 ring-amber-500/30',
+    badge: 'bg-amber-500/15 text-amber-700 ring-amber-500/30',
     rowBorder: 'border-l-4 border-amber-500',
   },
   warning: {
@@ -29,7 +29,7 @@ export const severityStyles: Record<
     rowBorder: 'border-l-4 border-sky-500',
   },
   cleared: {
-    badge: 'bg-emerald-500/15 text-emerald-400 ring-emerald-500/30',
+    badge: 'bg-emerald-500/15 text-emerald-700 ring-emerald-500/30',
     rowBorder: 'border-l-4 border-emerald-500',
   },
 };
