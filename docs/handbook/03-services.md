@@ -886,21 +886,23 @@ What you see, top to bottom (described screenshot, 1440 px, synthetic data):
 
 Why runbooks used to look missing: the runbook list was a separate panel at the bottom of the page. The fixed SHAP drawer that opened on alarm click covered it (small_s6), so clicking an alarm looked like nothing happened. Runbooks now live inside that drawer. The gateway route `/api/rag/search` does need the bearer token. The console adds it through `installAuthFetch`, which is now installed before the app mounts, so the very first queries are authenticated too.
 
-### Deck theme (palette and fonts)
+### Bento theme (palette and fonts)
 
-The console takes its colours and fonts from the Phase 1 study deck (`NetSentinel_Phase1_Study.pptx`). The deck's `ppt/theme/theme1.xml` sets the fonts: **Urbanist** for headings and **Nunito** for body text. Its colour scheme is the stock Office one, so the palette comes from the colours the slides actually use:
+The console uses a **Modern bento** layout: soft off-white page, white rounded tiles, one navy hero KPI, and short colour accents. Fonts stay as in the Phase 1 study deck: **Urbanist** for headings and **Nunito** for body text (bundled with `@fontsource`, no CDN).
 
-| Token | Hex | Deck use | Console use |
-|---|---|---|---|
-| `deck.navy` | `#09254A` | titles, dark fills | base of the neutral scale (page `slate-950` `#061a35`, cards `slate-900` `#0d2c55`) |
-| `deck.navyMid` | `#2A4A73` | secondary navy | borders (`slate-700`) |
-| `deck.cyan` | `#6DCFF6` | accent | primary accent (`sky-400`), focus ring, "warning" severity |
-| `deck.cyanLight` | `#A3E5F9` | light accent | `sky-300`, table headers |
-| `deck.mauve` | `#7A748A` | body text | muted text (lifted to `#9D9BB0` for contrast on navy), "cleared" |
-| `deck.copper` | `#C89B7B` | warm highlight | spare token for highlights |
-| `deck.mist` | `#D9DEE5` | light grey | `slate-300` text |
+| Token | Hex | Use |
+|---|---|---|
+| page `bento.bg` | `#F4F1EA` | page background (`html` / `body`) |
+| tile | `#FFFFFF` | cards / tiles (`rounded-[20px]` / `rounded-bento`) |
+| `navy` | `#09254A` | headings, body text, NS badge, focus ring |
+| `navy.mid` / `navy.light` | `#0E3A6B` / `#12507A` | hero KPI gradient |
+| `cyan` | `#6DCFF6` | accents, focus accents, warning severity, NS badge type |
+| `bento.muted` | `#6B7280` | muted labels |
+| `bento.border` | `#EEE8DC` | light borders / table headers |
 
-How it is wired up: `tailwind.config.js` rebuilds the `slate` and `sky` scales from these colours, so the existing classes pick up the deck look and the layout, grid and tooltips from PR #25 stay as they were. Severity reds, oranges and ambers are unchanged, because they carry meaning. The fonts are bundled with `@fontsource` and no CDN is used, so the Docker image works offline. Main text reaches WCAG AA contrast: muted text on cards is 5.1:1 and white on the primary button is 4.8:1.
+**Layout.** KPI summary is a bento grid: one full-height navy **hero** tile (Active Alarms) with a cyan radial glow, plus four white secondary tiles with left border accents (cyan, violet, amber, green). Cards use 20 px radius and a light navy shadow. Header sits on the page background (no full-width navy bar). Severity colours are unchanged: critical `#EF4444`, major `#F97316`, minor `#F59E0B`, warning `#6DCFF6`, cleared muted grey.
+
+**Responsive.** Checked from 375 px phones through 768 tablets, 1280 laptops and 1920 wide screens. KPI tiles wrap 1 → 2 → 3 columns; panels stack below `lg`; tables scroll inside the card; header and nav collapse on small screens. Tokens live in `apps/noc-console/src/theme.ts`, `tailwind.config.js` and `src/index.css` (Tailwind `slate` / `sky` scales still map to the light tokens so older classes keep working).
 
 ### Tooltips and layout (UI polish)
 
