@@ -23,7 +23,7 @@ const severityColor: Record<PerceivedSeverity, string> = {
   major: '#f97316',
   minor: '#f59e0b',
   warning: '#6DCFF6',
-  cleared: '#10b981',
+  cleared: '#16A34A',
 };
 
 export const NetworkMap: React.FC<Props> = ({
@@ -36,11 +36,10 @@ export const NetworkMap: React.FC<Props> = ({
   failedSiteId = null,
 }) => {
   const viewBox = '0 0 600 380';
-  const padding = 20; // px padding inside viewBox
+  const padding = 20;
 
   const { sites, links, counts } = topology ?? {};
 
-  // compute projection
   const projection = useMemo(() => {
     if (!sites?.length) return null;
     const lats = sites.map((s) => s.lat);
@@ -54,7 +53,6 @@ export const NetworkMap: React.FC<Props> = ({
 
     return (lat: number, lon: number) => {
       const x = padding + ((lon - minLon) / lonRange) * (600 - 2 * padding);
-      // higher lat = up (smaller y)
       const y = padding + ((maxLat - lat) / latRange) * (380 - 2 * padding);
       return { x, y };
     };
@@ -63,14 +61,14 @@ export const NetworkMap: React.FC<Props> = ({
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-8">
-        <span className="text-slate-400">Loading network map…</span>
+        <span className="text-bento-muted font-medium">Loading network map…</span>
       </div>
     );
   }
 
   if (isError) {
     return (
-      <div className="flex items-center justify-center py-8 text-red-500">
+      <div className="flex items-center justify-center py-8 text-red-500 font-bold">
         Failed to load network map.
       </div>
     );
@@ -80,13 +78,11 @@ export const NetworkMap: React.FC<Props> = ({
     return null;
   }
 
-  // helper to get worst severity for a site
   const siteSeverity = (siteId: string): PerceivedSeverity => {
     const sev = severityBySite[siteId];
     return sev ?? 'cleared';
   };
 
-  // render links
   const renderLinks = () => {
     if (!links) return null;
     return links.map((link) => {
@@ -101,10 +97,10 @@ export const NetworkMap: React.FC<Props> = ({
       const strokeWidth = role === 'core' ? 2.5 : role === 'ring' ? 1.5 : 1;
       const strokeColor =
         role === 'core'
-          ? '#B4BCCB' // slate-400
+          ? '#09254A'
           : role === 'ring'
-            ? '#1A7AAB' // deck cyan-600
-            : '#7A748A'; // deck mauve
+            ? '#3BA8D4'
+            : '#6B7280';
       const failed = link.linkId === failedLinkId;
       const dashArray = failed ? '5 3' : isMicrowave ? '4 2' : undefined;
 
@@ -125,7 +121,6 @@ export const NetworkMap: React.FC<Props> = ({
     });
   };
 
-  // render sites
   const renderSites = () => {
     if (!sites) return null;
     return sites.map((site) => {
@@ -134,10 +129,9 @@ export const NetworkMap: React.FC<Props> = ({
       const sev = siteSeverity(site.siteId);
       const fill = severityColor[sev];
       const commonProps = {
-        key: site.siteId,
         'data-site-id': site.siteId,
         fill,
-        stroke: '#111',
+        stroke: '#09254A',
         strokeWidth: 0.5,
       };
       const title = `${site.siteId} · ${site.region} · ${site.kind} · ${site.nodes.length} nodes / ${site.nodes.reduce(
@@ -147,14 +141,15 @@ export const NetworkMap: React.FC<Props> = ({
 
       const shape =
         site.kind === 'core' ? (
-          <rect {...commonProps} x={x - 5} y={y - 5} width={10} height={10} />
+          <rect key={site.siteId} {...commonProps} x={x - 5} y={y - 5} width={10} height={10} />
         ) : site.kind === 'hub' ? (
           <polygon
+            key={site.siteId}
             {...commonProps}
             points={`${x},${y - 6} ${x + 6},${y} ${x},${y + 6} ${x - 6},${y}`}
           />
         ) : (
-          <circle {...commonProps} cx={x} cy={y} r={5} />
+          <circle key={site.siteId} {...commonProps} cx={x} cy={y} r={5} />
         );
 
       return (
@@ -190,7 +185,6 @@ export const NetworkMap: React.FC<Props> = ({
     });
   };
 
-  // region labels
   const renderRegions = () => {
     if (!topology?.regions?.length) return null;
     return topology.regions.map((region) => {
@@ -205,7 +199,7 @@ export const NetworkMap: React.FC<Props> = ({
           x={padding + 4}
           y={p.y}
           textAnchor="start"
-          className="text-[11px] uppercase tracking-widest fill-deck-mauve"
+          className="text-[11px] font-extrabold uppercase tracking-widest fill-bento-muted"
         >
           {region}
         </text>
@@ -220,7 +214,7 @@ export const NetworkMap: React.FC<Props> = ({
         subtitle="Sites coloured by their worst active alarm."
         info={TIPS.panelMap}
         actions={
-          <div className="flex items-center gap-3 text-xs text-slate-400">
+          <div className="flex items-center gap-3 text-xs font-bold text-navy">
             <span>{counts?.sites ?? 0} sites</span>
             <span>{counts?.nodes ?? 0} nodes</span>
             <span>{counts?.cells ?? 0} cells</span>
@@ -229,23 +223,22 @@ export const NetworkMap: React.FC<Props> = ({
         }
       />
 
-      {/* Legend */}
-      <div className="flex flex-wrap gap-x-3 gap-y-1 mb-2 text-xs text-slate-400">
+      <div className="flex flex-wrap gap-x-3 gap-y-1 mb-2 text-xs font-semibold text-bento-muted">
         <span className="flex items-center gap-1">
           <svg className="w-4 h-4">
-            <rect width="10" height="10" fill="#B4BCCB" />
+            <rect width="10" height="10" fill="#09254A" />
           </svg>
           Core link
         </span>
         <span className="flex items-center gap-1">
           <svg className="w-4 h-4">
-            <line x1="0" y1="5" x2="10" y2="5" stroke="#1A7AAB" strokeWidth="1.5" />
+            <line x1="0" y1="5" x2="10" y2="5" stroke="#3BA8D4" strokeWidth="1.5" />
           </svg>
           Ring link
         </span>
         <span className="flex items-center gap-1">
           <svg className="w-4 h-4">
-            <line x1="0" y1="5" x2="10" y2="5" stroke="#7A748A" strokeWidth="1" />
+            <line x1="0" y1="5" x2="10" y2="5" stroke="#6B7280" strokeWidth="1" />
           </svg>
           Access link
         </span>
@@ -256,7 +249,7 @@ export const NetworkMap: React.FC<Props> = ({
               y1="5"
               x2="10"
               y2="5"
-              stroke="#7A748A"
+              stroke="#6B7280"
               strokeWidth="1"
               strokeDasharray="4 2"
             />
@@ -275,7 +268,7 @@ export const NetworkMap: React.FC<Props> = ({
 
       <svg
         viewBox={viewBox}
-        className="w-full h-auto bg-slate-900/30 border border-slate-700 rounded"
+        className="w-full h-auto bg-bento-bg/50 border border-bento-border rounded-xl"
       >
         {renderRegions()}
         {renderLinks()}

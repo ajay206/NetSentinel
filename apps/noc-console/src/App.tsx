@@ -191,12 +191,11 @@ export const App: React.FC<AppProps> = ({
     [impact.result],
   );
 
-  // Fix 1 redesign: headline numbers for the KPI summary row
+  // Bento redesign summary row
   const summary = useMemo(() => {
     const active = alarms.filter((a) => a.perceivedSeverity !== "cleared");
     const items = incidents.data?.items ?? [];
     const open = items.filter((i) => i?.status === "open");
-    // Root of the biggest incident (open first) for the storm annotation
     const biggest = [...(open.length ? open : items)].sort(
       (a, b) => (b?.alarmCount ?? 0) - (a?.alarmCount ?? 0),
     )[0];
@@ -215,312 +214,312 @@ export const App: React.FC<AppProps> = ({
   }, [alarms, incidents.data, health, anomalies.data]);
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-200 flex flex-col">
-      <Header
-        wsStatus={wsStatus}
-        user={session}
-        onLogout={onLogout}
-        onChangePassword={session ? () => setPwOpen(true) : undefined}
-        views={
-          isAdmin
-            ? [
-                { id: "ops", label: "Operations" },
-                { id: "admin", label: "Admin" },
-              ]
-            : []
-        }
-        activeView={view}
-        onSelectView={(id) => setView(id === "admin" ? "admin" : "ops")}
-      />
-      {session && (
-        <ChangePasswordDialog
-          open={pwOpen}
-          username={session.username}
-          onClose={() => setPwOpen(false)}
-          onChanged={(r) => {
-            const next: Session = {
-              token: r.accessToken,
-              username: r.username,
-              role: r.role as Role,
-              expiresAt: Date.now() + r.expiresIn * 1000,
-            };
-            saveSession(next);
-            onSessionChange?.(next);
-          }}
+    <div className="min-h-screen bg-bento-bg text-navy flex flex-col font-sans antialiased">
+      <div className="p-6 md:p-8 flex-1 flex flex-col gap-3.5 max-w-[1920px] mx-auto w-full">
+        <Header
+          wsStatus={wsStatus}
+          user={session}
+          onLogout={onLogout}
+          onChangePassword={session ? () => setPwOpen(true) : undefined}
+          views={
+            isAdmin
+              ? [
+                  { id: "ops", label: "Operations" },
+                  { id: "admin", label: "Admin" },
+                ]
+              : []
+          }
+          activeView={view}
+          onSelectView={(id) => setView(id === "admin" ? "admin" : "ops")}
         />
-      )}
-      {isAdmin && view === "admin" ? (
-        <main className="mx-auto w-full max-w-[1600px] flex-1 px-6 py-5">
-          <AdminDashboard
-            currentUser={me}
-            health={health}
-            healthError={isError}
+        {session && (
+          <ChangePasswordDialog
+            open={pwOpen}
+            username={session.username}
+            onClose={() => setPwOpen(false)}
+            onChanged={(r) => {
+              const next: Session = {
+                token: r.accessToken,
+                username: r.username,
+                role: r.role as Role,
+                expiresAt: Date.now() + r.expiresIn * 1000,
+              };
+              saveSession(next);
+              onSessionChange?.(next);
+            }}
           />
-        </main>
-      ) : (
-        /* 12-column grid, 16px gutters; rows share a fixed height so neighbouring panels align */
-        <main className="mx-auto w-full max-w-[1600px] flex-1 space-y-4 px-6 py-5">
-          <KpiSummary {...summary} />
-
-          <DemoPath stages={stages} />
-
-          {/* Row: what is happening now */}
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
-            <div className="lg:col-span-6 lg:h-[440px] 2xl:col-span-7">
-              <AlarmTimeline
-                data={timeline.data}
-                isLoading={timeline.isLoading}
-                isError={timeline.isError}
-                rootSiteId={summary.stormRoot}
-              />
-            </div>
-            <div className="lg:col-span-6 lg:h-[440px] 2xl:col-span-5">
-              <IncidentBoard
-                data={incidents.data}
-                isLoading={incidents.isLoading}
-                isError={incidents.isError}
-                selectedId={incidentId}
-                onSelect={setIncidentId}
-                selectedFooter={
-                  incidentId ? (
-                    <>
-                      {relatedDrafts.length > 0 && (
-                        <div
-                          className="mb-2 flex flex-wrap items-center gap-1 text-xs"
-                          data-testid="related-drafts"
-                        >
-                          <span className="text-slate-400">
-                            Related tickets:
-                          </span>
-                          {relatedDrafts.map((t) => (
-                            <button
-                              key={t.id}
-                              type="button"
-                              className="font-mono text-sky-300 hover:underline"
-                              onClick={() => {
-                                setTicketStatus("all");
-                                setTicketId(t.id);
-                              }}
-                            >
-                              {t.id} ({t.status})
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                      <WorkflowActions
-                        subject={`incident ${incidentId}`}
-                        workflow={
-                          incidents.data?.items.find((i) => i.id === incidentId)
-                            ?.workflow
-                        }
-                        canAct={canOperate}
-                        currentUser={me}
-                        allowAssign
-                        isPending={incidentAction.isPending}
-                        error={incidentAction.error}
-                        onAction={(action, extra) =>
-                          incidentAction.mutate({
-                            incidentId,
-                            action,
-                            ...extra,
-                          })
-                        }
-                      />
-                    </>
-                  ) : null
-                }
-              />
-            </div>
-          </div>
-
-          {/* Row: W16 approval queue (operators decide; viewers read) */}
-          <ApprovalQueue
-            tickets={tickets.data?.items}
-            isLoading={tickets.isLoading}
-            isError={tickets.isError}
-            status={ticketStatus}
-            onStatusChange={setTicketStatus}
-            selectedId={ticketId}
-            onSelect={setTicketId}
-            audit={ticketAudit.data?.entries}
-            auditLoading={ticketId !== null && ticketAudit.isLoading}
-            canApprove={canApprove}
-            onDecide={(id, d, note) =>
-              decision.mutate({ id, decision: d, note })
-            }
-            isPending={decision.isPending}
-            error={decision.error}
-          />
-
-          {/* Row: alarm tables (filtered by the selected incident) + service health */}
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
-            <div className="lg:col-span-9 lg:h-[420px]">
-              <LiveAlarms alarms={shownAlarms} />
-            </div>
-            <div className="lg:col-span-3 lg:h-[420px]">
-              <ServiceHealth health={health} isError={isError} />
-            </div>
-          </div>
-
-          <div className="lg:h-[460px]">
-            <EnrichedAlarms
-              alarms={shownEnriched}
-              status={enrichedStatus}
-              selectedKey={selectedKey}
-              onSelect={(a) => selectAlarm(a.dedup.key)}
-              selectedBadge={
-                <FaultBadge
-                  prediction={prediction.data}
-                  isLoading={prediction.isLoading}
-                  isError={prediction.isError}
-                />
-              }
-            />
-          </div>
-
-          {/* Row: network + KPIs */}
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
-            <div className="lg:col-span-7 lg:h-[500px]">
-              <NetworkMap
-                topology={topology}
-                isLoading={topoLoading}
-                isError={topoError}
-                severityBySite={severityBySite}
-                impactedSiteIds={impactedSiteIds}
-                failedLinkId={
-                  impact.target?.type === "link" ? impact.target.id : null
-                }
-                failedSiteId={
-                  impact.target?.type === "site" ? impact.target.id : null
-                }
-              />
-            </div>
-            <div className="lg:col-span-5 lg:h-[500px]">
-              <section className="ns-card">
-                <CardHeader
-                  title="KPI activity"
-                  subtitle="Live KPI samples streaming from the cells."
-                  info={TIPS.panelKpiActivity}
-                />
-                <div className="ns-scroll">
-                  <KpiActivity activity={kpiActivity} status={kpiStatus} />
-                </div>
-              </section>
-            </div>
-          </div>
-
-          {/* Row: Step 14 impact / RCA (highlights the map above) + Step 21 PQC status */}
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
-            <div className="lg:col-span-7 lg:h-[460px]">
-              <RcaGraph
-                topology={topology}
-                onImpact={onImpact}
-                agentRun={run}
-              />
-            </div>
-            <div className="lg:col-span-5 lg:h-[460px]">
-              <PqcStatus
-                data={pqc.data}
-                error={pqc.error}
-                isLoading={pqc.isLoading}
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <KpiChartsContainer />
-            <AnomaliesContainer />
-          </div>
-
-          {/* Row: W17 multi-agent copilot chat + per-agent trace (equal height, both scroll) */}
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
-            <div className="lg:col-span-7 lg:h-[640px]">
-              <CopilotChat
-                incidentId={incidentId}
-                siteId={selected?.siteId ?? null}
-                run={run}
-                runs={runs}
-                isStarting={startRun.isPending}
-                isDeciding={runDecision.isPending}
-                error={startRun.error ?? runDecision.error}
-                canOperate={canCopilot}
-                onStart={(target) =>
-                  startRun.mutate(target, {
-                    onSuccess: (r) => setRunId(r.runId),
-                  })
-                }
-                onSelectRun={setRunId}
-                onDecide={(approved, note) =>
-                  run &&
-                  runDecision.mutate({ runId: run.runId, approved, note })
-                }
-              />
-            </div>
-            <div className="ns-card lg:col-span-5 lg:h-[640px]">
-              <TraceView run={run} />
-            </div>
-          </div>
-
-          {/* Row: diagnosis (runbooks live in the alarm drawer). Viewers have no copilot. */}
-          {canCopilot && (
-            <div>
-              <CopilotPanel
-                defaultSiteId={selected?.siteId ?? null}
-                onAnalyze={(siteId, window) =>
-                  copilot.mutate({ siteId, window })
-                }
-                result={copilot.data}
-                isPending={copilot.isPending}
-                error={copilot.error}
-                onOpenRunbook={setRunbookId}
-                canAnalyze={canCopilot}
-              />
-            </div>
-          )}
-        </main>
-      )}
-      <ShapDrawer
-        alarm={selected}
-        prediction={prediction.data}
-        explanation={explanation.data}
-        isLoading={explanation.isLoading}
-        isError={explanation.isError}
-        onClose={() => selectAlarm(null)}
-        actions={
-          selected ? (
-            <WorkflowActions
-              subject={`alarm ${selected.siteId}`}
-              workflow={alarmWorkflow.data?.[selected.dedup.key]}
-              canAct={canOperate}
+        )}
+        {isAdmin && view === "admin" ? (
+          <main className="flex-1">
+            <AdminDashboard
               currentUser={me}
-              isPending={alarmAction.isPending}
-              error={alarmAction.error}
-              onAction={(action, { note }) =>
-                action !== "assign" &&
-                alarmAction.mutate({ key: selected.dedup.key, action, note })
-              }
+              health={health}
+              healthError={isError}
             />
-          ) : null
-        }
-        runbooks={
-          <RunbooksPanel
-            alarmLabel={
-              selected
-                ? `${selected.specificProblem} @ ${selected.siteId}`
-                : null
-            }
-            hits={runbookSearch.data?.results}
-            isLoading={runbookQuery !== null && runbookSearch.isLoading}
-            isError={runbookSearch.isError}
-            selectedId={runbookId}
-            onSelect={setRunbookId}
-            doc={runbookDoc.data}
-            docLoading={runbookDoc.isLoading}
-            onClosePreview={() => setRunbookId(null)}
-            mode={runbookSearch.data?.mode ?? null}
-          />
-        }
-      />
+          </main>
+        ) : (
+          <main className="flex-1 flex flex-col gap-3.5">
+            <KpiSummary {...summary} />
+
+            <DemoPath stages={stages} />
+
+            {/* Row: Storm timeline + Incident board */}
+            <div className="grid grid-cols-1 gap-3.5 lg:grid-cols-12">
+              <div className="lg:col-span-7 lg:h-[440px]">
+                <AlarmTimeline
+                  data={timeline.data}
+                  isLoading={timeline.isLoading}
+                  isError={timeline.isError}
+                  rootSiteId={summary.stormRoot}
+                />
+              </div>
+              <div className="lg:col-span-5 lg:h-[440px]">
+                <IncidentBoard
+                  data={incidents.data}
+                  isLoading={incidents.isLoading}
+                  isError={incidents.isError}
+                  selectedId={incidentId}
+                  onSelect={setIncidentId}
+                  selectedFooter={
+                    incidentId ? (
+                      <>
+                        {relatedDrafts.length > 0 && (
+                          <div
+                            className="mb-2 flex flex-wrap items-center gap-1 text-xs"
+                            data-testid="related-drafts"
+                          >
+                            <span className="text-bento-muted font-bold">
+                              Related tickets:
+                            </span>
+                            {relatedDrafts.map((t) => (
+                              <button
+                                key={t.id}
+                                type="button"
+                                className="font-mono text-sky-800 hover:underline font-bold"
+                                onClick={() => {
+                                  setTicketStatus("all");
+                                  setTicketId(t.id);
+                                }}
+                              >
+                                {t.id} ({t.status})
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                        <WorkflowActions
+                          subject={`incident ${incidentId}`}
+                          workflow={
+                            incidents.data?.items.find((i) => i.id === incidentId)
+                              ?.workflow
+                          }
+                          canAct={canOperate}
+                          currentUser={me}
+                          allowAssign
+                          isPending={incidentAction.isPending}
+                          error={incidentAction.error}
+                          onAction={(action, extra) =>
+                            incidentAction.mutate({
+                              incidentId,
+                              action,
+                              ...extra,
+                            })
+                          }
+                        />
+                      </>
+                    ) : null
+                  }
+                />
+              </div>
+            </div>
+
+            {/* Approval queue */}
+            <ApprovalQueue
+              tickets={tickets.data?.items}
+              isLoading={tickets.isLoading}
+              isError={tickets.isError}
+              status={ticketStatus}
+              onStatusChange={setTicketStatus}
+              selectedId={ticketId}
+              onSelect={setTicketId}
+              audit={ticketAudit.data?.entries}
+              auditLoading={ticketId !== null && ticketAudit.isLoading}
+              canApprove={canApprove}
+              onDecide={(id, d, note) =>
+                decision.mutate({ id, decision: d, note })
+              }
+              isPending={decision.isPending}
+              error={decision.error}
+            />
+
+            {/* Live alarms + Service health */}
+            <div className="grid grid-cols-1 gap-3.5 lg:grid-cols-12">
+              <div className="lg:col-span-9 lg:h-[420px]">
+                <LiveAlarms alarms={shownAlarms} />
+              </div>
+              <div className="lg:col-span-3 lg:h-[420px]">
+                <ServiceHealth health={health} isError={isError} />
+              </div>
+            </div>
+
+            <div className="lg:h-[460px]">
+              <EnrichedAlarms
+                alarms={shownEnriched}
+                status={enrichedStatus}
+                selectedKey={selectedKey}
+                onSelect={(a) => selectAlarm(a.dedup.key)}
+                selectedBadge={
+                  <FaultBadge
+                    prediction={prediction.data}
+                    isLoading={prediction.isLoading}
+                    isError={prediction.isError}
+                  />
+                }
+              />
+            </div>
+
+            {/* Network map + KPI activity */}
+            <div className="grid grid-cols-1 gap-3.5 lg:grid-cols-12">
+              <div className="lg:col-span-7 lg:h-[500px]">
+                <NetworkMap
+                  topology={topology}
+                  isLoading={topoLoading}
+                  isError={topoError}
+                  severityBySite={severityBySite}
+                  impactedSiteIds={impactedSiteIds}
+                  failedLinkId={
+                    impact.target?.type === "link" ? impact.target.id : null
+                  }
+                  failedSiteId={
+                    impact.target?.type === "site" ? impact.target.id : null
+                  }
+                />
+              </div>
+              <div className="lg:col-span-5 lg:h-[500px]">
+                <section className="ns-card">
+                  <CardHeader
+                    title="KPI activity"
+                    subtitle="Live KPI samples streaming from the cells."
+                    info={TIPS.panelKpiActivity}
+                  />
+                  <div className="ns-scroll">
+                    <KpiActivity activity={kpiActivity} status={kpiStatus} />
+                  </div>
+                </section>
+              </div>
+            </div>
+
+            {/* Impact / RCA + PQC status */}
+            <div className="grid grid-cols-1 gap-3.5 lg:grid-cols-12">
+              <div className="lg:col-span-7 lg:h-[460px]">
+                <RcaGraph
+                  topology={topology}
+                  onImpact={onImpact}
+                  agentRun={run}
+                />
+              </div>
+              <div className="lg:col-span-5 lg:h-[460px]">
+                <PqcStatus
+                  data={pqc.data}
+                  error={pqc.error}
+                  isLoading={pqc.isLoading}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-3.5 lg:grid-cols-2">
+              <KpiChartsContainer />
+              <AnomaliesContainer />
+            </div>
+
+            {/* Multi-agent copilot chat + trace */}
+            <div className="grid grid-cols-1 gap-3.5 lg:grid-cols-12">
+              <div className="lg:col-span-7 lg:h-[640px]">
+                <CopilotChat
+                  incidentId={incidentId}
+                  siteId={selected?.siteId ?? null}
+                  run={run}
+                  runs={runs}
+                  isStarting={startRun.isPending}
+                  isDeciding={runDecision.isPending}
+                  error={startRun.error ?? runDecision.error}
+                  canOperate={canCopilot}
+                  onStart={(target) =>
+                    startRun.mutate(target, {
+                      onSuccess: (r) => setRunId(r.runId),
+                    })
+                  }
+                  onSelectRun={setRunId}
+                  onDecide={(approved, note) =>
+                    run &&
+                    runDecision.mutate({ runId: run.runId, approved, note })
+                  }
+                />
+              </div>
+              <div className="ns-card lg:col-span-5 lg:h-[640px]">
+                <TraceView run={run} />
+              </div>
+            </div>
+
+            {canCopilot && (
+              <div>
+                <CopilotPanel
+                  defaultSiteId={selected?.siteId ?? null}
+                  onAnalyze={(siteId, window) =>
+                    copilot.mutate({ siteId, window })
+                  }
+                  result={copilot.data}
+                  isPending={copilot.isPending}
+                  error={copilot.error}
+                  onOpenRunbook={setRunbookId}
+                  canAnalyze={canCopilot}
+                />
+              </div>
+            )}
+          </main>
+        )}
+        <ShapDrawer
+          alarm={selected}
+          prediction={prediction.data}
+          explanation={explanation.data}
+          isLoading={explanation.isLoading}
+          isError={explanation.isError}
+          onClose={() => selectAlarm(null)}
+          actions={
+            selected ? (
+              <WorkflowActions
+                subject={`alarm ${selected.siteId}`}
+                workflow={alarmWorkflow.data?.[selected.dedup.key]}
+                canAct={canOperate}
+                currentUser={me}
+                isPending={alarmAction.isPending}
+                error={alarmAction.error}
+                onAction={(action, { note }) =>
+                  action !== "assign" &&
+                  alarmAction.mutate({ key: selected.dedup.key, action, note })
+                }
+              />
+            ) : null
+          }
+          runbooks={
+            <RunbooksPanel
+              alarmLabel={
+                selected
+                  ? `${selected.specificProblem} @ ${selected.siteId}`
+                  : null
+              }
+              hits={runbookSearch.data?.results}
+              isLoading={runbookQuery !== null && runbookSearch.isLoading}
+              isError={runbookSearch.isError}
+              selectedId={runbookId}
+              onSelect={setRunbookId}
+              doc={runbookDoc.data}
+              docLoading={runbookDoc.isLoading}
+              onClosePreview={() => setRunbookId(null)}
+              mode={runbookSearch.data?.mode ?? null}
+            />
+          }
+        />
+      </div>
     </div>
   );
 };

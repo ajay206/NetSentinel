@@ -66,19 +66,19 @@ export function IncidentBoard({
       info={INFO}
       testId="incident-board"
       actions={
-        <span className="rounded bg-slate-800 px-2 py-0.5 text-xs text-slate-300 tabular-nums whitespace-nowrap">
+        <span className="rounded-full bg-bento-bg px-2.5 py-0.5 text-xs font-bold text-navy tabular-nums whitespace-nowrap">
           {stats.alarms} alarms → {stats.incidents} incidents ({ratio}×)
         </span>
       }
     >
       <div className="flex h-full min-h-0 flex-col gap-2">
         {selectedId && (
-          <div className="flex items-center justify-between rounded-lg border border-sky-500/40 bg-sky-500/10 px-3 py-2">
-            <span className="font-mono text-xs text-sky-200">Showing alarms for {selectedId}</span>
+          <div className="flex items-center justify-between rounded-xl border border-sky-300 bg-cyan/15 px-3 py-2">
+            <span className="font-mono text-xs font-bold text-navy">Showing alarms for {selectedId}</span>
             <button
               type="button"
               onClick={() => onSelect(null)}
-              className="text-xs font-medium text-sky-300 hover:text-sky-200 underline"
+              className="text-xs font-bold text-sky-800 hover:underline"
               data-testid="clear-filter"
             >
               Clear filter
@@ -86,16 +86,16 @@ export function IncidentBoard({
           </div>
         )}
         {selectedId && selectedFooter && (
-          <div className="rounded-lg border border-slate-700 bg-slate-950/60 p-3">
+          <div className="rounded-xl border border-bento-border bg-bento-bg p-3">
             {selectedFooter}
           </div>
         )}
         <div className={`${ROW} ns-thead px-3 py-1.5`} role="row">
+          <span>Site</span>
           <span>Severity</span>
-          <span>Root site</span>
-          <span>Size</span>
+          <span>Alarms</span>
+          <span>Scope</span>
           <span>Duration</span>
-          <span>Status</span>
         </div>
         <ul className="ns-scroll space-y-1">
           {sortedIncidents.map((incident) => {
@@ -108,46 +108,30 @@ export function IncidentBoard({
                   aria-pressed={isSelected}
                   data-testid={`incident-${incident.id}`}
                   title={`${incident.id}: click to ${isSelected ? 'clear the filter' : 'filter the alarm feeds'}`}
-                  className={`${ROW} w-full rounded-lg px-3 py-2 text-left text-xs transition-colors ${
+                  className={`${ROW} w-full rounded-xl px-3 py-2.5 text-left text-xs transition-colors border-t border-bento-border first:border-0 ${
                     isSelected
-                      ? 'bg-sky-500/10 ring-2 ring-sky-400'
-                      : 'bg-slate-800/40 hover:bg-slate-800'
+                      ? 'bg-cyan/20 ring-2 ring-cyan'
+                      : 'hover:bg-bento-bg'
                   }`}
                 >
+                  <span className="min-w-0">
+                    <span className="block truncate font-mono font-extrabold text-sm text-navy">
+                      {incident.rootSiteId}
+                    </span>
+                  </span>
                   <span data-testid={`severity-${incident.id}`} className="inline-flex">
                     <SeverityChip severity={incident.severity} />
                   </span>
-                  <span className="min-w-0">
-                    <span className="block truncate font-mono text-slate-200">
-                      {incident.rootSiteId}
-                    </span>
-                    {incident.region && (
-                      <span className="block truncate text-slate-500">{incident.region}</span>
-                    )}
+                  <span className="inline-flex items-center justify-center min-w-[28px] h-7 px-2 rounded-lg bg-bento-bg font-display font-extrabold text-navy">
+                    {incident.alarmCount}
                   </span>
-                  <span className="text-slate-400 tabular-nums">
-                    {incident.alarmCount} {incident.alarmCount === 1 ? 'alarm' : 'alarms'} ·{' '}
-                    {incident.siteIds?.length ?? 0}{' '}
-                    {(incident.siteIds?.length ?? 0) === 1 ? 'site' : 'sites'}
+                  <span className="text-bento-muted font-medium truncate">
+                    {(incident.siteIds?.length ?? 0) === 1
+                      ? 'at 1 site'
+                      : `across ${incident.siteIds?.length ?? 0} sites`}
                   </span>
-                  <span className="font-mono text-slate-400">
+                  <span className="font-mono text-bento-muted font-semibold">
                     {durationLabel(incident.firstSeen, incident.lastSeen)}
-                  </span>
-                  <span
-                    data-testid={`status-${incident.id}`}
-                    className={`w-fit rounded px-1.5 py-0.5 text-[11px] font-medium ${
-                      incident.status === 'open'
-                        ? 'bg-amber-500/20 text-amber-300'
-                        : 'bg-slate-700 text-slate-400'
-                    }`}
-                  >
-                    {incident.workflow?.state === 'resolved'
-                      ? 'RESOLVED'
-                      : incident.workflow?.state === 'acknowledged'
-                        ? 'ACK'
-                        : incident.status === 'open'
-                          ? 'OPEN'
-                          : 'CLEARED'}
                   </span>
                 </button>
               </li>

@@ -25,20 +25,16 @@ const TITLE = 'Alarm storm timeline';
 const SUBTITLE = 'Alarms raised per minute, stacked by severity. A tall bar means an alarm storm.';
 const INFO = TIPS.panelTimeline;
 
-// Bottom-up stacking order (most severe at the bottom, where the eye starts)
 const STACK: Severity[] = ['critical', 'major', 'minor', 'warning', 'cleared'];
 
-// Chart geometry (SVG user units; the SVG scales to the card width)
 const W = 720;
 const H = 230;
 const M = { left: 44, right: 16, top: 30, bottom: 36 };
 const PLOT_W = W - M.left - M.right;
 const PLOT_H = H - M.top - M.bottom;
-// At least this many slots, so 1-3 buckets don't become one huge bar (data is right-aligned)
 const MIN_SLOTS = 30;
 
 export function AlarmTimeline({ data, isLoading, isError, rootSiteId }: AlarmTimelineProps) {
-  // null = follow the peak
   const [picked, setPicked] = useState<number | null>(null);
 
   const buckets = data?.buckets ?? [];
@@ -77,7 +73,7 @@ export function AlarmTimeline({ data, isLoading, isError, rootSiteId }: AlarmTim
   const slots = Math.max(n, MIN_SLOTS);
   const slotW = PLOT_W / slots;
   const barW = Math.max(2, slotW * 0.7);
-  const x0 = M.left + (slots - n) * slotW; // right-align: newest minute at the right edge
+  const x0 = M.left + (slots - n) * slotW;
   const y = (v: number) => M.top + PLOT_H - (v / yMax) * PLOT_H;
   const labelEvery = Math.max(1, Math.ceil(n / 6));
   const peakX = x0 + peak.index * slotW + slotW / 2;
@@ -88,9 +84,9 @@ export function AlarmTimeline({ data, isLoading, isError, rootSiteId }: AlarmTim
       {annotation && (
         <p
           data-testid="storm-annotation"
-          className="mb-2 inline-flex items-center gap-2 rounded-md bg-red-500/10 px-2.5 py-1 text-sm font-medium text-red-300 ring-1 ring-red-500/30"
+          className="mb-2 inline-flex items-center gap-2 rounded-md bg-red-500/10 px-2.5 py-1 text-xs font-bold text-red-600 border border-red-200"
         >
-          <span className="h-2 w-2 rounded-full bg-red-400" aria-hidden />
+          <span className="h-2 w-2 rounded-full bg-red-500" aria-hidden />
           {annotation}
         </p>
       )}
@@ -101,18 +97,30 @@ export function AlarmTimeline({ data, isLoading, isError, rootSiteId }: AlarmTim
         aria-label="Alarm storm timeline chart"
         className="block"
       >
+        <defs>
+          <linearGradient id="barGradientNorm" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#6DCFF6" />
+            <stop offset="100%" stopColor="#3BA8D4" />
+          </linearGradient>
+          <linearGradient id="barGradientPeak" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#EF4444" />
+            <stop offset="100%" stopColor="#F97316" />
+          </linearGradient>
+        </defs>
+
         {ticks.map((t) => (
           <g key={t}>
-            <line x1={M.left} x2={W - M.right} y1={y(t)} y2={y(t)} stroke="#163862" />
-            <text x={M.left - 6} y={y(t) + 3} fill="#B4BCCB" fontSize={10} textAnchor="end">
+            <line x1={M.left} x2={W - M.right} y1={y(t)} y2={y(t)} stroke="#EEE8DC" />
+            <text x={M.left - 6} y={y(t) + 3} fill="#6B7280" fontSize={10} fontWeight={700} textAnchor="end">
               {t}
             </text>
           </g>
         ))}
         <text
           transform={`translate(12 ${M.top + PLOT_H / 2}) rotate(-90)`}
-          fill="#B4BCCB"
+          fill="#6B7280"
           fontSize={10}
+          fontWeight={700}
           textAnchor="middle"
         >
           Alarms per minute
@@ -122,7 +130,7 @@ export function AlarmTimeline({ data, isLoading, isError, rootSiteId }: AlarmTim
           x2={W - M.right}
           y1={M.top + PLOT_H}
           y2={M.top + PLOT_H}
-          stroke="#4A6489"
+          stroke="#EEE8DC"
         />
 
         {buckets.map((b, i) => {
@@ -139,7 +147,6 @@ export function AlarmTimeline({ data, isLoading, isError, rootSiteId }: AlarmTim
               style={{ cursor: 'pointer' }}
             >
               <title>{`${formatHHMM(b.start)} IST — ${b.total} alarms`}</title>
-              {/* full-height hit area */}
               <rect x={cx - slotW / 2} y={M.top} width={slotW} height={PLOT_H} fill="transparent" />
               {STACK.map((sev) => {
                 const c = b.bySeverity[sev] ?? 0;
@@ -154,7 +161,8 @@ export function AlarmTimeline({ data, isLoading, isError, rootSiteId }: AlarmTim
                     y={top}
                     width={barW}
                     height={h}
-                    fill={severityHex[sev]}
+                    rx={2}
+                    fill={isPeak ? 'url(#barGradientPeak)' : severityHex[sev]}
                   />
                 );
               })}
@@ -165,7 +173,7 @@ export function AlarmTimeline({ data, isLoading, isError, rootSiteId }: AlarmTim
                   width={barW + 4}
                   height={y(0) - y(b.total) + 2}
                   fill="none"
-                  stroke={isPeak ? '#f8fafc' : '#6DCFF6'}
+                  stroke={isPeak ? '#EF4444' : '#09254A'}
                   strokeWidth={1.5}
                   strokeDasharray={isPeak ? undefined : '3 2'}
                 />
@@ -174,8 +182,9 @@ export function AlarmTimeline({ data, isLoading, isError, rootSiteId }: AlarmTim
                 <text
                   x={cx}
                   y={M.top + PLOT_H + 14}
-                  fill="#B4BCCB"
+                  fill="#6B7280"
                   fontSize={10}
+                  fontWeight={700}
                   textAnchor="middle"
                 >
                   {formatHHMM(b.start)}
@@ -185,24 +194,23 @@ export function AlarmTimeline({ data, isLoading, isError, rootSiteId }: AlarmTim
           );
         })}
 
-        {/* Peak callout above the bar */}
         <text
           data-testid="storm-callout"
           x={peakX}
           y={Math.max(12, y(peak.bucket.total) - 8)}
-          fill="#fca5a5"
+          fill="#EF4444"
           fontSize={11}
-          fontWeight={600}
+          fontWeight={800}
           textAnchor={calloutAnchor}
         >
           {`Peak ${peak.bucket.total} @ ${formatHHMM(peak.bucket.start)}`}
         </text>
-        <text x={M.left + PLOT_W / 2} y={H - 4} fill="#B4BCCB" fontSize={10} textAnchor="middle">
+        <text x={M.left + PLOT_W / 2} y={H - 4} fill="#6B7280" fontSize={10} fontWeight={700} textAnchor="middle">
           Time (IST)
         </text>
       </svg>
 
-      <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-slate-300">
+      <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-navy font-semibold">
         <div className="flex flex-wrap items-center gap-3" data-testid="timeline-legend">
           {STACK.map((sev) => (
             <span key={sev} className="inline-flex items-center gap-1.5">
@@ -224,30 +232,30 @@ export function AlarmTimeline({ data, isLoading, isError, rootSiteId }: AlarmTim
           max={n - 1}
           value={selectedIndex}
           onChange={(e) => setPicked(Number(e.target.value))}
-          className="mt-3 w-full accent-sky-500"
+          className="mt-3 w-full accent-navy"
         />
       )}
 
       {selected && (
         <div
-          className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 rounded-lg bg-slate-800/60 px-3 py-2 text-xs"
+          className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 rounded-xl bg-bento-bg px-3 py-2 text-xs"
           data-testid="timeline-selected"
         >
-          <span className="font-medium text-slate-100">
+          <span className="font-bold text-navy font-display">
             {formatHHMM(selected.start)} IST · {selected.total} alarms
           </span>
           {STACK.map((sev) => (
-            <span key={sev} className="inline-flex items-center gap-1 text-slate-300">
+            <span key={sev} className="inline-flex items-center gap-1 text-bento-muted font-medium">
               <span
                 className="h-2 w-2 rounded-full"
                 style={{ backgroundColor: severityHex[sev] }}
               />
               {severityLabel(sev)}{' '}
-              <span className="tabular-nums">{selected.bySeverity[sev] ?? 0}</span>
+              <span className="tabular-nums font-bold text-navy">{selected.bySeverity[sev] ?? 0}</span>
             </span>
           ))}
           {isBurst(selected, data.peak) && (
-            <span className="rounded bg-red-500/15 px-2 py-0.5 font-medium text-red-300 ring-1 ring-red-500/30">
+            <span className="rounded-md bg-red-100 px-2 py-0.5 font-extrabold text-red-600">
               Burst
             </span>
           )}
