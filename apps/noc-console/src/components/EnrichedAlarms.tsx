@@ -37,7 +37,7 @@ export const EnrichedAlarms: React.FC<EnrichedAlarmsProps> = ({
         subtitle="Alarms after de-duplication and topology enrichment. Click a row to diagnose it."
         info={TIPS.panelEnriched}
         actions={
-          <div className="flex gap-2 text-xs" data-testid="enriched-summary">
+          <div className="flex flex-wrap gap-2 whitespace-nowrap text-xs" data-testid="enriched-summary">
             {status && (
               <span
                 className={`px-2.5 py-0.5 rounded-full font-bold ${
@@ -70,28 +70,28 @@ export const EnrichedAlarms: React.FC<EnrichedAlarmsProps> = ({
           <table className="w-full text-xs">
             <thead>
               <tr className="ns-thead">
-                <th className="py-2 pl-2 pr-3 font-extrabold">
+                <th className="font-extrabold">
                   <Tip tip={TIPS.colTime}>Time (IST)</Tip>
                 </th>
-                <th className="py-2 pr-3 font-extrabold">
+                <th className="font-extrabold">
                   <Tip tip={TIPS.colSeverity}>Severity</Tip>
                 </th>
-                <th className="py-2 pr-3 font-extrabold">
+                <th className="font-extrabold">
                   <Tip tip={TIPS.colSite}>Site</Tip>
                 </th>
-                <th className="py-2 pr-3 font-extrabold">
+                <th className="font-extrabold">
                   <Tip tip={TIPS.colRegion}>Region</Tip>
                 </th>
-                <th className="py-2 pr-3 font-extrabold">
+                <th className="font-extrabold">
                   <Tip tip={TIPS.colNodeTypes}>Node types</Tip>
                 </th>
-                <th className="py-2 pr-3 font-extrabold">
+                <th className="font-extrabold">
                   <Tip tip={TIPS.colProblem}>Problem</Tip>
                 </th>
-                <th className="py-2 pr-3 font-extrabold">
+                <th className="font-extrabold">
                   <Tip tip={TIPS.colRepeats}>Repeats</Tip>
                 </th>
-                <th className="py-2 pr-3 font-extrabold">
+                <th className="font-extrabold">
                   <Tip tip={TIPS.colRootSymptom}>Root / symptom</Tip>
                 </th>
               </tr>
@@ -107,27 +107,27 @@ export const EnrichedAlarms: React.FC<EnrichedAlarmsProps> = ({
                       onSelect ? 'cursor-pointer' : ''
                     } ${selectedKey === a.dedup.key ? 'bg-cyan/15 font-semibold' : ''}`}
                   >
-                    <td className="py-2.5 pl-2 pr-3 whitespace-nowrap text-bento-muted font-mono font-medium">
+                    <td className="whitespace-nowrap text-bento-muted font-mono font-medium">
                       {formatIST(a.alarmRaisedTime)}
                     </td>
-                    <td className="py-2.5 pr-3">
+                    <td>
                       <SeverityChip severity={a.perceivedSeverity} />
                     </td>
-                    <td className="py-2.5 pr-3 text-navy font-bold font-display">
+                    <td className="text-navy font-bold font-display">
                       <div>{a.siteId}</div>
                       {a.enrichment.siteName && (
                         <div className="text-bento-muted font-sans font-normal text-[11px]">{a.enrichment.siteName}</div>
                       )}
                     </td>
-                    <td className="py-2.5 pr-3 text-navy font-medium">{a.enrichment.region}</td>
-                    <td className="py-2.5 pr-3 text-bento-muted">
+                    <td className="text-navy font-medium">{a.enrichment.region}</td>
+                    <td className="text-bento-muted">
                       {a.enrichment.nodeTypes.join(', ') || '—'}
                     </td>
-                    <td className="py-2.5 pr-3 text-navy font-medium">
+                    <td className="min-w-[14rem] text-navy font-medium">
                       <div>{a.specificProblem}</div>
                       {selectedKey === a.dedup.key && selectedBadge}
                     </td>
-                    <td className="py-2.5 pr-3">
+                    <td>
                       {a.dedup.count > 1 ? (
                         <span className="px-2 py-0.5 rounded-md bg-bento-bg font-extrabold text-navy font-display">
                           ×{a.dedup.count}
@@ -136,7 +136,7 @@ export const EnrichedAlarms: React.FC<EnrichedAlarmsProps> = ({
                         <span className="text-bento-muted">—</span>
                       )}
                     </td>
-                    <td className="py-2.5 pr-3">
+                    <td>
                       {a.correlation.role === 'root' && (
                         <span className="text-red-600 font-bold">root</span>
                       )}

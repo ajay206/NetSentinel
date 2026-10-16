@@ -19,7 +19,9 @@ const TITLE = 'Incident board';
 const SUBTITLE = 'Related alarms grouped into incidents. Click one to filter the alarm feeds.';
 const INFO = TIPS.panelIncidents;
 
-const ROW = 'grid grid-cols-[5.75rem_6rem_minmax(0,1fr)_4rem_4.5rem] items-center gap-2';
+const ROW =
+  'grid grid-cols-[minmax(5.5rem,1fr)_6.5rem_3rem_4.5rem] items-center gap-3 sm:grid-cols-[minmax(5.5rem,1fr)_6.5rem_3.5rem_minmax(0,7rem)_4.5rem] lg:grid-cols-[minmax(5.5rem,1fr)_6.5rem_3rem_4.5rem] 2xl:grid-cols-[minmax(5.5rem,1fr)_6.5rem_3.5rem_minmax(0,7rem)_4.5rem]';
+const SCOPE = 'hidden sm:block lg:hidden 2xl:block';
 
 export function IncidentBoard({
   data,
@@ -71,7 +73,7 @@ export function IncidentBoard({
         </span>
       }
     >
-      <div className="flex h-full min-h-0 flex-col gap-2">
+      <div className="flex h-full min-h-0 flex-col gap-3">
         {selectedId && (
           <div className="flex items-center justify-between rounded-xl border border-sky-300 bg-cyan/15 px-3 py-2">
             <span className="font-mono text-xs font-bold text-navy">Showing alarms for {selectedId}</span>
@@ -94,10 +96,10 @@ export function IncidentBoard({
           <span>Site</span>
           <span>Severity</span>
           <span>Alarms</span>
-          <span>Scope</span>
-          <span>Duration</span>
+          <span className={SCOPE}>Scope</span>
+          <span className="text-right">Duration</span>
         </div>
-        <ul className="ns-scroll space-y-1">
+        <ul className="ns-scroll max-h-[22rem] space-y-1 pr-1">
           {sortedIncidents.map((incident) => {
             const isSelected = selectedId === incident.id;
             return (
@@ -115,22 +117,22 @@ export function IncidentBoard({
                   }`}
                 >
                   <span className="min-w-0">
-                    <span className="block truncate font-mono font-extrabold text-sm text-navy">
+                    <span className="block truncate font-mono font-extrabold text-sm text-navy" title={incident.rootSiteId}>
                       {incident.rootSiteId}
                     </span>
                   </span>
                   <span data-testid={`severity-${incident.id}`} className="inline-flex">
                     <SeverityChip severity={incident.severity} />
                   </span>
-                  <span className="inline-flex items-center justify-center min-w-[28px] h-7 px-2 rounded-lg bg-bento-bg font-display font-extrabold text-navy">
+                  <span className="inline-flex h-7 min-w-[2rem] items-center justify-center justify-self-start rounded-lg bg-bento-bg px-2 font-display font-extrabold text-navy tabular-nums">
                     {incident.alarmCount}
                   </span>
-                  <span className="text-bento-muted font-medium truncate">
+                  <span className={`${SCOPE} truncate font-medium text-bento-muted`} title={`${incident.siteIds?.length ?? 0} sites: ${(incident.siteIds ?? []).join(', ')}`}>
                     {(incident.siteIds?.length ?? 0) === 1
                       ? 'at 1 site'
                       : `across ${incident.siteIds?.length ?? 0} sites`}
                   </span>
-                  <span className="font-mono text-bento-muted font-semibold">
+                  <span className="whitespace-nowrap text-right font-mono font-semibold text-bento-muted">
                     {durationLabel(incident.firstSeen, incident.lastSeen)}
                   </span>
                 </button>

@@ -8,9 +8,9 @@ import { ROLE_STYLE } from '../../lib/rbac';
 
 const ROLES: AdminUser['role'][] = ['viewer', 'operator', 'admin'];
 const SELF = 'You cannot change your own account here';
-const input = 'rounded border border-bento-border bg-bento-bg px-2 py-1 text-sm text-navy';
+const input = 'ns-control';
 const btn =
-  'rounded px-2 py-0.5 text-xs border border-bento-border text-navy hover:bg-bento-bg disabled:opacity-40 disabled:cursor-not-allowed';
+  'inline-flex h-8 items-center whitespace-nowrap rounded-lg px-3 text-xs font-semibold border border-bento-border text-navy hover:bg-bento-bg disabled:opacity-40 disabled:cursor-not-allowed';
 
 /** Step 13b (admin): create users, change roles, disable/enable, unlock and reset passwords. */
 export const AdminUsers: React.FC<{ currentUser: string }> = ({ currentUser }) => {
@@ -46,19 +46,19 @@ export const AdminUsers: React.FC<{ currentUser: string }> = ({ currentUser }) =
         <table className="w-full text-sm" data-testid="users-table">
           <thead className="ns-thead">
             <tr className="text-left">
-              <th className="px-2 py-1.5">
+              <th>
                 <Tip tip={TIPS.colUser}>User</Tip>
               </th>
-              <th className="px-2 py-1.5">
+              <th>
                 <Tip tip={TIPS.colRole}>Role</Tip>
               </th>
-              <th className="px-2 py-1.5">
+              <th>
                 <Tip tip={TIPS.colStatus}>Status</Tip>
               </th>
-              <th className="px-2 py-1.5">
+              <th>
                 <Tip tip={TIPS.colFailedLogins}>Failed logins</Tip>
               </th>
-              <th className="px-2 py-1.5">
+              <th>
                 <Tip tip={TIPS.colActions}>Actions</Tip>
               </th>
             </tr>
@@ -68,11 +68,11 @@ export const AdminUsers: React.FC<{ currentUser: string }> = ({ currentUser }) =
               const self = u.username === currentUser;
               return (
                 <tr key={u.username} className="border-t border-bento-border align-top">
-                  <td className="px-2 py-2 font-mono text-navy">
+                  <td className="font-mono text-navy">
                     {u.username}
                     {self && <span className="ml-1 text-xs text-slate-600">(you)</span>}
                   </td>
-                  <td className="px-2 py-2">
+                  <td>
                     <select
                       aria-label={`Role for ${u.username}`}
                       value={u.role}
@@ -94,7 +94,7 @@ export const AdminUsers: React.FC<{ currentUser: string }> = ({ currentUser }) =
                       ))}
                     </select>
                   </td>
-                  <td className="px-2 py-2">
+                  <td>
                     <span
                       className={`rounded px-2 py-0.5 text-xs ${
                         u.disabled
@@ -107,8 +107,8 @@ export const AdminUsers: React.FC<{ currentUser: string }> = ({ currentUser }) =
                       {u.disabled ? 'Disabled' : u.locked ? 'Locked' : 'Active'}
                     </span>
                   </td>
-                  <td className="px-2 py-2 tabular-nums text-bento-muted">{u.failedLogins}</td>
-                  <td className="px-2 py-2">
+                  <td className="tabular-nums text-bento-muted">{u.failedLogins}</td>
+                  <td>
                     <div className="flex flex-wrap gap-1.5">
                       <button
                         type="button"
@@ -201,10 +201,10 @@ export const AdminUsers: React.FC<{ currentUser: string }> = ({ currentUser }) =
     >
       <form
         onSubmit={create}
-        className="mb-3 flex flex-wrap items-end gap-2"
+        className="mb-2 grid grid-cols-1 items-end gap-4 sm:grid-cols-2 lg:flex lg:flex-wrap"
         aria-label="Create user"
       >
-        <label className="flex flex-col text-xs text-bento-muted">
+        <label className="flex flex-col gap-1.5 text-xs font-semibold text-bento-muted">
           Username
           <input
             value={form.username}
@@ -212,7 +212,7 @@ export const AdminUsers: React.FC<{ currentUser: string }> = ({ currentUser }) =
             className={input}
           />
         </label>
-        <label className="flex flex-col text-xs text-bento-muted">
+        <label className="flex flex-col gap-1.5 text-xs font-semibold text-bento-muted">
           Role
           <select
             value={form.role}
@@ -226,7 +226,7 @@ export const AdminUsers: React.FC<{ currentUser: string }> = ({ currentUser }) =
             ))}
           </select>
         </label>
-        <label className="flex flex-col text-xs text-bento-muted">
+        <label className="flex flex-col gap-1.5 text-xs font-semibold text-bento-muted">
           Initial password
           <input
             type="password"
@@ -241,7 +241,7 @@ export const AdminUsers: React.FC<{ currentUser: string }> = ({ currentUser }) =
           disabled={
             !form.username.trim() || !form.password || createProblems.length > 0 || action.isPending
           }
-          className="rounded bg-sky-600 px-3 py-1 text-sm text-white hover:bg-sky-500 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-bento-muted"
+          className="ns-btn bg-sky-600 text-white hover:bg-sky-500 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-bento-muted"
         >
           Create user
         </button>

@@ -34,7 +34,7 @@ export const ServiceHealth: React.FC<ServiceHealthProps> = ({ health, isError })
         info={TIPS.panelServiceHealth}
         actions={
           <span
-            className={`px-2 py-0.5 text-xs rounded ${
+            className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${
               health.status === 'ok'
                 ? 'bg-emerald-500/15 text-emerald-700'
                 : 'bg-orange-500/15 text-orange-700'
@@ -44,25 +44,25 @@ export const ServiceHealth: React.FC<ServiceHealthProps> = ({ health, isError })
           </span>
         }
       />
-      <div className="ns-scroll grid grid-cols-1 gap-1.5 content-start">
+      <div className="ns-scroll grid grid-cols-1 content-start gap-2 pr-1">
         {health.services.map((svc) => (
           <div
             key={svc.name}
-            className="flex items-center justify-between px-2.5 py-1.5 bg-bento-bg/50 rounded text-sm"
+            className="flex flex-col gap-1 rounded-xl bg-bento-bg/60 px-3 py-2.5 text-sm"
           >
-            <div className="flex items-center space-x-2">
+            <div className="flex min-w-0 items-center gap-2">
               <span
                 className={`w-2 h-2 rounded-full ${
                   svc.status === 'up' ? 'bg-emerald-400' : 'bg-red-400'
                 }`}
               ></span>
-              <span className="text-slate-600">{svc.name}</span>
+              <span className="truncate font-semibold text-navy" title={svc.name}>{svc.name}</span>
             </div>
-            {svc.detail && <span className="text-xs text-slate-600">{svc.detail}</span>}
+            {svc.detail && <span className="pl-4 text-xs leading-snug text-slate-600">{svc.detail}</span>}
           </div>
         ))}
       </div>
-      <p className="text-xs text-slate-600 mt-3">Last checked: {formatIST(health.checkedAt)}</p>
+      <p className="mt-4 text-xs text-slate-600">Last checked: {formatIST(health.checkedAt)}</p>
     </div>
   );
 };

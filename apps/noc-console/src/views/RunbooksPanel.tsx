@@ -93,9 +93,9 @@ export const RunbooksPanel: React.FC<RunbooksPanelProps> = ({
         subtitle="Repair procedures that match the selected alarm."
         info={TIPS.panelRunbooks}
         actions={
-          <span className="flex items-center gap-2">
+          <span className="flex min-w-0 flex-wrap items-center gap-2">
             {alarmLabel && hits.length > 0 && <RetrievalModeBadge mode={mode} />}
-            <span className="text-xs text-slate-500 truncate max-w-[12rem]">
+            <span className="max-w-[16rem] truncate text-xs text-slate-500" title={alarmLabel ?? undefined}>
               {alarmLabel ?? 'select an alarm'}
             </span>
           </span>

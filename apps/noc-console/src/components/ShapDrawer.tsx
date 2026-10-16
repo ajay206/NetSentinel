@@ -42,7 +42,7 @@ export const ShapDrawer: React.FC<ShapDrawerProps> = ({
       role="dialog"
       aria-label="Alarm details"
       data-testid="alarm-drawer"
-      className="fixed right-0 top-0 h-full w-full sm:w-[30rem] shadow-2xl bg-white border-l border-bento-border p-5 z-50 overflow-y-auto text-navy"
+      className="fixed right-0 top-0 h-full w-full sm:w-[34rem] shadow-2xl bg-white border-l border-bento-border p-5 sm:p-6 z-50 overflow-y-auto text-navy"
     >
       <div className="flex items-center justify-between mb-4">
         <h2 className="font-display font-extrabold text-lg text-navy">Alarm details</h2>

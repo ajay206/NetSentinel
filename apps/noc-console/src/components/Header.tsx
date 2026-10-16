@@ -64,12 +64,12 @@ export const Header: React.FC<HeaderProps> = ({
 
   return (
     <header className="flex flex-wrap items-center justify-between gap-4 py-1">
-      <div className="flex items-center gap-3">
+      <div className="flex min-w-0 flex-wrap items-center gap-3">
         <div className="grid h-10 w-10 place-items-center rounded-[14px] bg-navy font-display font-extrabold text-[15px] text-cyan">
           NS
         </div>
         <div className="font-display text-[22px] font-extrabold tracking-tight text-navy">
-          NetSentinel <span className="font-sans text-[15px] font-medium text-bento-muted ml-2">NOC Console</span>
+          NetSentinel <span className="ml-2 hidden font-sans text-[15px] font-medium text-bento-muted sm:inline">NOC Console</span>
         </div>
         <Tooltip content={TIPS.chipSynthetic} side="bottom">
           <span className="rounded-full bg-white border border-bento-border px-2.5 py-0.5 text-xs font-semibold text-bento-muted">
@@ -77,7 +77,7 @@ export const Header: React.FC<HeaderProps> = ({
           </span>
         </Tooltip>
         {views.length > 1 && (
-          <nav className="ml-4 flex gap-1" aria-label="Dashboards">
+          <nav className="flex gap-1 sm:ml-4" aria-label="Dashboards">
             {views.map((v) => (
               <button
                 key={v.id}

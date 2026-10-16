@@ -456,3 +456,9 @@ Built straight after Step 18; Steps 19–20 (TelcoGPT-mini) moved to the next ph
 - **Scope:** Replaced the Mac-only heading with **Errors we hit and how we fixed them** in `06-troubleshooting.md`. Kept #86–94; added #95–100 (screenshot names, confluent-kafka / Python 3.15, Vite EPIPE, Google breach popup, bcrypt 72-byte + password-change lockout, console redesign / drawer). Grouped by setup, auth, copilot/LLM, dashboard, CI/smoke. Linked existing catalogue entries (#14/#15/#16 fixes and #1–#85) instead of repeating them.
 - **Verification:** docs-only.
 
+
+## Console layout pass (spacing, scroll, dropdowns)
+
+- **Date:** 2026-10-17
+- **Scope:** Kept the colours. Added a spacing scale and stopped lists spilling: tables and lists now scroll inside their cards; Live and Enriched alarms used to run on into later sections. Fixed missing tile padding (`p-4.5` doesn't exist in Tailwind), made card headers stack on phones, and gave every select and input one height. Fixed a sideways scroll at 375px, the KPI activity text that was still grey-on-cream, the incident board columns and the admin settings and health column. Added the Playwright layout audit plus mocks.
+- **Verification:** lint, typecheck, 184 unit tests and the layout audit at 4 widths with 0 problems.

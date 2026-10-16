@@ -1,6 +1,6 @@
 import React from 'react';
 import { InfoIcon } from './Tooltip';
-import { card, severityChip, severityHex, severityLabel } from '../../theme';
+import { severityChip, severityHex, severityLabel } from '../../theme';
 
 type CardProps = {
   title: string;
@@ -21,19 +21,19 @@ export const Card: React.FC<CardProps> = ({
   className = '',
   testId,
 }) => (
-  <section className={`${card} flex flex-col h-full min-h-0 ${className}`} data-testid={testId}>
-    <header className="mb-1 flex items-start justify-between gap-3 border-b border-bento-border/80 pb-2">
-      <div className="min-w-0">
+  <section className={`ns-card ${className}`} data-testid={testId}>
+    <header className="mb-4 flex flex-col gap-3 border-b border-bento-border/80 pb-4 sm:flex-row sm:items-start sm:justify-between">
+      <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
           <h2 className="text-[15px] font-extrabold font-display text-navy tracking-tight">{title}</h2>
           {info && <InfoTip text={info} label={title} />}
         </div>
-        {subtitle && <p className="text-xs text-bento-muted mt-0.5">{subtitle}</p>}
+        {subtitle && <p className="mt-1 text-xs leading-relaxed text-bento-muted">{subtitle}</p>}
       </div>
-      {actions && <div className="flex shrink-0 flex-wrap items-center gap-1.5">{actions}</div>}
+      {actions && <div className="flex min-w-0 flex-wrap items-center gap-2 sm:shrink-0 sm:justify-end">{actions}</div>}
     </header>
     {/* flex column + min-h-0 so an inner .ns-scroll can shrink and scroll instead of spilling */}
-    <div className="flex flex-1 min-h-0 flex-col overflow-hidden pt-1">{children}</div>
+    <div className="flex flex-1 min-h-0 min-w-0 flex-col gap-4 overflow-hidden">{children}</div>
   </section>
 );
 
@@ -114,14 +114,14 @@ export const CardHeader: React.FC<CardHeaderProps> = ({
   actions,
   as: Tag = 'h2',
 }) => (
-  <div className="mb-2 flex items-start justify-between gap-3 border-b border-bento-border/80 pb-2">
-    <div className="min-w-0">
+  <div className="mb-4 flex flex-col gap-3 border-b border-bento-border/80 pb-4 sm:flex-row sm:items-start sm:justify-between">
+    <div className="min-w-0 flex-1">
       <div className="flex items-center gap-2">
         <Tag className="text-[15px] font-extrabold font-display text-navy tracking-tight">{title}</Tag>
         {info && <InfoTip text={info} label={typeof title === 'string' ? title : undefined} />}
       </div>
-      {subtitle && <p className="mt-0.5 text-xs text-bento-muted">{subtitle}</p>}
+      {subtitle && <p className="mt-1 text-xs leading-relaxed text-bento-muted">{subtitle}</p>}
     </div>
-    {actions && <div className="flex shrink-0 flex-wrap items-center gap-1.5">{actions}</div>}
+    {actions && <div className="flex min-w-0 flex-wrap items-center gap-2 sm:shrink-0 sm:justify-end">{actions}</div>}
   </div>
 );

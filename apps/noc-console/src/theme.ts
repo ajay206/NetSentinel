@@ -24,8 +24,8 @@ export function severityLabel(sev: string): string {
 }
 
 export const space = {
-  gutter: 'gap-3.5', // 14px grid gap matching mockup
-  pad: 'p-4',
+  gutter: 'gap-4 lg:gap-6',
+  pad: 'p-4 sm:p-5 lg:p-6',
 };
 
-export const card = 'bg-white rounded-[20px] shadow-sm shadow-navy/5 p-4.5 border border-bento-border';
+export const card = 'ns-card';

@@ -29,17 +29,19 @@ export const SystemSettings: React.FC = () => {
       ],
     ];
     body = (
+      <div className="ns-scroll pr-1">
       <dl
-        className="grid grid-cols-1 gap-y-2 text-sm sm:grid-cols-[11rem_1fr] sm:gap-x-4"
+        className="grid grid-cols-1 gap-y-1 text-sm leading-relaxed sm:grid-cols-[minmax(0,10rem)_minmax(0,1fr)] sm:gap-x-4 sm:gap-y-2.5"
         data-testid="settings-list"
       >
         {rows.map(([k, v]) => (
           <React.Fragment key={k}>
             <dt className="text-bento-muted">{k}</dt>
-            <dd className="text-navy">{v}</dd>
+            <dd className="mb-2 font-semibold text-navy sm:mb-0">{v}</dd>
           </React.Fragment>
         ))}
       </dl>
+      </div>
     );
   }
   return (

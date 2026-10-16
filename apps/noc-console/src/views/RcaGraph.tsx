@@ -90,7 +90,7 @@ export const RcaGraph: React.FC<Props> = ({ topology, onImpact, agentRun = null 
           </Tooltip>
         </div>
       )}
-      <div className="mb-3 flex flex-wrap items-center gap-2">
+      <div className="ns-controls mb-4">
         <select
           aria-label="Failure type"
           value={type}
@@ -98,7 +98,7 @@ export const RcaGraph: React.FC<Props> = ({ topology, onImpact, agentRun = null 
             setType(e.target.value as ImpactTargetType);
             setId('');
           }}
-          className="rounded border border-bento-border bg-bento-bg px-2 py-1 text-sm text-navy"
+          className="ns-control w-full sm:w-28"
         >
           <option value="link">Link</option>
           <option value="site">Site</option>
@@ -109,7 +109,7 @@ export const RcaGraph: React.FC<Props> = ({ topology, onImpact, agentRun = null 
           value={id}
           onChange={(e) => setId(e.target.value)}
           disabled={options.length === 0}
-          className="rounded border border-bento-border bg-bento-bg px-2 py-1 text-sm text-navy min-w-0 flex-1"
+          className="ns-control w-full min-w-0 sm:w-auto sm:flex-1"
         >
           <option value="">— select —</option>
           {options.map((o) => (
@@ -163,22 +163,22 @@ export const RcaGraph: React.FC<Props> = ({ topology, onImpact, agentRun = null 
               No cells lose service: there is a redundant path.
             </StateMessage>
           ) : (
-            <div className="ns-scroll">
+            <div className="ns-table-wrap">
               <table className="w-full text-left text-sm" data-testid="impact-table">
                 <thead className="ns-thead">
                   <tr>
-                    <th className="py-1.5 pr-2 font-medium">
+                    <th className="font-medium">
                       <Tip tip={TIPS.colSite}>Site</Tip>
                     </th>
-                    <th className="py-1.5 pr-2 font-medium">
+                    <th className="font-medium">
                       <Tip tip="Core, hub or access site.">Kind</Tip>
                     </th>
-                    <th className="py-1.5 pr-2 font-medium">
+                    <th className="font-medium">
                       <Tip tip="Why the site loses service: it failed itself, or every path to the core is cut.">
                         Why
                       </Tip>
                     </th>
-                    <th className="py-1.5 font-medium">
+                    <th className="font-medium">
                       <Tip tip="How many radio cells at this site go down, and their ids.">
                         Cells lost
                       </Tip>
@@ -188,11 +188,11 @@ export const RcaGraph: React.FC<Props> = ({ topology, onImpact, agentRun = null 
                 <tbody>
                   {result.impactedSites.map((s) => (
                     <tr key={s.siteId} className="border-t border-bento-border">
-                      <td className="py-1 pr-2 font-mono">{s.siteId}</td>
-                      <td className="py-1 pr-2">{s.kind}</td>
-                      <td className="py-1 pr-2">{REASON[s.reason]}</td>
+                      <td className="font-mono">{s.siteId}</td>
+                      <td>{s.kind}</td>
+                      <td>{REASON[s.reason]}</td>
                       <td
-                        className="max-w-[14rem] truncate py-1 font-mono text-xs"
+                        className="max-w-[14rem] truncate font-mono text-xs"
                         title={s.cells.join(', ')}
                       >
                         {s.cells.length}: {s.cells.join(', ')}

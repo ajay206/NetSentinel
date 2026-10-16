@@ -215,7 +215,7 @@ export const App: React.FC<AppProps> = ({
 
   return (
     <div className="min-h-screen bg-bento-bg text-navy flex flex-col font-sans antialiased">
-      <div className="p-6 md:p-8 flex-1 flex flex-col gap-3.5 max-w-[1920px] mx-auto w-full">
+      <div className="p-6 md:p-8 flex-1 flex flex-col gap-4 lg:gap-6 max-w-[1920px] mx-auto w-full">
         <Header
           wsStatus={wsStatus}
           user={session}
@@ -258,14 +258,14 @@ export const App: React.FC<AppProps> = ({
             />
           </main>
         ) : (
-          <main className="flex-1 flex flex-col gap-3.5">
+          <main className="flex-1 flex flex-col gap-4 lg:gap-6">
             <KpiSummary {...summary} />
 
             <DemoPath stages={stages} />
 
             {/* Row: Storm timeline + Incident board */}
-            <div className="grid grid-cols-1 gap-3.5 lg:grid-cols-12">
-              <div className="lg:col-span-7 lg:h-[440px]">
+            <div className="grid grid-cols-1 gap-4 lg:gap-6 lg:grid-cols-12">
+              <div className="lg:col-span-7 lg:min-h-[480px]">
                 <AlarmTimeline
                   data={timeline.data}
                   isLoading={timeline.isLoading}
@@ -273,7 +273,7 @@ export const App: React.FC<AppProps> = ({
                   rootSiteId={summary.stormRoot}
                 />
               </div>
-              <div className="lg:col-span-5 lg:h-[440px]">
+              <div className="lg:col-span-5 lg:min-h-[480px]">
                 <IncidentBoard
                   data={incidents.data}
                   isLoading={incidents.isLoading}
@@ -352,7 +352,7 @@ export const App: React.FC<AppProps> = ({
             />
 
             {/* Live alarms + Service health */}
-            <div className="grid grid-cols-1 gap-3.5 lg:grid-cols-12">
+            <div className="grid grid-cols-1 gap-4 lg:gap-6 lg:grid-cols-12">
               <div className="lg:col-span-9 lg:h-[420px]">
                 <LiveAlarms alarms={shownAlarms} />
               </div>
@@ -378,7 +378,7 @@ export const App: React.FC<AppProps> = ({
             </div>
 
             {/* Network map + KPI activity */}
-            <div className="grid grid-cols-1 gap-3.5 lg:grid-cols-12">
+            <div className="grid grid-cols-1 gap-4 lg:gap-6 lg:grid-cols-12">
               <div className="lg:col-span-7 lg:h-[500px]">
                 <NetworkMap
                   topology={topology}
@@ -409,7 +409,7 @@ export const App: React.FC<AppProps> = ({
             </div>
 
             {/* Impact / RCA + PQC status */}
-            <div className="grid grid-cols-1 gap-3.5 lg:grid-cols-12">
+            <div className="grid grid-cols-1 gap-4 lg:gap-6 lg:grid-cols-12">
               <div className="lg:col-span-7 lg:h-[460px]">
                 <RcaGraph
                   topology={topology}
@@ -426,13 +426,13 @@ export const App: React.FC<AppProps> = ({
               </div>
             </div>
 
-            <div className="grid grid-cols-1 gap-3.5 lg:grid-cols-2">
+            <div className="grid grid-cols-1 gap-4 lg:gap-6 lg:grid-cols-2">
               <KpiChartsContainer />
               <AnomaliesContainer />
             </div>
 
             {/* Multi-agent copilot chat + trace */}
-            <div className="grid grid-cols-1 gap-3.5 lg:grid-cols-12">
+            <div className="grid grid-cols-1 gap-4 lg:gap-6 lg:grid-cols-12">
               <div className="lg:col-span-7 lg:h-[640px]">
                 <CopilotChat
                   incidentId={incidentId}
