@@ -6,7 +6,7 @@ import globals from 'globals';
 
 export default tseslint.config(
   {
-    ignores: ['dist', 'node_modules', 'node_modules/.tmp'],
+    ignores: ['dist', 'node_modules', 'node_modules/.tmp', 'e2e/**', 'test-results/**', 'playwright-report/**'],
   },
   {
     files: ['**/*.{ts,tsx}'],

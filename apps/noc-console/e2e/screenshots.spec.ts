@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test } from '@playwright/test';
 import path from 'path';
 
 const viewports = [
@@ -13,6 +13,6 @@ for (const vp of viewports) {
     await page.setViewportSize({ width: vp.width, height: vp.height });
     await page.goto('http://localhost:5173');
     await page.waitForLoadState('networkidle');
-    await page.screenshot({ path: path.join('/workspace/designs', `responsive-${vp.name}.png`), fullPage: false });
+    await page.screenshot({ path: path.join('test-results', `responsive-${vp.name}.png`), fullPage: false });
   });
 }
