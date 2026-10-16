@@ -36,8 +36,8 @@ export const ServiceHealth: React.FC<ServiceHealthProps> = ({ health, isError })
           <span
             className={`px-2 py-0.5 text-xs rounded ${
               health.status === 'ok'
-                ? 'bg-emerald-500/15 text-emerald-400'
-                : 'bg-orange-500/15 text-orange-400'
+                ? 'bg-emerald-500/15 text-emerald-700'
+                : 'bg-orange-500/15 text-orange-700'
             }`}
           >
             {health.status.toUpperCase()}
