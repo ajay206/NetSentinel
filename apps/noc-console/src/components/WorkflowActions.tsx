@@ -44,10 +44,10 @@ export const WorkflowActions: React.FC<WorkflowActionsProps> = ({
     setNote('');
   };
   const btn =
-    'rounded px-2.5 py-1 text-xs font-medium disabled:cursor-not-allowed disabled:opacity-40';
+    'inline-flex h-9 items-center justify-center rounded-lg px-3 text-xs font-bold disabled:cursor-not-allowed disabled:opacity-40';
 
   return (
-    <div className="space-y-2 text-xs" data-testid="workflow">
+    <div className="space-y-3 text-xs leading-relaxed" data-testid="workflow">
       <div className="flex flex-wrap items-center gap-2">
         <span
           className={`rounded px-2 py-0.5 font-medium ${STATE_CHIP[state]}`}
@@ -64,7 +64,7 @@ export const WorkflowActions: React.FC<WorkflowActionsProps> = ({
       </div>
 
       {canAct ? (
-        <div className="space-y-2" data-testid="workflow-controls">
+        <div className="space-y-3" data-testid="workflow-controls">
           <textarea
             aria-label={`Note for ${subject}`}
             placeholder="Note (required to resolve)"
@@ -72,9 +72,9 @@ export const WorkflowActions: React.FC<WorkflowActionsProps> = ({
             onChange={(e) => setNote(e.target.value)}
             maxLength={1000}
             rows={2}
-            className="w-full rounded border border-bento-border bg-bento-bg px-2 py-1 text-navy"
+            className="w-full rounded-xl border border-bento-border bg-white px-3 py-2 text-sm text-navy focus:outline-none focus:ring-2 focus:ring-sky-500"
           />
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Tooltip content={TIPS.btnAck}>
               <span className="inline-flex">
                 <button
@@ -106,7 +106,7 @@ export const WorkflowActions: React.FC<WorkflowActionsProps> = ({
                   placeholder="username"
                   value={assignee}
                   onChange={(e) => setAssignee(e.target.value.toLowerCase())}
-                  className="w-28 rounded border border-bento-border bg-bento-bg px-2 py-1 text-navy"
+                  className="ns-control h-9 w-full sm:w-36"
                 />
                 <button
                   type="button"

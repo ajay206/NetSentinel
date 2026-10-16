@@ -908,6 +908,15 @@ The console uses a **Modern bento** layout: soft off-white page, white rounded t
 
 **Responsive.** 375 → 768 → 1280 → 1920. KPI tiles wrap 1 / 2 / 3 columns; panels stack below `lg`; tables scroll inside the card; headers share one underline style. Tokens: `theme.ts`, `tailwind.config.js`, `index.css`.
 
+#### Spacing and scroll rules
+
+- **Tiles:** `.ns-card` pads `p-4` on phones, `p-5` from `sm`, `p-6` from `lg`. Tiles sit `gap-4` apart (`gap-6` from `lg`). Body text is `leading-relaxed`.
+- **Card header:** title and actions stack on phones and sit side by side from `sm`, so a wide chip row never squeezes the title.
+- **Scrollable lists:** wrap them in `.ns-scroll` (or a table in `.ns-table-wrap`). Both have `max-height: 28rem`, `overflow: auto` and `min-h-0`, and `.ns-card` is `overflow-hidden`, so a list scrolls inside its card and can't spill into the next one. Table headers stay sticky.
+- **Controls:** every select or input uses `.ns-control` (h-10, rounded-xl, px-3). Buttons next to them use `.ns-btn` (h-10). Rows of controls use `.ns-controls` (wrap, gap-3). On phones they go full width.
+- **Truncation:** anything with `truncate` needs a `title` (or a tooltip).
+- **Check:** `e2e/layout-audit.spec.ts` (rich mock data in `e2e/mocks.ts`) takes screenshots of every view at 375/768/1280/1440. With `LAYOUT_STRICT=1` it fails on any element escaping its card, any sideways page scroll, or any truncation that has no title. Run it with `npx vite --port 5179` going, then `LAYOUT_STRICT=1 npx playwright test e2e/layout-audit.spec.ts`.
+
 ### Tooltips and layout (UI polish)
 
 Every panel title has an **ⓘ** button. Hover it, or Tab to it, to read what the panel shows and how to read it. Chips and badges (route, PII, guard, hybrid, role, live status), status pills, table column headers (dotted underline) and action buttons also have tooltips. Buttons that are greyed out explain why, for example "Requires the operator role".

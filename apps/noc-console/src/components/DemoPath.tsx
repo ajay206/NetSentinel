@@ -23,7 +23,7 @@ export const DemoPath: React.FC<DemoPathProps> = ({ stages, hint }) => {
   const currentHint = allDone ? undefined : (hint ?? defaultHints[stages[firstPendingIndex].id]);
 
   return (
-    <div className="rounded-[20px] bg-white p-3.5 px-5 shadow-sm border border-transparent flex flex-wrap items-center gap-3">
+    <div className="rounded-[20px] bg-white p-4 sm:p-5 lg:px-6 shadow-sm border border-bento-border flex flex-wrap items-center gap-3 lg:gap-4">
       <div className="flex items-center gap-2 mr-2">
         <span className="text-[11px] font-extrabold uppercase tracking-wider text-bento-muted whitespace-nowrap">
           Demo path
@@ -45,7 +45,7 @@ export const DemoPath: React.FC<DemoPathProps> = ({ stages, hint }) => {
               <span className="w-5 h-5 rounded-lg bg-navy text-white text-[11px] font-extrabold flex items-center justify-center shrink-0">
                 {idx + 1}
               </span>
-              <span className="truncate">{stage.label}</span>
+              <span className="truncate" title={stage.label}>{stage.label}</span>
             </div>
           );
         })}

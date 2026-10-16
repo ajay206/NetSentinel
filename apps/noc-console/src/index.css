@@ -18,7 +18,7 @@
 
   html,
   body {
-    @apply min-h-full font-sans antialiased;
+    @apply min-h-full font-sans antialiased leading-relaxed;
     background-color: var(--bg);
     color: var(--navy);
   }
@@ -37,18 +37,56 @@
 }
 
 @layer components {
+  /* Spacing scale (see docs/handbook/03-services.md, Bento theme):
+     tile padding p-4 mobile, p-5 tablet, p-6 desktop; gap-4 to gap-6 between tiles. */
   .ns-card {
-    @apply flex h-full min-h-0 flex-col bg-white p-4 shadow-sm border border-bento-border;
+    @apply flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-white p-4 sm:p-5 lg:p-6 border border-bento-border;
     border-radius: var(--radius);
     box-shadow: 0 1px 3px rgba(9, 37, 74, 0.05);
   }
+  /* Every scrollable list: bounded height, scrolls inside its card, never spills. */
   .ns-scroll {
-    @apply min-h-0 flex-1 overflow-auto;
+    @apply min-h-0 flex-auto overflow-auto;
+    max-height: 28rem;
+    overscroll-behavior: contain;
   }
-  .ns-table-wrap td, .ns-table-wrap th {
-    @apply tabular-nums;
+  .ns-table-wrap {
+    @apply min-h-0 min-w-0 flex-auto overflow-auto rounded-xl;
+    max-height: 28rem;
+    overscroll-behavior: contain;
+  }
+  .ns-table-wrap table {
+    @apply w-full border-collapse;
+  }
+  .ns-table-wrap td,
+  .ns-table-wrap th {
+    @apply tabular-nums align-middle;
+  }
+  .ns-table-wrap td {
+    @apply py-3 pl-3 pr-4 leading-snug;
+  }
+  .ns-table-wrap th {
+    @apply py-2.5 pl-3 pr-4 whitespace-nowrap;
   }
   .ns-thead {
-    @apply sticky top-0 bg-white text-left font-display text-[11px] font-extrabold uppercase tracking-wider text-slate-500 border-b border-bento-border;
+    @apply text-left font-display text-[11px] font-extrabold uppercase tracking-wider text-slate-500;
+  }
+  .ns-thead th {
+    @apply sticky top-0 z-10 bg-white border-b border-bento-border;
+  }
+  /* Form controls: one height, padding and radius so selects line up with inputs and buttons. */
+  .ns-control {
+    @apply h-10 min-w-0 max-w-full rounded-xl border border-bento-border bg-white px-3 text-sm text-navy;
+    @apply focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent;
+  }
+  select.ns-control {
+    @apply cursor-pointer truncate pr-8;
+  }
+  .ns-btn {
+    @apply inline-flex h-10 shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-xl px-4 text-sm font-bold;
+  }
+  /* A row of controls: wraps on phones, aligned on one line when there is room. */
+  .ns-controls {
+    @apply flex flex-wrap items-center gap-3;
   }
 }

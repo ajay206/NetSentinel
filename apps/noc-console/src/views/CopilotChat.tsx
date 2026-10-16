@@ -47,7 +47,7 @@ export const CopilotChat: React.FC<{
 
   const status = run ? RUN_STATUS[run.status] : null;
   const btn =
-    'rounded px-3 py-1.5 text-sm font-medium text-white disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-bento-muted';
+    'ns-btn text-white disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-bento-muted';
 
   return (
     <section className="ns-card" data-testid="copilot-chat">
@@ -69,7 +69,7 @@ export const CopilotChat: React.FC<{
         }
       />
 
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="ns-controls">
         <Tooltip content={canOperate ? TIPS.btnRunAgents : 'Needs the operator role.'}>
           <button
             type="button"
@@ -83,7 +83,7 @@ export const CopilotChat: React.FC<{
         {runs.length > 1 && (
           <select
             aria-label="Run"
-            className="min-w-0 max-w-full flex-1 truncate rounded border border-bento-border bg-bento-bg px-2 py-1.5 font-mono text-xs text-navy"
+            className="ns-control w-full flex-1 font-mono text-xs sm:w-auto"
             value={run?.runId ?? ''}
             onChange={(e) => onSelectRun(e.target.value)}
           >

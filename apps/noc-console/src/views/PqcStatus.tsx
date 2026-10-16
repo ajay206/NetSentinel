@@ -156,14 +156,14 @@ export function PqcStatus({
               </div>
             </div>
           </div>
-          <div className="ns-scroll">
+          <div className="ns-table-wrap">
             <table className="w-full table-fixed text-xs">
               <thead className="ns-thead">
                 <tr>
-                  <th className="w-[45%] py-1.5 pr-2 font-medium">
+                  <th className="w-[45%] font-medium">
                     <Tip tip={TIPS.colService}>Service</Tip>
                   </th>
-                  <th className="py-1.5 font-medium">
+                  <th className="font-medium">
                     <Tip tip={TIPS.colTlsKx}>TLS key exchange</Tip>
                   </th>
                 </tr>
@@ -177,10 +177,10 @@ export function PqcStatus({
                       data-testid="pqc-row"
                       className="border-t border-bento-border"
                     >
-                      <td className="truncate py-1 pr-2 font-mono text-navy">
+                      <td className="truncate font-mono text-navy">
                         {t.service}
                       </td>
-                      <td className="py-1">
+                      <td>
                         <Tooltip
                           content={
                             t.hybridDetail ? (

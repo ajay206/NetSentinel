@@ -84,7 +84,7 @@ export function AlarmTimeline({ data, isLoading, isError, rootSiteId }: AlarmTim
       {annotation && (
         <p
           data-testid="storm-annotation"
-          className="mb-2 inline-flex items-center gap-2 rounded-md bg-red-500/10 px-2.5 py-1 text-xs font-bold text-red-600 border border-red-200"
+          className="inline-flex self-start items-center gap-2 rounded-md bg-red-500/10 px-2.5 py-1 text-xs font-bold text-red-600 border border-red-200"
         >
           <span className="h-2 w-2 rounded-full bg-red-500" aria-hidden />
           {annotation}
@@ -95,7 +95,7 @@ export function AlarmTimeline({ data, isLoading, isError, rootSiteId }: AlarmTim
         width="100%"
         role="img"
         aria-label="Alarm storm timeline chart"
-        className="block"
+        className="block shrink-0"
       >
         <defs>
           <linearGradient id="barGradientNorm" x1="0" y1="0" x2="0" y2="1">
@@ -210,7 +210,7 @@ export function AlarmTimeline({ data, isLoading, isError, rootSiteId }: AlarmTim
         </text>
       </svg>
 
-      <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-navy font-semibold">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-navy font-semibold">
         <div className="flex flex-wrap items-center gap-3" data-testid="timeline-legend">
           {STACK.map((sev) => (
             <span key={sev} className="inline-flex items-center gap-1.5">
@@ -232,13 +232,13 @@ export function AlarmTimeline({ data, isLoading, isError, rootSiteId }: AlarmTim
           max={n - 1}
           value={selectedIndex}
           onChange={(e) => setPicked(Number(e.target.value))}
-          className="mt-3 w-full accent-navy"
+          className="w-full shrink-0 accent-navy"
         />
       )}
 
       {selected && (
         <div
-          className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 rounded-xl bg-bento-bg px-3 py-2 text-xs"
+          className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-xl bg-bento-bg px-4 py-2.5 text-xs"
           data-testid="timeline-selected"
         >
           <span className="font-bold text-navy font-display">

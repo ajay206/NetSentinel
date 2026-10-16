@@ -39,33 +39,33 @@ export const KpiActivity: React.FC<Props> = ({ activity, status }) => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-2 text-sm text-gray-400 mb-2">
+      <div className="flex items-center gap-2 text-sm text-slate-600 mb-2">
         <span className={`w-2 h-2 rounded-full ${statusColor}`} />
         Connection: {status}
       </div>
 
       {!activity ? (
-        <div className="flex flex-col items-center justify-center p-8 text-center text-gray-400 border border-dashed rounded-md">
-          <p className="text-lg font-medium">no data — run <code className="bg-gray-800 px-1 py-0.5 rounded">make kpis</code></p>
+        <div className="flex flex-col items-center justify-center p-8 text-center text-slate-600 border border-dashed rounded-md">
+          <p className="text-lg font-medium">no data — run <code className="bg-bento-bg px-1 py-0.5 rounded">make kpis</code></p>
         </div>
       ) : (
         <>
           {/* Header tiles */}
-          <div className="grid grid-cols-2 gap-2">
-            <div className="bg-bento-bg p-3 rounded shadow">
-              <div className="text-xs text-gray-400">Samples / min</div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="rounded-xl bg-bento-bg p-4 shadow">
+              <div className="text-xs text-slate-600">Samples / min</div>
               <div className="text-lg font-semibold">{activity.ratePerMin.toFixed(1)}</div>
             </div>
-            <div className="bg-bento-bg p-3 rounded shadow">
-              <div className="text-xs text-gray-400">Total Samples</div>
+            <div className="rounded-xl bg-bento-bg p-4 shadow">
+              <div className="text-xs text-slate-600">Total Samples</div>
               <div className="text-lg font-semibold">{activity.totalSamples}</div>
             </div>
-            <div className="bg-bento-bg p-3 rounded shadow">
-              <div className="text-xs text-gray-400">Cells Reporting</div>
+            <div className="rounded-xl bg-bento-bg p-4 shadow">
+              <div className="text-xs text-slate-600">Cells Reporting</div>
               <div className="text-lg font-semibold">{activity.cellsReporting}</div>
             </div>
-            <div className="bg-bento-bg p-3 rounded shadow">
-              <div className="text-xs text-gray-400">Last Sample</div>
+            <div className="rounded-xl bg-bento-bg p-4 shadow">
+              <div className="text-xs text-slate-600">Last Sample</div>
               <div className="text-lg font-semibold">
                 {activity.lastSampleTime ? formatIST(activity.lastSampleTime, { date: false }) : '—'}
               </div>
@@ -81,18 +81,18 @@ export const KpiActivity: React.FC<Props> = ({ activity, status }) => {
 
           {/* KPI averages */}
           <div className="space-y-4">
-            <h3 className="text-lg font-medium text-gray-200">Network Averages</h3>
+            <h3 className="font-display text-sm font-extrabold uppercase tracking-wider text-navy/70">Network Averages</h3>
             <div className="space-y-3">
               {KPI_DEFINITIONS.map(def => {
                 const value = activity.averages[def.key] ?? 0;
                 const percent = Math.min((value / def.max) * 100, 100);
                 return (
-                  <div key={def.key} className="bg-bento-bg p-3 rounded">
-                    <div className="flex justify-between items-center mb-1">
-                      <span className="text-sm text-gray-400">{def.label}</span>
-                      <span className="text-sm font-medium text-gray-200">{value.toFixed(1)} {def.unit}</span>
+                  <div key={def.key} className="rounded-xl bg-bento-bg p-4">
+                    <div className="mb-2 flex items-baseline justify-between gap-3">
+                      <span className="text-sm text-slate-600">{def.label}</span>
+                      <span className="text-sm font-medium text-navy font-bold tabular-nums">{value.toFixed(1)} {def.unit}</span>
                     </div>
-                    <div className="h-1 w-full bg-gray-700 rounded">
+                    <div className="h-1.5 w-full rounded-full bg-slate-200">
                       <div
                         className="h-full bg-emerald-500 rounded"
                         style={{ width: `${percent}%` }}

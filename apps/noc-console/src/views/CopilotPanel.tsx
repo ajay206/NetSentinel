@@ -98,7 +98,7 @@ export const CopilotPanel: React.FC<CopilotPanelProps> = ({
         info={TIPS.panelCopilot}
       />
       <form
-        className="flex flex-wrap gap-2 items-center mb-3"
+        className="ns-controls mb-4"
         onSubmit={(e) => {
           e.preventDefault();
           if (valid && !isPending && canAnalyze)
@@ -110,13 +110,13 @@ export const CopilotPanel: React.FC<CopilotPanelProps> = ({
           value={siteId}
           onChange={(e) => setSiteId(e.target.value.toUpperCase())}
           placeholder="SITE-012"
-          className="bg-bento-bg border border-bento-border rounded px-2 py-1 text-sm text-navy w-28 font-mono"
+          className="ns-control w-full font-mono sm:w-36"
         />
         <select
           aria-label="Window"
           value={window}
           onChange={(e) => setWindow(e.target.value)}
-          className="bg-bento-bg border border-bento-border rounded px-2 py-1 text-sm text-navy"
+          className="ns-control w-full sm:w-28"
         >
           {WINDOWS.map((w) => (
             <option key={w} value={w}>
@@ -135,7 +135,7 @@ export const CopilotPanel: React.FC<CopilotPanelProps> = ({
             <button
               type="submit"
               disabled={!valid || isPending || !canAnalyze}
-              className="bg-sky-600 hover:bg-sky-500 disabled:bg-slate-200 disabled:text-slate-500 text-white text-sm px-3 py-1 rounded"
+              className="ns-btn bg-sky-600 text-white hover:bg-sky-500 disabled:bg-slate-200 disabled:text-slate-500"
             >
               {isPending ? "Analyzing…" : "Analyze site"}
             </button>

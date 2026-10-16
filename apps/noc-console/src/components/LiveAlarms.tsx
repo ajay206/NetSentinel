@@ -81,22 +81,22 @@ export const LiveAlarms: React.FC<LiveAlarmsProps> = ({ alarms }) => {
           <table className="w-full text-xs">
             <thead>
               <tr className="ns-thead">
-                <th className="py-2 pl-2 pr-3 font-medium">
+                <th className="font-medium">
                   <Tip tip={TIPS.colTime}>Time (IST)</Tip>
                 </th>
-                <th className="py-2 pr-3 font-medium">
+                <th className="font-medium">
                   <Tip tip={TIPS.colSeverity}>Severity</Tip>
                 </th>
-                <th className="py-2 pr-3 font-medium">
+                <th className="font-medium">
                   <Tip tip={TIPS.colSite}>Site</Tip>
                 </th>
-                <th className="py-2 pr-3 font-medium">
+                <th className="font-medium">
                   <Tip tip={TIPS.colAlarmType}>Alarm Type</Tip>
                 </th>
-                <th className="py-2 pr-3 font-medium">
+                <th className="font-medium">
                   <Tip tip={TIPS.colProbableCause}>Probable Cause</Tip>
                 </th>
-                <th className="py-2 pr-3 font-medium">
+                <th className="font-medium">
                   <Tip tip={TIPS.colSpecificProblem}>Specific Problem</Tip>
                 </th>
               </tr>
@@ -105,16 +105,16 @@ export const LiveAlarms: React.FC<LiveAlarmsProps> = ({ alarms }) => {
               {filtered.map((alarm) => {
                 return (
                   <tr key={alarm.id} className={`border-b border-bento-border hover:bg-bento-bg/50`}>
-                    <td className="py-2 pl-2 pr-3 whitespace-nowrap text-bento-muted font-mono">
+                    <td className="whitespace-nowrap text-bento-muted font-mono">
                       {formatIST(alarm.alarmRaisedTime)}
                     </td>
-                    <td className="py-2 pr-3">
+                    <td>
                       <SeverityChip severity={alarm.perceivedSeverity} />
                     </td>
-                    <td className="py-2 pr-3 text-slate-600">{alarm.siteId}</td>
-                    <td className="py-2 pr-3 text-slate-600">{alarm.alarmType}</td>
-                    <td className="py-2 pr-3 text-bento-muted">{alarm.probableCause}</td>
-                    <td className="py-2 pr-3 text-bento-muted">{alarm.specificProblem}</td>
+                    <td className="whitespace-nowrap text-slate-600">{alarm.siteId}</td>
+                    <td className="whitespace-nowrap text-slate-600">{alarm.alarmType}</td>
+                    <td className="whitespace-nowrap text-bento-muted">{alarm.probableCause}</td>
+                    <td className="min-w-[14rem] text-bento-muted">{alarm.specificProblem}</td>
                   </tr>
                 );
               })}

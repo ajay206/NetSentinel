@@ -93,9 +93,9 @@ export const KpiSummary: React.FC<KpiSummaryProps> = ({
   ];
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3.5" data-testid="kpi-summary">
+    <div className="grid grid-cols-1 gap-4 lg:gap-6 xl:grid-cols-3" data-testid="kpi-summary">
       <div
-        className="relative overflow-hidden rounded-[20px] bg-gradient-to-br from-[#09254A] via-[#0E3A6B] to-[#12507A] p-5 text-white shadow-sm flex flex-col justify-between min-h-[160px] xl:row-span-2"
+        className="relative overflow-hidden rounded-[20px] bg-gradient-to-br from-[#09254A] via-[#0E3A6B] to-[#12507A] p-5 lg:p-6 text-white shadow-sm flex flex-col justify-between min-h-[160px] xl:row-span-2"
         data-testid="kpi-alarms"
       >
         <div className="absolute right-[-40px] bottom-[-40px] w-[180px] h-[180px] rounded-full bg-[radial-gradient(circle,rgba(109,207,246,0.35)_0%,transparent_70%)] pointer-events-none" />
@@ -127,11 +127,11 @@ export const KpiSummary: React.FC<KpiSummaryProps> = ({
         )}
       </div>
 
-      <div className="grid grid-cols-2 gap-3.5 xl:col-span-2 xl:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:gap-6 xl:col-span-2">
         {tiles.map((tile) => (
           <div
             key={tile.testId}
-            className={`relative overflow-hidden rounded-[20px] ${tile.tint} p-4.5 shadow-sm flex flex-col justify-center gap-1 border-l-4 ${tile.accent}`}
+            className={`relative overflow-hidden rounded-[20px] ${tile.tint} p-4 sm:p-5 lg:p-6 shadow-sm flex flex-col justify-center gap-2 border-l-4 ${tile.accent}`}
             data-testid={tile.testId}
           >
             <div className="flex items-center justify-between pl-2 gap-2">
@@ -142,7 +142,7 @@ export const KpiSummary: React.FC<KpiSummaryProps> = ({
                 >
                   {tile.icon}
                 </span>
-                <span className="text-[11px] font-bold uppercase tracking-wider text-navy/70 truncate">
+                <span className="text-[11px] font-bold uppercase leading-snug tracking-wider text-navy/70" title={tile.label}>
                   {tile.label}
                 </span>
               </div>

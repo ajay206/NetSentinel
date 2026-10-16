@@ -88,7 +88,7 @@ export const ApprovalQueue: React.FC<ApprovalQueueProps> = ({
           aria-label="Status"
           value={status}
           onChange={handleStatus}
-          className="rounded border border-bento-border bg-bento-bg px-2 py-1 text-sm"
+          className="ns-control w-full sm:w-48"
         >
           <option value="all">All</option>
           <option value="draft">Draft</option>
@@ -104,7 +104,7 @@ export const ApprovalQueue: React.FC<ApprovalQueueProps> = ({
       )}
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <ul className="ns-scroll max-h-[420px] space-y-2 pr-1">
+        <ul className="ns-scroll max-h-[28rem] space-y-3 pr-1">
           {tickets.map((ticket) => (
             <li key={ticket.id}>
               <button
@@ -112,33 +112,33 @@ export const ApprovalQueue: React.FC<ApprovalQueueProps> = ({
                 data-testid="ticket-row"
                 aria-pressed={selectedId === ticket.id}
                 onClick={() => onSelect(ticket.id)}
-                className={`w-full text-left p-2 rounded border ${
+                className={`w-full rounded-xl border p-4 text-left transition-colors hover:bg-bento-bg/60 ${
                   selectedId === ticket.id ? 'border-emerald-500' : 'border-bento-border'
                 }`}
               >
-                <div className="flex justify-between items-center">
-                  <span className="font-mono">{ticket.id}</span>
+                <div className="flex items-center justify-between gap-3">
+                  <span className="font-mono font-bold">{ticket.id}</span>
                   {statusPill(ticket.status)}
                 </div>
-                <div className="mt-1 text-sm">
-                  <span>{ticket.title}</span>
-                  <span className="ml-2">Severity: {ticket.severity}</span>
-                  {ticket.siteId && <span className="ml-2">Site: {ticket.siteId}</span>}
-                  {ticket.incidentId && <span className="ml-2">Inc: {ticket.incidentId}</span>}
+                <p className="mt-2 text-sm font-semibold leading-relaxed text-navy">{ticket.title}</p>
+                <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-600">
+                  <span>Severity: {ticket.severity}</span>
+                  {ticket.siteId && <span>Site: {ticket.siteId}</span>}
+                  {ticket.incidentId && <span>Inc: {ticket.incidentId}</span>}
                   {ticket.createdVia === 'mcp' && (
-                    <span data-testid="via-mcp" className="ml-2 text-xs bg-slate-200 rounded px-1">
+                    <span data-testid="via-mcp" className="rounded bg-slate-200 px-1.5 py-0.5">
                       🤖 MCP
                     </span>
                   )}
+                  <span>By {ticket.createdBy}</span>
                 </div>
-                <div className="mt-1 text-xs text-slate-600">By {ticket.createdBy}</div>
               </button>
             </li>
           ))}
         </ul>
 
         {selectedTicket && (
-          <section data-testid="ticket-detail" className="border-l border-bento-border pl-4">
+          <section data-testid="ticket-detail" className="min-w-0 rounded-xl border border-bento-border p-4 lg:p-5">
             <h4 className="font-medium">{selectedTicket.title}</h4>
             <p className="mt-2 whitespace-pre-wrap">{selectedTicket.description}</p>
 
@@ -245,6 +245,11 @@ export const ApprovalQueue: React.FC<ApprovalQueueProps> = ({
               )}
             </div>
           </section>
+        )}
+        {!selectedTicket && tickets.length > 0 && (
+          <div className="hidden items-center justify-center rounded-xl border border-dashed border-bento-border p-6 text-center text-sm text-bento-muted lg:flex">
+            Select a ticket to see its details, audit trail and approve or reject it.
+          </div>
         )}
       </div>
     </div>

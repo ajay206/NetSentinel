@@ -51,24 +51,24 @@ export const KpiCharts: React.FC<Props> = ({
 
   return (
     <div className="ns-card text-navy">
-      <div className="flex items-center gap-2 mb-2">
-        <CardHeader
-          title="KPI charts"
-          subtitle="Trend of one KPI for one cell; red dots are anomalies."
-          info={TIPS.panelKpis}
-        />
-        {marks.length > 0 && (
-          <span
-            data-testid="anomaly-badge"
-            className="px-1.5 py-0.5 rounded text-xs bg-red-500/15 text-red-400"
-          >
-            {marks.length} anomal{marks.length === 1 ? 'y' : 'ies'}
-          </span>
-        )}
-      </div>
-      <div className="flex flex-wrap gap-2 mb-4 min-w-0">
+      <CardHeader
+        title="KPI charts"
+        subtitle="Trend of one KPI for one cell; red dots are anomalies."
+        info={TIPS.panelKpis}
+        actions={
+          marks.length > 0 && (
+            <span
+              data-testid="anomaly-badge"
+              className="rounded-full bg-red-500/15 px-2.5 py-0.5 text-xs font-bold text-red-700"
+            >
+              {marks.length} anomal{marks.length === 1 ? 'y' : 'ies'}
+            </span>
+          )
+        }
+      />
+      <div className="mb-4 grid min-w-0 grid-cols-2 gap-3 sm:grid-cols-[minmax(0,1.5fr)_minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1fr)]">
         <select
-          className="bg-bento-bg text-navy text-xs p-1 rounded"
+          className="ns-control w-full"
           value={cellId ?? ''}
           onChange={(e) => onCellChange(e.target.value)}
         >
@@ -80,7 +80,7 @@ export const KpiCharts: React.FC<Props> = ({
         </select>
 
         <select
-          className="bg-bento-bg text-navy text-xs p-1 rounded"
+          className="ns-control w-full"
           value={kpi}
           onChange={(e) => onKpiChange(e.target.value as KpiName)}
         >
@@ -92,7 +92,7 @@ export const KpiCharts: React.FC<Props> = ({
         </select>
 
         <select
-          className="bg-bento-bg text-navy text-xs p-1 rounded"
+          className="ns-control w-full"
           value={agg}
           onChange={(e) => onAggChange(e.target.value as '15m' | '1h' | '1d')}
         >
@@ -102,7 +102,7 @@ export const KpiCharts: React.FC<Props> = ({
         </select>
 
         <select
-          className="bg-bento-bg text-navy text-xs p-1 rounded"
+          className="ns-control w-full"
           value={hours}
           onChange={(e) => onHoursChange(Number(e.target.value))}
         >
