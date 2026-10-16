@@ -47,7 +47,7 @@ export const CopilotChat: React.FC<{
 
   const status = run ? RUN_STATUS[run.status] : null;
   const btn =
-    'rounded px-3 py-1.5 text-sm font-medium text-white disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400';
+    'rounded px-3 py-1.5 text-sm font-medium text-white disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-bento-muted';
 
   return (
     <section className="ns-card" data-testid="copilot-chat">
@@ -83,7 +83,7 @@ export const CopilotChat: React.FC<{
         {runs.length > 1 && (
           <select
             aria-label="Run"
-            className="min-w-0 max-w-full flex-1 truncate rounded border border-slate-700 bg-slate-950 px-2 py-1.5 font-mono text-xs text-slate-200"
+            className="min-w-0 max-w-full flex-1 truncate rounded border border-bento-border bg-bento-bg px-2 py-1.5 font-mono text-xs text-navy"
             value={run?.runId ?? ''}
             onChange={(e) => onSelectRun(e.target.value)}
           >
@@ -96,7 +96,7 @@ export const CopilotChat: React.FC<{
         )}
       </div>
       {!canOperate && (
-        <p className="mt-1 text-xs text-slate-500" role="note">
+        <p className="mt-1 text-xs text-slate-600" role="note">
           Read-only: running agents needs the operator role.
         </p>
       )}
@@ -104,7 +104,7 @@ export const CopilotChat: React.FC<{
 
       <div className="ns-scroll mt-3 pr-1">
         {!run && (
-          <p className="text-sm text-slate-400">
+          <p className="text-sm text-bento-muted">
             Select an incident and press Run agents. Messages from each agent appear here.
           </p>
         )}
@@ -119,11 +119,11 @@ export const CopilotChat: React.FC<{
                       className={`max-w-[85%] whitespace-pre-wrap rounded-lg border px-3 py-2 text-sm leading-relaxed ${
                         isHuman
                           ? 'border-sky-800 bg-sky-950 text-sky-100'
-                          : 'border-slate-700 bg-slate-800/70 text-slate-200'
+                          : 'border-bento-border bg-bento-bg text-navy'
                       }`}
                     >
                       <Tooltip content={TIPS.chipAgent}>
-                        <strong className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-400">
+                        <strong className="mb-1 block text-xs font-semibold uppercase tracking-wide text-bento-muted">
                           {AGENT_LABEL[msg.agent as string] ?? String(msg.agent)}
                         </strong>
                       </Tooltip>
@@ -132,7 +132,7 @@ export const CopilotChat: React.FC<{
                         <div className="mt-1.5 flex flex-wrap gap-1">
                           {msg.sources.map((src, idx) => (
                             <Tooltip key={idx} content={TIPS.chipCitation}>
-                              <span className="max-w-full truncate rounded border border-slate-600 px-1 py-0.5 font-mono text-[11px] text-slate-300">
+                              <span className="max-w-full truncate rounded border border-bento-border px-1 py-0.5 font-mono text-[11px] text-slate-600">
                                 {src}
                               </span>
                             </Tooltip>
@@ -148,30 +148,30 @@ export const CopilotChat: React.FC<{
             {run.status === 'awaiting_approval' && run.plan && (
               <div
                 data-testid="approval-box"
-                className="mt-3 rounded-lg border border-slate-700 border-l-4 border-l-amber-500 bg-slate-800/60 p-3"
+                className="mt-3 rounded-lg border border-bento-border border-l-4 border-l-amber-500 bg-bento-bg p-3"
               >
-                <p className="text-sm font-medium text-slate-100">{run.plan.summary}</p>
-                <ol className="mt-2 list-inside list-decimal space-y-1 text-sm text-slate-300">
+                <p className="text-sm font-medium text-navy">{run.plan.summary}</p>
+                <ol className="mt-2 list-inside list-decimal space-y-1 text-sm text-slate-600">
                   {run.plan.steps.map((st, idx) => (
                     <li key={idx}>
                       {st.text}{' '}
-                      <span className="font-mono text-xs text-slate-400">
+                      <span className="font-mono text-xs text-bento-muted">
                         ({st.runbookId} §{st.section})
                       </span>
                     </li>
                   ))}
                 </ol>
-                <p className="mt-2 text-sm text-slate-300">
+                <p className="mt-2 text-sm text-slate-600">
                   Ticket: {run.plan.ticketDraft.title} – {run.plan.ticketDraft.severity}
                 </p>
-                <label className="mt-3 block text-xs text-slate-400" htmlFor="approval-note">
+                <label className="mt-3 block text-xs text-bento-muted" htmlFor="approval-note">
                   Note (optional to approve, required to reject)
                 </label>
                 <textarea
                   id="approval-note"
                   aria-label="Approval note"
                   placeholder="Why you approve or reject this plan…"
-                  className="mt-1 w-full rounded border border-slate-700 bg-slate-950 p-2 text-sm text-slate-100 placeholder:text-slate-500"
+                  className="mt-1 w-full rounded border border-bento-border bg-bento-bg p-2 text-sm text-navy placeholder:text-bento-muted"
                   rows={2}
                   value={note}
                   onChange={(e) => setNote(e.target.value)}
@@ -202,14 +202,14 @@ export const CopilotChat: React.FC<{
             )}
 
             {run.ticketId && (
-              <p data-testid="run-ticket" className="mt-3 text-sm text-slate-300">
+              <p data-testid="run-ticket" className="mt-3 text-sm text-slate-600">
                 Ticket draft <span className="font-mono">{run.ticketId}</span> is waiting in the
                 Approval queue.
               </p>
             )}
 
             {run.kgWriteBack && (
-              <p className="mt-2 text-sm text-slate-300">
+              <p className="mt-2 text-sm text-slate-600">
                 Knowledge graph:{' '}
                 <span className={run.kgWriteBack.ok ? 'text-emerald-400' : 'text-red-400'}>
                   {run.kgWriteBack.detail}
@@ -220,7 +220,7 @@ export const CopilotChat: React.FC<{
             {run.report && (
               <pre
                 data-testid="run-report"
-                className="mt-2 whitespace-pre-wrap rounded bg-slate-950 p-2 text-xs text-slate-300"
+                className="mt-2 whitespace-pre-wrap rounded bg-bento-bg p-2 text-xs text-slate-600"
               >
                 {run.report}
               </pre>

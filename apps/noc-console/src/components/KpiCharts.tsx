@@ -50,7 +50,7 @@ export const KpiCharts: React.FC<Props> = ({
   const meta = KPI_META[kpi];
 
   return (
-    <div className="ns-card text-slate-200">
+    <div className="ns-card text-navy">
       <div className="flex items-center gap-2 mb-2">
         <CardHeader
           title="KPI charts"
@@ -68,7 +68,7 @@ export const KpiCharts: React.FC<Props> = ({
       </div>
       <div className="flex flex-wrap gap-2 mb-4 min-w-0">
         <select
-          className="bg-slate-800 text-slate-200 text-xs p-1 rounded"
+          className="bg-bento-bg text-navy text-xs p-1 rounded"
           value={cellId ?? ''}
           onChange={(e) => onCellChange(e.target.value)}
         >
@@ -80,7 +80,7 @@ export const KpiCharts: React.FC<Props> = ({
         </select>
 
         <select
-          className="bg-slate-800 text-slate-200 text-xs p-1 rounded"
+          className="bg-bento-bg text-navy text-xs p-1 rounded"
           value={kpi}
           onChange={(e) => onKpiChange(e.target.value as KpiName)}
         >
@@ -92,7 +92,7 @@ export const KpiCharts: React.FC<Props> = ({
         </select>
 
         <select
-          className="bg-slate-800 text-slate-200 text-xs p-1 rounded"
+          className="bg-bento-bg text-navy text-xs p-1 rounded"
           value={agg}
           onChange={(e) => onAggChange(e.target.value as '15m' | '1h' | '1d')}
         >
@@ -102,7 +102,7 @@ export const KpiCharts: React.FC<Props> = ({
         </select>
 
         <select
-          className="bg-slate-800 text-slate-200 text-xs p-1 rounded"
+          className="bg-bento-bg text-navy text-xs p-1 rounded"
           value={hours}
           onChange={(e) => onHoursChange(Number(e.target.value))}
         >
@@ -115,19 +115,19 @@ export const KpiCharts: React.FC<Props> = ({
       {isError ? (
         <div className="text-red-400">kpi-service unreachable</div>
       ) : isLoading ? (
-        <div className="text-slate-400">Loading…</div>
+        <div className="text-bento-muted">Loading…</div>
       ) : !series || series.points.length === 0 ? (
-        <div className="text-slate-400">No KPI data yet — run make kpi-service and make kpis</div>
+        <div className="text-bento-muted">No KPI data yet — run make kpi-service and make kpis</div>
       ) : (
         <div>
-          <div className="flex gap-3 text-xs text-slate-400 mb-1" data-testid="kpi-stats">
+          <div className="flex gap-3 text-xs text-bento-muted mb-1" data-testid="kpi-stats">
             <span>
               min {min !== null ? min.toFixed(2) : '–'} {meta.unit}
             </span>
             <span>
               max {max !== null ? max.toFixed(2) : '–'} {meta.unit}
             </span>
-            <span className="text-slate-200">
+            <span className="text-navy">
               last {lastValue !== null && lastValue !== undefined ? lastValue.toFixed(2) : '–'}{' '}
               {meta.unit}
             </span>
@@ -136,7 +136,7 @@ export const KpiCharts: React.FC<Props> = ({
             </span>
           </div>
           <svg
-            className="w-full h-40 bg-slate-950 rounded border border-slate-700"
+            className="w-full h-40 bg-bento-bg rounded border border-bento-border"
             viewBox="0 0 600 160"
             preserveAspectRatio="none"
             role="img"

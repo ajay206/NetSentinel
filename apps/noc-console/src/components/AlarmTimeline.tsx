@@ -99,12 +99,12 @@ export function AlarmTimeline({ data, isLoading, isError, rootSiteId }: AlarmTim
       >
         <defs>
           <linearGradient id="barGradientNorm" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#6DCFF6" />
-            <stop offset="100%" stopColor="#3BA8D4" />
+            <stop offset="0%" stopColor="#6DCFF6" stopOpacity="0.95" />
+            <stop offset="100%" stopColor="#3BA8D4" stopOpacity="0.85" />
           </linearGradient>
           <linearGradient id="barGradientPeak" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#EF4444" />
-            <stop offset="100%" stopColor="#F97316" />
+            <stop offset="0%" stopColor="#F87171" stopOpacity="1" />
+            <stop offset="100%" stopColor="#EF4444" stopOpacity="0.9" />
           </linearGradient>
         </defs>
 
@@ -136,7 +136,7 @@ export function AlarmTimeline({ data, isLoading, isError, rootSiteId }: AlarmTim
         {buckets.map((b, i) => {
           const cx = x0 + i * slotW + slotW / 2;
           let acc = 0;
-          const isPeak = i === peak.index;
+          const isPeak = Boolean(peak) && i === peak.index;
           const isSel = i === selectedIndex;
           return (
             <g
@@ -149,7 +149,7 @@ export function AlarmTimeline({ data, isLoading, isError, rootSiteId }: AlarmTim
               <title>{`${formatHHMM(b.start)} IST — ${b.total} alarms`}</title>
               <rect x={cx - slotW / 2} y={M.top} width={slotW} height={PLOT_H} fill="transparent" />
               {STACK.map((sev) => {
-                const c = b.bySeverity[sev] ?? 0;
+                const c = b.bySeverity?.[sev] ?? 0;
                 if (!c) return null;
                 const top = y(acc + c);
                 const h = y(acc) - top;

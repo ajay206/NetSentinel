@@ -52,19 +52,19 @@ export const KpiActivity: React.FC<Props> = ({ activity, status }) => {
         <>
           {/* Header tiles */}
           <div className="grid grid-cols-2 gap-2">
-            <div className="bg-slate-800 p-3 rounded shadow">
+            <div className="bg-bento-bg p-3 rounded shadow">
               <div className="text-xs text-gray-400">Samples / min</div>
               <div className="text-lg font-semibold">{activity.ratePerMin.toFixed(1)}</div>
             </div>
-            <div className="bg-slate-800 p-3 rounded shadow">
+            <div className="bg-bento-bg p-3 rounded shadow">
               <div className="text-xs text-gray-400">Total Samples</div>
               <div className="text-lg font-semibold">{activity.totalSamples}</div>
             </div>
-            <div className="bg-slate-800 p-3 rounded shadow">
+            <div className="bg-bento-bg p-3 rounded shadow">
               <div className="text-xs text-gray-400">Cells Reporting</div>
               <div className="text-lg font-semibold">{activity.cellsReporting}</div>
             </div>
-            <div className="bg-slate-800 p-3 rounded shadow">
+            <div className="bg-bento-bg p-3 rounded shadow">
               <div className="text-xs text-gray-400">Last Sample</div>
               <div className="text-lg font-semibold">
                 {activity.lastSampleTime ? formatIST(activity.lastSampleTime, { date: false }) : '—'}
@@ -87,7 +87,7 @@ export const KpiActivity: React.FC<Props> = ({ activity, status }) => {
                 const value = activity.averages[def.key] ?? 0;
                 const percent = Math.min((value / def.max) * 100, 100);
                 return (
-                  <div key={def.key} className="bg-slate-800 p-3 rounded">
+                  <div key={def.key} className="bg-bento-bg p-3 rounded">
                     <div className="flex justify-between items-center mb-1">
                       <span className="text-sm text-gray-400">{def.label}</span>
                       <span className="text-sm font-medium text-gray-200">{value.toFixed(1)} {def.unit}</span>

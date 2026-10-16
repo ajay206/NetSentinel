@@ -154,8 +154,10 @@ export function Tooltip({ content, children, side = 'top', delay = 150 }: Toolti
         position: 'fixed',
         top: pos?.top ?? -9999,
         left: pos?.left ?? -9999,
+        color: '#FFFFFF',
+        backgroundColor: '#09254A',
       }}
-      className="pointer-events-none z-[100] max-w-xs whitespace-normal rounded-md border border-deck-navy/20 bg-deck-navy px-2.5 py-1.5 text-left text-xs font-normal normal-case leading-snug tracking-normal text-white shadow-lg"
+      className="pointer-events-none z-[100] max-w-xs whitespace-normal rounded-lg border border-navy/40 bg-navy px-3 py-2 text-left text-xs font-semibold normal-case leading-snug tracking-normal text-white shadow-xl [&_*]:!text-white"
     >
       {content}
     </div>
@@ -184,7 +186,7 @@ export function Tip({
   return (
     <Tooltip content={tip} side={side}>
       <span
-        className={`cursor-help underline decoration-slate-600 decoration-dotted underline-offset-4 outline-none focus-visible:ring-2 focus-visible:ring-sky-500 ${className}`}
+        className={`cursor-help underline decoration-navy/40 decoration-dotted underline-offset-4 outline-none focus-visible:ring-2 focus-visible:ring-cyan-dark ${className}`}
       >
         {children}
       </span>
@@ -200,7 +202,7 @@ export function InfoIcon({ text, label }: { text: React.ReactNode; label?: strin
         type="button"
         aria-label={label ? `About ${label}` : 'More info'}
         data-testid="info-tip"
-        className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full border border-slate-600 text-[10px] font-semibold leading-none text-slate-400 hover:border-sky-500 hover:text-sky-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
+        className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full border border-navy/35 bg-white text-[10px] font-extrabold leading-none text-navy hover:border-cyan-dark hover:bg-cyan/15 hover:text-navy focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-dark"
       >
         i
       </button>

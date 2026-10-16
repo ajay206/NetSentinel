@@ -6,7 +6,7 @@ import { TIPS } from '../lib/tooltips';
 import type { AgentRun, AgentName } from '../types.agents';
 
 const agentColors: Record<AgentName, string> = {
-  supervisor: 'bg-slate-600 text-slate-100',
+  supervisor: 'bg-slate-300 text-navy',
   triage: 'bg-sky-900 text-sky-200',
   rca: 'bg-violet-900 text-violet-200',
   remediation: 'bg-amber-900 text-amber-200',
@@ -26,7 +26,7 @@ export const TraceView: React.FC<{ run?: AgentRun | null }> = ({ run }) => {
     return (
       <section data-testid="trace-view" className="flex h-full min-h-0 flex-col">
         {header}
-        <div className="text-sm text-slate-400">Start a run to see the agent trace.</div>
+        <div className="text-sm text-bento-muted">Start a run to see the agent trace.</div>
       </section>
     );
   }
@@ -55,7 +55,7 @@ export const TraceView: React.FC<{ run?: AgentRun | null }> = ({ run }) => {
         ))}
       </div>
 
-      <div className="mt-2 flex items-center gap-2 text-xs text-slate-400">
+      <div className="mt-2 flex items-center gap-2 text-xs text-bento-muted">
         <Tip tip="Number of agent steps so far and their total time, in milliseconds.">
           {stepsCount} steps · {totalDuration} ms
         </Tip>
@@ -82,17 +82,17 @@ export const TraceView: React.FC<{ run?: AgentRun | null }> = ({ run }) => {
                     {step.agent}
                   </span>
                 </Tooltip>
-                <span className="min-w-0 flex-1 truncate text-slate-200" title={step.name}>
+                <span className="min-w-0 flex-1 truncate text-navy" title={step.name}>
                   {step.name}
                 </span>
                 {!step.ok && <span className="text-xs font-medium text-red-400">failed</span>}
-                <span className="w-20 shrink-0 text-right font-mono text-xs tabular-nums text-slate-400">
+                <span className="w-20 shrink-0 text-right font-mono text-xs tabular-nums text-bento-muted">
                   {step.durationMs} ms
                 </span>
               </div>
 
               <div
-                className="h-1.5 overflow-hidden rounded bg-slate-800"
+                className="h-1.5 overflow-hidden rounded bg-bento-bg"
                 aria-label={`${AGENT_LABEL[step.agent] ?? step.agent}: ${step.durationMs} ms`}
               >
                 <div className="h-full rounded bg-sky-500" style={{ width: `${barWidth}%` }} />
@@ -105,7 +105,7 @@ export const TraceView: React.FC<{ run?: AgentRun | null }> = ({ run }) => {
                       <span
                         data-testid="trace-tool"
                         className={`max-w-full truncate rounded border px-1.5 py-0.5 font-mono text-[11px] ${
-                          tc.ok ? 'border-slate-700 text-slate-300' : 'border-red-700 text-red-300'
+                          tc.ok ? 'border-bento-border text-slate-600' : 'border-red-300 text-red-700'
                         }`}
                       >
                         {tc.name} · {tc.durationMs} ms
@@ -115,7 +115,7 @@ export const TraceView: React.FC<{ run?: AgentRun | null }> = ({ run }) => {
                 </div>
               )}
 
-              {step.detail && <p className="text-xs text-slate-400">{step.detail}</p>}
+              {step.detail && <p className="text-xs text-bento-muted">{step.detail}</p>}
             </li>
           );
         })}

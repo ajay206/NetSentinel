@@ -84,7 +84,7 @@ export const ChangePasswordDialog: React.FC<{
       <Card
         title="Change password"
         subtitle="Other sessions are signed out when the password changes."
-        className="w-full max-w-md text-slate-100"
+        className="w-full max-w-md text-navy"
       >
         <form className="space-y-4" onSubmit={handleSubmit} noValidate>
           <div>
@@ -97,7 +97,7 @@ export const ChangePasswordDialog: React.FC<{
               autoComplete="current-password"
               value={current}
               onChange={(e) => setCurrent(e.target.value)}
-              className="w-full rounded px-2 py-1 bg-slate-700 focus:outline-none"
+              className="w-full rounded px-2 py-1 bg-slate-200 focus:outline-none"
             />
           </div>
 
@@ -111,7 +111,7 @@ export const ChangePasswordDialog: React.FC<{
               autoComplete="new-password"
               value={newPw}
               onChange={(e) => setNewPw(e.target.value)}
-              className="w-full rounded px-2 py-1 bg-slate-700 focus:outline-none"
+              className="w-full rounded px-2 py-1 bg-slate-200 focus:outline-none"
             />
             <div data-testid="pw-strength" className="mt-2 flex items-center gap-2 text-xs">
               <div className="flex flex-1 gap-1" aria-hidden="true">
@@ -123,19 +123,19 @@ export const ChangePasswordDialog: React.FC<{
                         ? ['bg-red-500', 'bg-orange-500', 'bg-yellow-400', 'bg-emerald-500'][
                             strength - 1
                           ]
-                        : 'bg-slate-700'
+                        : 'bg-slate-200'
                     }`}
                   />
                 ))}
               </div>
-              <span className="w-16 text-right text-slate-300">{STRENGTH_LABELS[strength]}</span>
+              <span className="w-16 text-right text-slate-600">{STRENGTH_LABELS[strength]}</span>
             </div>
             {newPw && problems.length > 0 && (
               <ul
                 data-testid="pw-problems"
-                className="mt-1 text-xs text-amber-300 list-disc list-inside"
+                className="mt-1 text-xs text-amber-700 list-disc list-inside"
               >
-                <li className="list-none text-slate-400">Still needs:</li>
+                <li className="list-none text-bento-muted">Still needs:</li>
                 {problems.map((p) => (
                   <li key={p}>{p}</li>
                 ))}
@@ -153,7 +153,7 @@ export const ChangePasswordDialog: React.FC<{
               autoComplete="new-password"
               value={confirm}
               onChange={(e) => setConfirm(e.target.value)}
-              className="w-full rounded px-2 py-1 bg-slate-700 focus:outline-none"
+              className="w-full rounded px-2 py-1 bg-slate-200 focus:outline-none"
             />
             {confirm && !passwordsMatch && (
               <div className="mt-1 text-xs text-red-400">Passwords do not match</div>
@@ -178,7 +178,7 @@ export const ChangePasswordDialog: React.FC<{
             <button
               type="button"
               onClick={onClose}
-              className="px-3 py-1 rounded bg-slate-600 hover:bg-slate-500"
+              className="px-3 py-1 rounded bg-slate-300 hover:bg-slate-500"
             >
               Cancel
             </button>
@@ -188,7 +188,7 @@ export const ChangePasswordDialog: React.FC<{
               className={`px-3 py-1 rounded ${
                 canSubmit
                   ? 'bg-sky-600 hover:bg-sky-500 text-white'
-                  : 'bg-slate-700 text-slate-400 cursor-not-allowed'
+                  : 'bg-slate-200 text-bento-muted cursor-not-allowed'
               }`}
             >
               Change password

@@ -27,14 +27,14 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-950 px-4">
-      <div className="w-full max-w-md bg-slate-900 border border-slate-700 rounded-lg p-8">
-        <h1 className="text-2xl font-semibold text-slate-100 mb-6 text-center">
+    <div className="min-h-screen flex items-center justify-center bg-bento-bg px-4">
+      <div className="w-full max-w-md bg-white border border-bento-border rounded-lg p-8">
+        <h1 className="text-2xl font-semibold text-navy mb-6 text-center">
           NetSentinel NOC Console
         </h1>
         <form onSubmit={handleSubmit} className="space-y-4" noValidate>
           <div>
-            <label htmlFor="username" className="block text-sm font-medium text-slate-300 mb-1">
+            <label htmlFor="username" className="block text-sm font-medium text-slate-600 mb-1">
               Username
             </label>
             <input
@@ -42,7 +42,7 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              className="w-full bg-slate-800 border border-slate-600 rounded-md px-3 py-2 text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent"
+              className="w-full bg-bento-bg border border-bento-border rounded-md px-3 py-2 text-navy placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent"
               placeholder="Enter username"
               required
               autoComplete="username"
@@ -50,7 +50,7 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
             />
           </div>
           <div>
-            <label htmlFor="password" className="block text-sm font-medium text-slate-300 mb-1">
+            <label htmlFor="password" className="block text-sm font-medium text-slate-600 mb-1">
               Password
             </label>
             <input
@@ -58,7 +58,7 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full bg-slate-800 border border-slate-600 rounded-md px-3 py-2 text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent"
+              className="w-full bg-bento-bg border border-bento-border rounded-md px-3 py-2 text-navy placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent"
               placeholder="Enter password"
               required
               autoComplete="current-password"
@@ -81,7 +81,7 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
             {pending ? 'Signing in…' : 'Sign in'}
           </button>
         </form>
-        <p className="mt-6 text-xs text-slate-500 text-center">
+        <p className="mt-6 text-xs text-slate-600 text-center">
           Demo users: viewer / operator / admin (password = username). Synthetic data only.
         </p>
       </div>

@@ -22,10 +22,10 @@ export const Card: React.FC<CardProps> = ({
   testId,
 }) => (
   <section className={`${card} flex flex-col h-full min-h-0 ${className}`} data-testid={testId}>
-    <header className="px-1 pt-1 pb-2 flex items-start justify-between gap-3">
+    <header className="mb-1 flex items-start justify-between gap-3 border-b border-bento-border/80 pb-2">
       <div className="min-w-0">
         <div className="flex items-center gap-2">
-          <h2 className="text-[15px] font-bold font-display text-navy tracking-tight">{title}</h2>
+          <h2 className="text-[15px] font-extrabold font-display text-navy tracking-tight">{title}</h2>
           {info && <InfoTip text={info} label={title} />}
         </div>
         {subtitle && <p className="text-xs text-bento-muted mt-0.5">{subtitle}</p>}
@@ -114,10 +114,10 @@ export const CardHeader: React.FC<CardHeaderProps> = ({
   actions,
   as: Tag = 'h2',
 }) => (
-  <div className="mb-2 flex items-start justify-between gap-3">
+  <div className="mb-2 flex items-start justify-between gap-3 border-b border-bento-border/80 pb-2">
     <div className="min-w-0">
       <div className="flex items-center gap-2">
-        <Tag className="text-[15px] font-bold font-display text-navy tracking-tight">{title}</Tag>
+        <Tag className="text-[15px] font-extrabold font-display text-navy tracking-tight">{title}</Tag>
         {info && <InfoTip text={info} label={typeof title === 'string' ? title : undefined} />}
       </div>
       {subtitle && <p className="mt-0.5 text-xs text-bento-muted">{subtitle}</p>}
