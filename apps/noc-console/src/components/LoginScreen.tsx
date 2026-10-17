@@ -28,10 +28,13 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-bento-bg px-4">
-      <div className="w-full max-w-md bg-white border border-bento-border rounded-lg p-8">
-        <h1 className="text-2xl font-semibold text-navy mb-6 text-center">
+      <div className="w-full max-w-md bg-white border border-bento-border rounded-[var(--radius)] p-6 sm:p-8 shadow-sm">
+        <h1 className="text-2xl font-semibold text-navy text-center">
           NetSentinel NOC Console
         </h1>
+        <p className="mt-2 mb-6 text-sm text-bento-muted text-center">
+          Sign in to view network operations.
+        </p>
         <form onSubmit={handleSubmit} className="space-y-4" noValidate>
           <div>
             <label htmlFor="username" className="block text-sm font-medium text-slate-600 mb-1">
@@ -81,8 +84,9 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
             {pending ? 'Signing in…' : 'Sign in'}
           </button>
         </form>
-        <p className="mt-6 text-xs text-slate-600 text-center">
-          Demo users: viewer / operator / admin (password = username). Synthetic data only.
+        <p className="mt-6 text-xs leading-relaxed text-slate-600 text-center">
+          <span className="font-semibold text-navy">Demo accounts:</span> viewer, operator, or admin.
+          Use the account name as the password. Synthetic data only.
         </p>
       </div>
     </div>

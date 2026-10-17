@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import os
 from unittest.mock import AsyncMock
 
@@ -153,6 +154,36 @@ def test_websocket_multiple_clients() -> None:
                 msg2 = ws2.receive_json()
                 assert msg1["alarm"]["id"] == "test-alarm-2"
                 assert msg2["alarm"]["id"] == "test-alarm-2"
+
+
+async def test_alarm_broadcast_drops_slow_client_without_blocking_others(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A stalled WebSocket must not block delivery to healthy clients."""
+
+    class SlowClient:
+        async def send_text(self, message: str) -> None:
+            await asyncio.Event().wait()
+
+    class FastClient:
+        received: list[str]
+
+        def __init__(self) -> None:
+            self.received = []
+
+        async def send_text(self, message: str) -> None:
+            self.received.append(message)
+
+    monkeypatch.setattr(main, "WEBSOCKET_SEND_TIMEOUT", 0.01)
+    alarm_hub = main.AlarmHub()
+    slow, fast = SlowClient(), FastClient()
+    alarm_hub.clients.update((slow, fast))
+
+    await asyncio.wait_for(alarm_hub.publish({"id": "test"}), timeout=0.5)
+
+    assert len(fast.received) == 1
+    assert slow not in alarm_hub.clients
+    assert fast in alarm_hub.clients
 
 
 def test_recent_alarms_after_publish() -> None:

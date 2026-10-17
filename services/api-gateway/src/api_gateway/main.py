@@ -112,14 +112,19 @@ class AlarmHub:
         """Broadcast alarm to all connected clients."""
         self.recent.append(alarm)
         message = json.dumps({"type": self.message_type, "alarm": alarm}, default=str)
-        dead_clients: list[WebSocket] = []
-        for client in self.clients:
+        clients = tuple(self.clients)
+
+        async def send(client: WebSocket) -> bool:
             try:
-                await client.send_text(message)
+                await asyncio.wait_for(client.send_text(message), timeout=WEBSOCKET_SEND_TIMEOUT)
+                return True
             except Exception:
-                dead_clients.append(client)
-        for client in dead_clients:
-            self.disconnect(client)
+                return False
+
+        results = await asyncio.gather(*(send(client) for client in clients))
+        for client, sent in zip(clients, results, strict=True):
+            if not sent:
+                self.disconnect(client)
 
     def get_snapshot(self) -> list[dict[str, Any]]:
         """Return recent alarms as list."""
@@ -130,6 +135,7 @@ hub = AlarmHub()
 enriched_hub = AlarmHub(message_type="enriched")
 # W11: slim (time, severity) history for the storm timeline; longer than the 200-alarm buffer
 timeline_events: deque[dict[str, Any]] = deque(maxlen=5000)
+WEBSOCKET_SEND_TIMEOUT = float(os.getenv("WEBSOCKET_SEND_TIMEOUT", "2"))
 
 
 class KpiActivity:
