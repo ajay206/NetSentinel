@@ -415,6 +415,7 @@ export const App: React.FC<AppProps> = ({
                 <>
                   <PageHeading title="Investigation workspace" description="Review repair guidance and AI-assisted analysis. Operator actions still require an authorized human decision." />
                   <RunbooksPanel
+                    compact
                     alarmLabel={selected ? `${selected.specificProblem} @ ${selected.siteId}` : null}
                     hits={runbookSearch.data?.results}
                     isLoading={runbookQuery !== null && runbookSearch.isLoading}

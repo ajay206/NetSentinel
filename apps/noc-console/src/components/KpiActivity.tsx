@@ -43,35 +43,35 @@ export const KpiActivity: React.FC<Props> = ({ activity, status }) => {
   }[status];
 
   return (
-    <div className="space-y-6">
-      <div role="status" className="flex items-center gap-2 text-sm text-slate-600 mb-2">
+    <div className="space-y-4">
+      <div role="status" className="flex items-center gap-2 text-xs text-slate-600">
         <span className={`w-2 h-2 rounded-full ${statusColor}`} />
         {statusLabel}
       </div>
 
       {!activity ? (
-        <div className="flex flex-col items-center justify-center p-8 text-center text-slate-600 border border-dashed rounded-md">
-          <p className="text-lg font-medium">no data — run <code className="bg-bento-bg px-1 py-0.5 rounded">make kpis</code></p>
+        <div className="flex flex-col items-center justify-center p-5 text-center text-slate-600 border border-dashed rounded-md">
+          <p className="text-sm font-medium">No data — run <code className="bg-bento-bg px-1 py-0.5 rounded">make kpis</code></p>
         </div>
       ) : (
         <>
           {/* Header tiles */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="rounded-xl bg-bento-bg p-4 shadow">
+          <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+            <div className="rounded-lg bg-bento-bg p-3">
               <div className="text-xs text-slate-600">Samples per minute</div>
-              <div className="text-lg font-semibold">{activity.ratePerMin.toFixed(1)}</div>
+              <div className="text-base font-semibold">{activity.ratePerMin.toFixed(1)}</div>
             </div>
-            <div className="rounded-xl bg-bento-bg p-4 shadow">
+            <div className="rounded-lg bg-bento-bg p-3">
               <div className="text-xs text-slate-600">Samples received</div>
-              <div className="text-lg font-semibold">{activity.totalSamples}</div>
+              <div className="text-base font-semibold">{activity.totalSamples}</div>
             </div>
-            <div className="rounded-xl bg-bento-bg p-4 shadow">
+            <div className="rounded-lg bg-bento-bg p-3">
               <div className="text-xs text-slate-600">Cells sending data</div>
-              <div className="text-lg font-semibold">{activity.cellsReporting}</div>
+              <div className="text-base font-semibold">{activity.cellsReporting}</div>
             </div>
-            <div className="rounded-xl bg-bento-bg p-4 shadow">
+            <div className="rounded-lg bg-bento-bg p-3">
               <div className="text-xs text-slate-600">Most recent sample</div>
-              <div className="text-lg font-semibold">
+              <div className="text-base font-semibold">
                 {activity.lastSampleTime ? formatIST(activity.lastSampleTime, { date: false }) : '—'}
               </div>
               {stale && (
@@ -88,19 +88,19 @@ export const KpiActivity: React.FC<Props> = ({ activity, status }) => {
           </div>
 
           {/* KPI averages */}
-          <div className="space-y-4">
-            <h3 className="font-display text-sm font-extrabold uppercase tracking-wider text-navy/70">Network Averages</h3>
-            <div className="space-y-3">
+          <div className="space-y-2">
+            <h3 className="font-display text-xs font-extrabold uppercase tracking-wider text-navy/70">Network Averages</h3>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-5">
               {KPI_DEFINITIONS.map(def => {
                 const value = activity.averages[def.key] ?? 0;
                 const percent = Math.min((value / def.max) * 100, 100);
                 return (
-                  <div key={def.key} className="rounded-xl bg-bento-bg p-4">
-                    <div className="mb-2 flex items-baseline justify-between gap-3">
-                      <span className="text-sm text-slate-600">{def.label}</span>
-                      <span className="text-sm font-medium text-navy font-bold tabular-nums">{value.toFixed(1)} {def.unit}</span>
+                  <div key={def.key} className="rounded-lg bg-bento-bg p-3">
+                    <div className="mb-1.5 flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5">
+                      <span className="text-xs text-slate-600">{def.label}</span>
+                      <span className="text-sm font-bold text-navy tabular-nums">{value.toFixed(1)} {def.unit}</span>
                     </div>
-                    <div className="h-1.5 w-full rounded-full bg-slate-200">
+                    <div className="h-1 w-full rounded-full bg-slate-200">
                       <div
                         className="h-full bg-emerald-500 rounded"
                         style={{ width: `${percent}%` }}

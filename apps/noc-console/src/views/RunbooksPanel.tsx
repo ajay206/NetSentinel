@@ -17,6 +17,8 @@ interface RunbooksPanelProps {
   onClosePreview?: () => void;
   /** Step 15: retrieval mode reported by rag-service ("graph" = Graph RAG). */
   mode?: string | null;
+  /** Use denser result rows when the panel is part of a multi-section workspace. */
+  compact?: boolean;
 }
 
 /** W8: top-3 runbooks for the selected alarm (hybrid BM25 + vector search in rag-service). */
@@ -31,6 +33,7 @@ export const RunbooksPanel: React.FC<RunbooksPanelProps> = ({
   docLoading = false,
   onClosePreview,
   mode = null,
+  compact = false,
 }) => {
   let body: React.ReactNode;
   if (!alarmLabel) {
@@ -43,7 +46,7 @@ export const RunbooksPanel: React.FC<RunbooksPanelProps> = ({
     body = <p className="text-bento-muted text-sm">No matching runbooks</p>;
   } else {
     body = (
-      <ol className="space-y-2">
+      <ol className={compact ? 'space-y-1.5' : 'space-y-2'}>
         {hits.slice(0, 3).map((hit) => {
           const selected = selectedId === hit.runbookId;
           return (
@@ -53,7 +56,7 @@ export const RunbooksPanel: React.FC<RunbooksPanelProps> = ({
                 data-testid="runbook-hit"
                 onClick={() => onSelect?.(hit.runbookId)}
                 aria-pressed={selected}
-                className={`w-full text-left p-3 rounded-lg border transition-colors ${
+                className={`w-full text-left ${compact ? 'p-2' : 'p-3'} rounded-lg border transition-colors ${
                   selected
                     ? 'bg-slate-200 border-sky-500'
                     : 'bg-bento-bg border-bento-border hover:bg-slate-200'
@@ -65,8 +68,8 @@ export const RunbooksPanel: React.FC<RunbooksPanelProps> = ({
                     <div className="text-xs text-slate-500 mt-0.5">
                       <span className="font-mono">{hit.runbookId}</span> · {hit.section}
                     </div>
-                    <div className="text-sm text-bento-muted line-clamp-2 mt-1">{hit.snippet}</div>
-                    <NodeChips ids={hit.nodeIds} />
+                    <div className={`text-sm text-bento-muted ${compact ? 'line-clamp-1 mt-0.5' : 'line-clamp-2 mt-1'}`}>{hit.snippet}</div>
+                    {!compact && <NodeChips ids={hit.nodeIds} />}
                   </div>
                   <div className="flex flex-col items-end gap-1 flex-shrink-0">
                     <span className="text-xs font-mono text-slate-600 bg-slate-200 px-2 py-0.5 rounded">
@@ -86,11 +89,11 @@ export const RunbooksPanel: React.FC<RunbooksPanelProps> = ({
   }
 
   return (
-    <div className="ns-card" data-testid="runbooks-panel">
+    <div className={`ns-card ${compact ? 'p-3 sm:p-4 lg:p-4' : ''}`} data-testid="runbooks-panel">
       <CardHeader
         as="h3"
         title="Suggested runbooks"
-        subtitle="Repair procedures that match the selected alarm."
+        subtitle={compact ? undefined : 'Repair procedures that match the selected alarm.'}
         info={TIPS.panelRunbooks}
         actions={
           <span className="flex min-w-0 flex-wrap items-center gap-2">
