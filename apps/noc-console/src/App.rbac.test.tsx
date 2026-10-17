@@ -144,7 +144,12 @@ function renderAs(role: Role) {
 }
 
 async function selectIncident() {
+  fireEvent.click(screen.getByRole('button', { name: /Overview:/ }));
   fireEvent.click(await screen.findByTestId(`incident-${INC.id}`));
+}
+
+function openInvestigation() {
+  fireEvent.click(screen.getByRole('button', { name: /Investigation:/ }));
 }
 
 describe('role-specific dashboards (Step 13b)', () => {
@@ -161,6 +166,7 @@ describe('role-specific dashboards (Step 13b)', () => {
 
   it('operator: copilot and incident actions, still no admin tab', async () => {
     renderAs('operator');
+    openInvestigation();
     expect(screen.getByRole('heading', { name: 'Copilot analyze' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Admin' })).toBeNull();
     await selectIncident();
@@ -210,6 +216,7 @@ describe('approval queue (Step 16)', () => {
 
   it('viewer sees the queue read-only', async () => {
     renderAs('viewer');
+    fireEvent.click(screen.getByRole('button', { name: /Alarms:/ }));
     fireEvent.click(await screen.findByTestId('ticket-row'));
     expect(screen.getByRole('button', { name: 'Approve' })).toBeDisabled();
   });
@@ -218,9 +225,13 @@ describe('approval queue (Step 16)', () => {
 describe('multi-agent copilot (Step 17)', () => {
   it('operator approves the agents plan; RCA graph shows the agent path', async () => {
     renderAs('operator');
-    const box = await screen.findByTestId('approval-box');
+    openInvestigation();
+    await screen.findByTestId('approval-box');
+    fireEvent.click(screen.getByRole('button', { name: /Network:/ }));
     expect(screen.getByTestId('rca-agent-path')).toHaveTextContent('triage');
-    fireEvent.click(within(box).getByRole('button', { name: 'Approve plan' }));
+    fireEvent.click(screen.getByRole('button', { name: /Investigation:/ }));
+    const investigationBox = await screen.findByTestId('approval-box');
+    fireEvent.click(within(investigationBox).getByRole('button', { name: 'Approve plan' }));
     await waitFor(() =>
       expect(globalThis.fetch).toHaveBeenCalledWith(
         `/api/copilot/runs/${RUN.runId}/approval`,
@@ -231,6 +242,7 @@ describe('multi-agent copilot (Step 17)', () => {
 
   it('viewer reads the trace but cannot approve', async () => {
     renderAs('viewer');
+    openInvestigation();
     await screen.findByTestId('approval-box');
     expect(screen.getByRole('button', { name: 'Approve plan' })).toBeDisabled();
   });

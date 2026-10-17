@@ -46,6 +46,14 @@ describe('Header (W11)', () => {
     expect(screen.queryByRole('menu')).toBeNull();
   });
 
+  it('keeps the header pinned and gives the admin badge strong contrast', () => {
+    const { container } = render(
+      <Header wsStatus="open" user={{ username: 'admin', role: 'admin' }} />,
+    );
+    expect(container.querySelector('header')).toHaveClass('sticky', 'top-0');
+    expect(screen.getByTestId('role-badge')).toHaveClass('bg-amber-300');
+  });
+
   it('shows dashboard tabs only when more than one view is offered', () => {
     const onSelectView = vi.fn();
     const { rerender } = render(

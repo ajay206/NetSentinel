@@ -14,11 +14,11 @@ const KPI_DEFINITIONS: {
   unit: string;
   max: number;
 }[] = [
-  { key: 'dlThroughputMbps', label: 'DL Throughput', unit: 'Mbps', max: 1000 },
-  { key: 'prbUtilPct', label: 'PRB Utilisation', unit: '%', max: 100 },
-  { key: 'rrcSetupSuccessPct', label: 'RRC Setup Success', unit: '%', max: 100 },
-  { key: 'dropCallRatePct', label: 'Drop Call Rate', unit: '%', max: 100 },
-  { key: 'availabilityPct', label: 'Availability', unit: '%', max: 100 },
+  { key: 'dlThroughputMbps', label: 'Download speed', unit: 'Mbps', max: 1000 },
+  { key: 'prbUtilPct', label: 'Radio capacity in use (PRB)', unit: '%', max: 100 },
+  { key: 'rrcSetupSuccessPct', label: 'Successful connection setup (RRC)', unit: '%', max: 100 },
+  { key: 'dropCallRatePct', label: 'Dropped calls', unit: '%', max: 100 },
+  { key: 'availabilityPct', label: 'Network availability', unit: '%', max: 100 },
 ];
 
 function isStale(timestamp: string | null): boolean {
@@ -58,19 +58,19 @@ export const KpiActivity: React.FC<Props> = ({ activity, status }) => {
           {/* Header tiles */}
           <div className="grid grid-cols-2 gap-4">
             <div className="rounded-xl bg-bento-bg p-4 shadow">
-              <div className="text-xs text-slate-600">Samples / min</div>
+              <div className="text-xs text-slate-600">Samples per minute</div>
               <div className="text-lg font-semibold">{activity.ratePerMin.toFixed(1)}</div>
             </div>
             <div className="rounded-xl bg-bento-bg p-4 shadow">
-              <div className="text-xs text-slate-600">Total Samples</div>
+              <div className="text-xs text-slate-600">Samples received</div>
               <div className="text-lg font-semibold">{activity.totalSamples}</div>
             </div>
             <div className="rounded-xl bg-bento-bg p-4 shadow">
-              <div className="text-xs text-slate-600">Cells Reporting</div>
+              <div className="text-xs text-slate-600">Cells sending data</div>
               <div className="text-lg font-semibold">{activity.cellsReporting}</div>
             </div>
             <div className="rounded-xl bg-bento-bg p-4 shadow">
-              <div className="text-xs text-slate-600">Last Sample</div>
+              <div className="text-xs text-slate-600">Most recent sample</div>
               <div className="text-lg font-semibold">
                 {activity.lastSampleTime ? formatIST(activity.lastSampleTime, { date: false }) : '—'}
               </div>

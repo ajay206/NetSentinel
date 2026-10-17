@@ -40,7 +40,7 @@ describe('AnomaliesPanel', () => {
 
   it('shows error message', () => {
     render(<AnomaliesPanel {...baseProps} data={undefined} isLoading={false} isError={true} />);
-    expect(screen.getByText(/ml-service unreachable/i)).toBeInTheDocument();
+    expect(screen.getByText(/Performance analysis is unavailable/i)).toBeInTheDocument();
   });
 
   it('displays count badge', () => {

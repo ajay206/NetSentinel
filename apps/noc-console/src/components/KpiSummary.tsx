@@ -41,10 +41,10 @@ export const KpiSummary: React.FC<KpiSummaryProps> = ({
   const tiles: Tile[] = [
     {
       testId: 'kpi-incidents',
-      label: 'Open Incidents',
-      tip: 'The incident service groups alarms that are close in time and in the network.',
+      label: 'Open incidents',
+      tip: 'Related alarms are grouped into one incident so an operator can review the cause and impact together.',
       value: openIncidents,
-      sub: 'awaiting triage',
+      sub: 'awaiting operator review',
       tint: 'bg-[#E8F7FC]',
       accent: 'border-l-[#3BA8D4]',
       iconBg: 'bg-[#3BA8D4]/15 text-[#0E6A94]',
@@ -52,13 +52,13 @@ export const KpiSummary: React.FC<KpiSummaryProps> = ({
     },
     {
       testId: 'kpi-compression',
-      label: 'Alarm Compression',
-      tip: 'How many alarms each incident replaces. Higher means less noise for the operator.',
+      label: 'Alarms grouped',
+      tip: 'Shows how many related alarms are grouped into each incident. Grouping helps reduce duplicate alerts.',
       value:
         compressionRatio != null && Number.isFinite(compressionRatio)
           ? `${compressionRatio.toFixed(1)}×`
           : '—',
-      sub: 'noise reduced',
+      sub: 'alarms per incident',
       tint: 'bg-[#F3EEFF]',
       accent: 'border-l-[#7C3AED]',
       iconBg: 'bg-[#7C3AED]/15 text-[#5B21B6]',
@@ -66,10 +66,10 @@ export const KpiSummary: React.FC<KpiSummaryProps> = ({
     },
     {
       testId: 'kpi-anomalies',
-      label: 'KPI Anomalies',
-      tip: 'Cells whose KPIs moved far from their learned baseline in the last 24 hours.',
+      label: 'Unusual readings',
+      tip: 'Cells where a network performance measurement moved outside its expected range.',
       value: anomalies,
-      sub: 'last 15 min',
+      sub: 'cells outside normal range',
       tint: 'bg-[#FFECE8]',
       accent: 'border-l-[#F97316]',
       iconBg: 'bg-[#F97316]/15 text-[#C2410C]',
@@ -77,12 +77,12 @@ export const KpiSummary: React.FC<KpiSummaryProps> = ({
     },
     {
       testId: 'kpi-services',
-      label: 'Services Healthy',
+      label: 'Services online',
       tip: 'Backend services reporting healthy to the API gateway.',
       value: `${servicesUp}/${servicesTotal}`,
       sub: (
         <span className={`font-bold ${healthUnknown ? 'text-bento-muted' : allUp ? 'text-emerald-700' : 'text-amber-700'}`}>
-          {healthUnknown ? 'Waiting for health' : allUp ? 'all green' : 'check health'}
+          {healthUnknown ? 'Checking services' : allUp ? 'All services reporting' : 'Some need attention'}
         </span>
       ),
       tint: 'bg-[#E6F7F4]',
@@ -103,7 +103,7 @@ export const KpiSummary: React.FC<KpiSummaryProps> = ({
         <div>
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold uppercase tracking-wider text-white/80">
-              Active Alarms
+              Alarms needing attention
             </span>
             <InfoTip text="Alarms in the live feed that are not cleared yet." />
           </div>
@@ -118,7 +118,7 @@ export const KpiSummary: React.FC<KpiSummaryProps> = ({
         </div>
         {activeAlarms > 0 ? (
           <div className="inline-flex self-start mt-3 rounded-full bg-cyan/25 border border-cyan/50 px-3 py-1 text-xs font-bold text-white z-10">
-            Alarm storm in progress
+            Active alarms need review
           </div>
         ) : (
           <div className="inline-flex self-start mt-3 rounded-full bg-white/10 border border-white/25 px-3 py-1 text-xs font-bold text-white/85 z-10">

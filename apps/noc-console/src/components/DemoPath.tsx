@@ -1,65 +1,57 @@
 import React from 'react';
-import { TIPS } from '../lib/tooltips';
 import { InfoTip } from './ui/Card';
-import type { DemoStage } from '../lib/demoPath';
 
 interface DemoPathProps {
-  stages: DemoStage[];
-  hint?: string;
+  activePage: ConsolePage;
+  onNavigate: (page: ConsolePage) => void;
 }
 
-export const DemoPath: React.FC<DemoPathProps> = ({ stages, hint }) => {
-  const firstPendingIndex = stages.findIndex((s) => !s.done);
-  const allDone = firstPendingIndex === -1;
+export type ConsolePage = 'overview' | 'alarms' | 'network' | 'performance' | 'investigation';
 
-  const defaultHints: Record<DemoStage['id'], string> = {
-    alarms: 'Run make demo (or make sim) to start fibre_cut',
-    anomaly: 'Waiting for ml-service anomalies',
-    fault: 'Click a root alarm to classify it',
-    runbooks: 'Runbooks appear for the selected alarm',
-    copilot: 'Press Analyze site (operator role)',
-  };
+const pages: { id: ConsolePage; label: string; description: string }[] = [
+  { id: 'overview', label: 'Overview', description: 'Network status and incidents' },
+  { id: 'alarms', label: 'Alarms', description: 'Live alarms and ticket approvals' },
+  { id: 'network', label: 'Network', description: 'Topology and service impact' },
+  { id: 'performance', label: 'Performance', description: 'KPI trends and anomalies' },
+  { id: 'investigation', label: 'Investigation', description: 'Runbooks and AI assistance' },
+];
 
-  const currentHint = allDone ? undefined : (hint ?? defaultHints[stages[firstPendingIndex].id]);
+export const DemoPath: React.FC<DemoPathProps> = ({ activePage, onNavigate }) => {
 
   return (
-    <div className="rounded-[20px] bg-white p-4 sm:p-5 lg:px-6 shadow-sm border border-bento-border flex flex-wrap items-center gap-3 lg:gap-4">
-      <div className="flex items-center gap-2 mr-2">
-        <span className="text-[11px] font-extrabold uppercase tracking-wider text-bento-muted whitespace-nowrap">
-          Demo path
-        </span>
-        <InfoTip text={TIPS.panelDemoPath} label="Demo path (fibre_cut)" />
+    <nav aria-label="Console pages" className="rounded-[20px] bg-white p-4 sm:p-5 lg:px-6 shadow-sm border border-bento-border">
+      <div className="mb-3 flex items-center gap-2">
+        <h2 className="text-xs font-extrabold uppercase tracking-wider text-bento-muted">Console pages</h2>
+        <InfoTip text="Choose a page to focus on a specific part of network operations." label="console pages" />
       </div>
 
-      <div className="flex-1 flex flex-wrap items-center gap-2 min-w-[280px]">
-        {stages.map((stage, idx) => {
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-5">
+        {pages.map((page) => {
+          const selected = activePage === page.id;
           return (
-            <div
-              key={stage.id}
-              data-testid={`stage-${stage.id}`}
-              data-done={stage.done ? 'true' : 'false'}
-              className={`flex-1 flex items-center gap-2 text-xs font-bold px-3 py-2 rounded-xl transition-colors min-w-[110px] ${
-                stage.done ? 'bg-cyan/28 text-navy' : 'bg-bento-bg text-navy'
+            <button
+              key={page.id}
+              type="button"
+              aria-current={selected ? 'page' : undefined}
+              aria-label={`${page.label}: ${page.description}`}
+              onClick={() => onNavigate(page.id)}
+              className={`flex min-h-[58px] items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 ${
+                selected
+                  ? 'border-navy bg-navy text-white shadow-sm'
+                  : 'border-bento-border bg-bento-bg text-navy hover:border-slate-300 hover:bg-slate-100'
               }`}
             >
-              <span className="w-5 h-5 rounded-lg bg-navy text-white text-[11px] font-extrabold flex items-center justify-center shrink-0">
-                {idx + 1}
+              <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg text-xs font-extrabold ${selected ? 'bg-white/15 text-white' : 'bg-white text-navy'}`}>
+                {pages.indexOf(page) + 1}
               </span>
-              <span className="truncate" title={stage.label}>{stage.label}</span>
-            </div>
+              <span className="min-w-0">
+                <span className="block truncate text-sm font-bold">{page.label}</span>
+                <span className={`hidden truncate text-[11px] sm:block ${selected ? 'text-white/75' : 'text-bento-muted'}`}>{page.description}</span>
+              </span>
+            </button>
           );
         })}
       </div>
-
-      {allDone ? (
-        <span role="status" className="text-xs font-bold text-emerald-700 bg-emerald-100 px-3 py-1 rounded-full ml-auto">
-          Phase 1 demo complete
-        </span>
-      ) : currentHint ? (
-        <span className="text-xs italic text-bento-muted ml-auto hidden lg:inline-block">
-          {currentHint}
-        </span>
-      ) : null}
-    </div>
+    </nav>
   );
 };

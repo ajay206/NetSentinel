@@ -34,9 +34,9 @@ export const KPI_META: Record<
   KpiName,
   { label: string; unit: string }
 > = {
-  dlThroughputMbps: { label: 'DL Throughput', unit: 'Mbps' },
-  prbUtilPct: { label: 'PRB Utilisation', unit: '%' },
-  rrcSetupSuccessPct: { label: 'RRC Setup Success', unit: '%' },
-  dropCallRatePct: { label: 'Drop Call Rate', unit: '%' },
-  availabilityPct: { label: 'Availability', unit: '%' },
+  dlThroughputMbps: { label: 'Download speed', unit: 'Mbps' },
+  prbUtilPct: { label: 'Radio capacity in use (PRB)', unit: '%' },
+  rrcSetupSuccessPct: { label: 'Successful connection setup (RRC)', unit: '%' },
+  dropCallRatePct: { label: 'Dropped calls', unit: '%' },
+  availabilityPct: { label: 'Network availability', unit: '%' },
 };

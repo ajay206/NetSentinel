@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import App from './App';
 import type { Topology } from './types';
@@ -97,15 +97,14 @@ describe('App', () => {
     // static headings
     expect(screen.getByText('NetSentinel')).toBeInTheDocument();
     expect(screen.getByText('NOC Console')).toBeInTheDocument();
-    const sectionNav = screen.getByRole('navigation', { name: 'Console sections' });
-    expect(sectionNav.querySelectorAll('a')).toHaveLength(4);
-    expect(sectionNav).toHaveTextContent('OverviewAlarmsNetworkAnalysis');
+    expect(screen.getByRole('navigation', { name: 'Console pages' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Operations overview' })).toBeInTheDocument();
 
-    // wait for network map heading
-    expect(await screen.findByRole('heading', { name: /Network map/i })).toBeInTheDocument();
-
-    // KPI activity heading
-    expect(screen.getByRole('heading', { name: /KPI activity/i })).toBeInTheDocument();
+    // Pages focus the console on one task at a time.
+    fireEvent.click(screen.getByRole('button', { name: /Network:/ }));
+    expect(await screen.findByRole('heading', { name: /Network map and impact/i })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Network map' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Operations overview' })).not.toBeInTheDocument();
 
     // Header clock and other timestamps carry the IST label
     await waitFor(() => expect(screen.getAllByText(/IST/).length).toBeGreaterThan(0));
@@ -113,7 +112,7 @@ describe('App', () => {
     expect(document.querySelector('[data-site-id="SITE-001"]')).toBeInTheDocument();
     // Fix 1 (14): runbooks live in the alarm detail drawer, which opens only on alarm click
     expect(screen.queryByTestId('alarm-drawer')).not.toBeInTheDocument();
-    // W9: copilot panel replaces the placeholder
+    fireEvent.click(screen.getByRole('button', { name: /Investigation:/ }));
     expect(screen.getByRole('heading', { name: 'Copilot analyze' })).toBeInTheDocument();
   });
 });

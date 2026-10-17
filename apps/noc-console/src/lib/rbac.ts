@@ -29,7 +29,7 @@ export function can(role: Role | undefined | null, permission: Permission): bool
 export const ROLE_STYLE: Record<Role, string> = {
   viewer: 'bg-bento-bg text-navy ring-1 ring-bento-border',
   operator: 'bg-sky-500/15 text-sky-700 ring-1 ring-sky-500/40',
-  admin: 'bg-violet-500/15 text-violet-700 ring-1 ring-violet-500/40',
+  admin: 'bg-amber-300 text-[#442900] ring-2 ring-amber-500/70 shadow-sm',
 };
 
 export const ROLE_BLURB: Record<Role, string> = {
