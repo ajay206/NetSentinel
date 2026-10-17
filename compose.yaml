@@ -13,7 +13,7 @@ services:
     # Also in every profile whose services depend on it, so any profile combination is valid.
     profiles: ["core", "ui", "pipeline", "sim", "ops"]
     ports:
-      - "9092:9092"
+      - "127.0.0.1:9092:9092"
     environment:
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: broker,controller
@@ -42,7 +42,7 @@ services:
     # ui: the gateway keeps users + audit_log here (13b); ops: ticket-service tables (W16)
     profiles: ["core", "pipeline", "ui", "ops"]
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     environment:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set in .env}
     mem_limit: 512m
@@ -57,7 +57,7 @@ services:
     image: ghcr.io/kafbat/kafka-ui:v1.3.0
     profiles: ["tools"]
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8080:8080"
     environment:
       KAFKA_CLUSTERS_0_NAME: netsentinel-dev
       KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
@@ -68,7 +68,7 @@ services:
       dockerfile: services/api-gateway/Dockerfile
     profiles: ["ui"]
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     environment:
       KAFKA_BOOTSTRAP: kafka:29092
       ALARM_TOPIC: alarms.raw
@@ -123,7 +123,7 @@ services:
       context: apps/noc-console
     profiles: ["ui"]
     ports:
-      - "5173:80"
+      - "127.0.0.1:5173:80"
     mem_limit: 64m
     depends_on:
       api-gateway:
@@ -136,7 +136,7 @@ services:
       dockerfile: services/alarm-ingest/Dockerfile
     profiles: ["pipeline"]
     ports:
-      - "8001:8001"
+      - "127.0.0.1:8001:8001"
     environment:
       KAFKA_BOOTSTRAP: kafka:29092
       RAW_TOPIC: alarms.raw
@@ -159,7 +159,7 @@ services:
       dockerfile: services/incident-service/Dockerfile
     profiles: ["ops"]
     ports:
-      - "8007:8007"
+      - "127.0.0.1:8007:8007"
     environment:
       KAFKA_BOOTSTRAP: kafka:29092
       ENRICHED_TOPIC: alarms.enriched
@@ -233,7 +233,7 @@ services:
       dockerfile: services/topology-service/Dockerfile
     profiles: ["graph"]
     ports:
-      - "8008:8008"
+      - "127.0.0.1:8008:8008"
     environment:
       GRAPH_BACKEND: neo4j
       NEO4J_URI: bolt://neo4j:7687
@@ -264,7 +264,7 @@ services:
       dockerfile: services/kpi-service/Dockerfile
     profiles: ["pipeline"]
     ports:
-      - "8002:8002"
+      - "127.0.0.1:8002:8002"
     environment:
       KAFKA_BOOTSTRAP: kafka:29092
       KPI_TOPIC: kpis
@@ -290,7 +290,7 @@ services:
       dockerfile: services/ml-service/Dockerfile
     profiles: ["pipeline"]
     ports:
-      - "8003:8003"
+      - "127.0.0.1:8003:8003"
     environment:
       KPI_SERVICE_URL: http://kpi-service:8002
       ANOMALY_Z: "3.5"
@@ -319,7 +319,7 @@ services:
     image: qdrant/qdrant:v1.12.4
     profiles: ["rag"]
     ports:
-      - "6333:6333"
+      - "127.0.0.1:6333:6333"
     volumes:
       - qdrant-data:/qdrant/storage
     mem_limit: 384m
@@ -331,7 +331,7 @@ services:
       dockerfile: services/rag-service/Dockerfile
     profiles: ["rag"]
     ports:
-      - "8004:8004"
+      - "127.0.0.1:8004:8004"
     environment:
       QDRANT_URL: http://qdrant:6333
       RUNBOOKS_DIR: /app/data/runbooks
@@ -357,7 +357,7 @@ services:
       dockerfile: services/copilot-orchestrator/Dockerfile
     profiles: ["copilot"]
     ports:
-      - "8005:8005"
+      - "127.0.0.1:8005:8005"
     environment:
       GATEWAY_URL: http://api-gateway:8000
       GATEWAY_SERVICE_TOKEN: ${GATEWAY_SERVICE_TOKEN:-dev-only-service-token}
