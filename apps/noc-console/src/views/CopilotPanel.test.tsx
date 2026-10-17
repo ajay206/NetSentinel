@@ -91,6 +91,30 @@ describe("CopilotPanel", () => {
     expect(screen.getByLabelText("Site id")).toHaveValue("SITE-042");
   });
 
+  it("offers topology sites and enables analysis for the default site", () => {
+    const onAnalyze = vi.fn();
+    render(
+      <CopilotPanel
+        onAnalyze={onAnalyze}
+        defaultSiteId="SITE-010"
+        sites={[
+          { siteId: "SITE-001", name: "North Core" },
+          { siteId: "SITE-010", name: "Central Hub" },
+        ]}
+      />,
+    );
+
+    const site = screen.getByLabelText("Site id");
+    const button = screen.getByRole("button", { name: "Analyze site" });
+    expect(site).toHaveValue("SITE-010");
+    expect(screen.getByRole("option", { name: "SITE-001 · North Core" })).toBeInTheDocument();
+    expect(button).toBeEnabled();
+
+    fireEvent.change(site, { target: { value: "SITE-001" } });
+    fireEvent.click(button);
+    expect(onAnalyze).toHaveBeenCalledWith("SITE-001", "30m");
+  });
+
   it("renders cause, cited evidence and runbook steps", () => {
     const onOpen = vi.fn();
     render(

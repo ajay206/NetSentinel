@@ -392,7 +392,8 @@ export const App: React.FC<AppProps> = ({
                     <div className="ns-card lg:col-span-5 lg:h-[640px]"><TraceView run={run} /></div>
                   </div>
                   <CopilotPanel
-                    defaultSiteId={selected?.siteId ?? null}
+                    defaultSiteId={selected?.siteId ?? topology?.sites?.[0]?.siteId ?? null}
+                    sites={topology?.sites ?? []}
                     onAnalyze={(siteId, window) => copilot.mutate({ siteId, window })}
                     result={copilot.data}
                     isPending={copilot.isPending}

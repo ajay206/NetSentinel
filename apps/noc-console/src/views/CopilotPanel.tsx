@@ -13,6 +13,8 @@ const WINDOWS = ["15m", "30m", "60m", "120m"];
 interface CopilotPanelProps {
   /** Pre-fills the site from the selected alarm. */
   defaultSiteId?: string | null;
+  /** Sites available in the current network topology. */
+  sites?: Array<{ siteId: string; name: string }>;
   onAnalyze: (siteId: string, window: string) => void;
   result?: AnalyzeResponse;
   isPending?: boolean;
@@ -74,6 +76,7 @@ export const ToolCallChips: React.FC<{ calls: ToolCall[] }> = ({ calls }) => (
 /** W9: "Analyze site" -> cause / evidence / steps cards with cited alarm, anomaly and runbook ids. */
 export const CopilotPanel: React.FC<CopilotPanelProps> = ({
   defaultSiteId,
+  sites = [],
   onAnalyze,
   result,
   isPending = false,
@@ -105,13 +108,28 @@ export const CopilotPanel: React.FC<CopilotPanelProps> = ({
             onAnalyze(siteId.trim(), window);
         }}
       >
-        <input
-          aria-label="Site id"
-          value={siteId}
-          onChange={(e) => setSiteId(e.target.value.toUpperCase())}
-          placeholder="SITE-012"
-          className="ns-control w-full font-mono sm:w-36"
-        />
+        {sites.length > 0 ? (
+          <select
+            aria-label="Site id"
+            value={siteId}
+            onChange={(e) => setSiteId(e.target.value)}
+            className="ns-control w-full sm:w-56"
+          >
+            {sites.map((site) => (
+              <option key={site.siteId} value={site.siteId}>
+                {site.siteId} · {site.name}
+              </option>
+            ))}
+          </select>
+        ) : (
+          <input
+            aria-label="Site id"
+            value={siteId}
+            onChange={(e) => setSiteId(e.target.value.toUpperCase())}
+            placeholder="SITE-012"
+            className="ns-control w-full font-mono sm:w-36"
+          />
+        )}
         <select
           aria-label="Window"
           value={window}
