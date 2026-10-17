@@ -97,6 +97,9 @@ describe('App', () => {
     // static headings
     expect(screen.getByText('NetSentinel')).toBeInTheDocument();
     expect(screen.getByText('NOC Console')).toBeInTheDocument();
+    const sectionNav = screen.getByRole('navigation', { name: 'Console sections' });
+    expect(sectionNav.querySelectorAll('a')).toHaveLength(4);
+    expect(sectionNav).toHaveTextContent('OverviewAlarmsNetworkAnalysis');
 
     // wait for network map heading
     expect(await screen.findByRole('heading', { name: /Network map/i })).toBeInTheDocument();
