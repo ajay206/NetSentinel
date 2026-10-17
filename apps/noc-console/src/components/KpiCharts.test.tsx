@@ -71,7 +71,7 @@ describe('KpiCharts', () => {
 
   it('draws the series with min/max/last and cell options', () => {
     const { container } = renderCharts();
-    expect(screen.getByText('KPI charts')).toBeInTheDocument();
+    expect(screen.getByText('Performance trends')).toBeInTheDocument();
     expect(container.querySelector('path')?.getAttribute('d')).toMatch(/^M/);
     expect(screen.getByTestId('kpi-stats')).toHaveTextContent('max 300.00');
     expect(screen.getByTestId('kpi-stats')).toHaveTextContent('last 300.00');

@@ -4,6 +4,7 @@ import { TIPS } from '../lib/tooltips';
 import { CardHeader } from './ui/Card';
 import type { AnomalyItem, AnomalyList } from '../types.anomaly';
 import { formatIST } from '../lib/time';
+import { KPI_META } from '../types.kpi';
 
 type Props = {
   data: AnomalyList | undefined;
@@ -46,8 +47,8 @@ export const AnomaliesPanel: React.FC<Props> = ({ data, isLoading, isError, kpi,
   return (
     <section className="ns-card text-xs">
       <CardHeader
-        title="Anomalies"
-        subtitle="Cells whose KPI left its normal range (robust z-score + CUSUM)."
+        title="Unusual readings"
+        subtitle="Cells where a performance measurement moved well outside its usual range."
         info={TIPS.panelAnomalies}
         actions={
           <div className="flex w-full items-center gap-2 sm:w-auto">
@@ -59,7 +60,7 @@ export const AnomaliesPanel: React.FC<Props> = ({ data, isLoading, isError, kpi,
           >
             {KPI_OPTIONS.map((opt) => (
               <option key={opt} value={opt}>
-                {opt}
+                {KPI_META[opt].label}
               </option>
             ))}
           </select>
@@ -69,7 +70,7 @@ export const AnomaliesPanel: React.FC<Props> = ({ data, isLoading, isError, kpi,
       />
 
       {isLoading && <p className="text-bento-muted">Loading…</p>}
-      {isError && <p className="text-red-700">ml-service unreachable — run make ml</p>}
+      {isError && <p className="text-red-700">Performance analysis is unavailable right now.</p>}
       {!isLoading && !isError && data && items.length === 0 && (
         <p className="text-bento-muted">No anomalies in the last {data.hours ?? 24} h</p>
       )}

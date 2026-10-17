@@ -52,8 +52,8 @@ export const KpiCharts: React.FC<Props> = ({
   return (
     <div className="ns-card text-navy">
       <CardHeader
-        title="KPI charts"
-        subtitle="Trend of one KPI for one cell; red dots are anomalies."
+        title="Performance trends"
+        subtitle="Choose a measurement, cell, and time period. Red dots mark unusual readings."
         info={TIPS.panelKpis}
         actions={
           marks.length > 0 && (

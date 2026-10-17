@@ -63,7 +63,7 @@ export const Header: React.FC<HeaderProps> = ({
   const live = LIVE[wsStatus];
 
   return (
-    <header className="flex flex-wrap items-center justify-between gap-4 py-1">
+    <header className="sticky top-0 z-50 -mx-4 -mt-4 flex flex-wrap items-center justify-between gap-4 border-b border-bento-border bg-bento-bg/95 px-4 py-3 shadow-sm backdrop-blur-md md:-mx-6 md:-mt-6 md:px-6">
       <div className="flex min-w-0 flex-wrap items-center gap-3">
         <div className="grid h-10 w-10 place-items-center rounded-[14px] bg-navy font-display font-extrabold text-[15px] text-cyan">
           NS
@@ -128,7 +128,7 @@ export const Header: React.FC<HeaderProps> = ({
               >
                 <span>{user.username}</span>
                 <span
-                  className={`rounded px-1.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wider ${ROLE_STYLE[user.role] ?? ''}`}
+                  className={`rounded-md px-2 py-1 text-[11px] font-black uppercase tracking-[0.12em] ${ROLE_STYLE[user.role] ?? ''}`}
                   data-testid="role-badge"
                 >
                   {user.role}
