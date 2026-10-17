@@ -256,11 +256,11 @@ export const App: React.FC<AppProps> = ({
                 <>
                   <PageHeading title="Operations overview" description="A quick view of current network activity, incidents, and service health." />
                   <KpiSummary {...summary} />
-                  <div className="grid grid-cols-1 gap-4 lg:gap-6 lg:grid-cols-12">
+                  <div className="grid grid-cols-1 items-start gap-4 lg:gap-6 lg:grid-cols-12">
                     <div className="lg:col-span-7 lg:min-h-[440px]">
                       <AlarmTimeline data={timeline.data} isLoading={timeline.isLoading} isError={timeline.isError} rootSiteId={summary.stormRoot} />
                     </div>
-                    <div className="lg:col-span-5 lg:min-h-[440px]">
+                    <div className="lg:col-span-5">
                       <IncidentBoard
                         data={incidents.data}
                         isLoading={incidents.isLoading}
@@ -415,6 +415,7 @@ export const App: React.FC<AppProps> = ({
                 <>
                   <PageHeading title="Investigation workspace" description="Review repair guidance and AI-assisted analysis. Operator actions still require an authorized human decision." />
                   <RunbooksPanel
+                    compact
                     alarmLabel={selected ? `${selected.specificProblem} @ ${selected.siteId}` : null}
                     hits={runbookSearch.data?.results}
                     isLoading={runbookQuery !== null && runbookSearch.isLoading}
