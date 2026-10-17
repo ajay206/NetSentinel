@@ -319,15 +319,68 @@ export const App: React.FC<AppProps> = ({
                     <div className="lg:col-span-9 lg:h-[420px]"><LiveAlarms alarms={shownAlarms} /></div>
                     <div className="lg:col-span-3 lg:h-[420px]"><ServiceHealth health={health} isError={isError} /></div>
                   </div>
-                  <div className="lg:h-[460px]">
-                    <EnrichedAlarms
-                      alarms={shownEnriched}
-                      status={enrichedStatus}
-                      selectedKey={selectedKey}
-                      onSelect={(a) => selectAlarm(a.dedup.key)}
-                      selectedBadge={<FaultBadge prediction={prediction.data} isLoading={prediction.isLoading} isError={prediction.isError} />}
-                    />
-                  </div>
+                  {selected ? (
+                    <div className="grid grid-cols-1 items-start gap-4 lg:gap-6 lg:grid-cols-12">
+                      <div className="lg:col-span-8 lg:h-[460px]">
+                        <EnrichedAlarms
+                          alarms={shownEnriched}
+                          status={enrichedStatus}
+                          selectedKey={selectedKey}
+                          onSelect={(a) => selectAlarm(a.dedup.key)}
+                          selectedBadge={<FaultBadge prediction={prediction.data} isLoading={prediction.isLoading} isError={prediction.isError} />}
+                        />
+                      </div>
+                      <div className="lg:col-span-4 lg:h-[460px]">
+                        <ShapDrawer
+                          inline
+                          alarm={selected}
+                          prediction={prediction.data}
+                          explanation={explanation.data}
+                          isLoading={explanation.isLoading}
+                          isError={explanation.isError}
+                          onClose={() => selectAlarm(null)}
+                          actions={(
+                            <WorkflowActions
+                              subject={`alarm ${selected.siteId}`}
+                              workflow={alarmWorkflow.data?.[selected.dedup.key]}
+                              canAct={canOperate}
+                              currentUser={me}
+                              isPending={alarmAction.isPending}
+                              error={alarmAction.error}
+                              onAction={(action, { note }) =>
+                                action !== "assign" &&
+                                alarmAction.mutate({ key: selected.dedup.key, action, note })
+                              }
+                            />
+                          )}
+                          runbooks={(
+                            <RunbooksPanel
+                              alarmLabel={`${selected.specificProblem} @ ${selected.siteId}`}
+                              hits={runbookSearch.data?.results}
+                              isLoading={runbookQuery !== null && runbookSearch.isLoading}
+                              isError={runbookSearch.isError}
+                              selectedId={runbookId}
+                              onSelect={setRunbookId}
+                              doc={runbookDoc.data}
+                              docLoading={runbookDoc.isLoading}
+                              onClosePreview={() => setRunbookId(null)}
+                              mode={runbookSearch.data?.mode ?? null}
+                            />
+                          )}
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="lg:h-[460px]">
+                      <EnrichedAlarms
+                        alarms={shownEnriched}
+                        status={enrichedStatus}
+                        selectedKey={selectedKey}
+                        onSelect={(a) => selectAlarm(a.dedup.key)}
+                        selectedBadge={<FaultBadge prediction={prediction.data} isLoading={prediction.isLoading} isError={prediction.isError} />}
+                      />
+                    </div>
+                  )}
                 </>
               )}
 
@@ -392,7 +445,8 @@ export const App: React.FC<AppProps> = ({
                     <div className="ns-card lg:col-span-5 lg:h-[640px]"><TraceView run={run} /></div>
                   </div>
                   <CopilotPanel
-                    defaultSiteId={selected?.siteId ?? null}
+                    defaultSiteId={selected?.siteId ?? topology?.sites?.[0]?.siteId ?? null}
+                    sites={topology?.sites ?? []}
                     onAnalyze={(siteId, window) => copilot.mutate({ siteId, window })}
                     result={copilot.data}
                     isPending={copilot.isPending}
@@ -405,48 +459,6 @@ export const App: React.FC<AppProps> = ({
             </main>
           </>
         )}
-        <ShapDrawer
-          alarm={selected}
-          prediction={prediction.data}
-          explanation={explanation.data}
-          isLoading={explanation.isLoading}
-          isError={explanation.isError}
-          onClose={() => selectAlarm(null)}
-          actions={
-            selected ? (
-              <WorkflowActions
-                subject={`alarm ${selected.siteId}`}
-                workflow={alarmWorkflow.data?.[selected.dedup.key]}
-                canAct={canOperate}
-                currentUser={me}
-                isPending={alarmAction.isPending}
-                error={alarmAction.error}
-                onAction={(action, { note }) =>
-                  action !== "assign" &&
-                  alarmAction.mutate({ key: selected.dedup.key, action, note })
-                }
-              />
-            ) : null
-          }
-          runbooks={
-            <RunbooksPanel
-              alarmLabel={
-                selected
-                  ? `${selected.specificProblem} @ ${selected.siteId}`
-                  : null
-              }
-              hits={runbookSearch.data?.results}
-              isLoading={runbookQuery !== null && runbookSearch.isLoading}
-              isError={runbookSearch.isError}
-              selectedId={runbookId}
-              onSelect={setRunbookId}
-              doc={runbookDoc.data}
-              docLoading={runbookDoc.isLoading}
-              onClosePreview={() => setRunbookId(null)}
-              mode={runbookSearch.data?.mode ?? null}
-            />
-          }
-        />
       </div>
     </div>
   );

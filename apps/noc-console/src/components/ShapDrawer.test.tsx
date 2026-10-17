@@ -63,6 +63,24 @@ describe('ShapDrawer', () => {
     expect(screen.getByTestId('fault-badge')).toHaveTextContent('Fibre cut 72%');
   });
 
+  it('renders as inline dashboard content when requested', () => {
+    render(
+      <ShapDrawer
+        inline
+        alarm={alarm}
+        prediction={prediction}
+        isLoading={false}
+        isError={false}
+        onClose={() => {}}
+      />,
+    );
+
+    const details = screen.getByRole('region', { name: 'Alarm details' });
+    expect(details).toHaveClass('ns-card');
+    expect(details).not.toHaveClass('fixed');
+    expect(screen.queryByRole('dialog', { name: 'Alarm details' })).toBeNull();
+  });
+
   it('renders contributions with correct colors and widths', () => {
     render(
       <ShapDrawer
