@@ -259,7 +259,29 @@ export const App: React.FC<AppProps> = ({
           </main>
         ) : (
           <main className="flex-1 flex flex-col gap-4 lg:gap-6">
-            <KpiSummary {...summary} />
+            <nav
+              aria-label="Console sections"
+              className="sticky top-0 z-30 -mx-2 flex gap-2 overflow-x-auto bg-bento-bg/95 px-2 py-2 backdrop-blur-sm"
+            >
+              {[
+                { id: "section-overview", label: "Overview" },
+                { id: "section-alarms", label: "Alarms" },
+                { id: "section-network", label: "Network" },
+                { id: "section-analysis", label: "Analysis" },
+              ].map((section) => (
+                <a
+                  key={section.id}
+                  href={`#${section.id}`}
+                  className="shrink-0 rounded-full border border-bento-border bg-white px-3.5 py-1.5 text-xs font-bold text-navy transition-colors hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
+                >
+                  {section.label}
+                </a>
+              ))}
+            </nav>
+
+            <section id="section-overview" className="scroll-mt-16">
+              <KpiSummary {...summary} />
+            </section>
 
             <DemoPath stages={stages} />
 
@@ -352,129 +374,134 @@ export const App: React.FC<AppProps> = ({
             />
 
             {/* Live alarms + Service health */}
-            <div className="grid grid-cols-1 gap-4 lg:gap-6 lg:grid-cols-12">
-              <div className="lg:col-span-9 lg:h-[420px]">
-                <LiveAlarms alarms={shownAlarms} />
+            <section id="section-alarms" className="scroll-mt-16 space-y-4 lg:space-y-6">
+              <div className="grid grid-cols-1 gap-4 lg:gap-6 lg:grid-cols-12">
+                <div className="lg:col-span-9 lg:h-[420px]">
+                  <LiveAlarms alarms={shownAlarms} />
+                </div>
+                <div className="lg:col-span-3 lg:h-[420px]">
+                  <ServiceHealth health={health} isError={isError} />
+                </div>
               </div>
-              <div className="lg:col-span-3 lg:h-[420px]">
-                <ServiceHealth health={health} isError={isError} />
+              <div className="lg:h-[460px]">
+                <EnrichedAlarms
+                  alarms={shownEnriched}
+                  status={enrichedStatus}
+                  selectedKey={selectedKey}
+                  onSelect={(a) => selectAlarm(a.dedup.key)}
+                  selectedBadge={
+                    <FaultBadge
+                      prediction={prediction.data}
+                      isLoading={prediction.isLoading}
+                      isError={prediction.isError}
+                    />
+                  }
+                />
               </div>
-            </div>
-
-            <div className="lg:h-[460px]">
-              <EnrichedAlarms
-                alarms={shownEnriched}
-                status={enrichedStatus}
-                selectedKey={selectedKey}
-                onSelect={(a) => selectAlarm(a.dedup.key)}
-                selectedBadge={
-                  <FaultBadge
-                    prediction={prediction.data}
-                    isLoading={prediction.isLoading}
-                    isError={prediction.isError}
-                  />
-                }
-              />
-            </div>
+            </section>
 
             {/* Network map + KPI activity */}
-            <div className="grid grid-cols-1 gap-4 lg:gap-6 lg:grid-cols-12">
-              <div className="lg:col-span-7 lg:h-[500px]">
-                <NetworkMap
-                  topology={topology}
-                  isLoading={topoLoading}
-                  isError={topoError}
-                  severityBySite={severityBySite}
-                  impactedSiteIds={impactedSiteIds}
-                  failedLinkId={
-                    impact.target?.type === "link" ? impact.target.id : null
-                  }
-                  failedSiteId={
-                    impact.target?.type === "site" ? impact.target.id : null
-                  }
-                />
-              </div>
-              <div className="lg:col-span-5 lg:h-[500px]">
-                <section className="ns-card">
-                  <CardHeader
-                    title="KPI activity"
-                    subtitle="Live KPI samples streaming from the cells."
-                    info={TIPS.panelKpiActivity}
+            <section id="section-network" className="scroll-mt-16 space-y-4 lg:space-y-6">
+              <div className="grid grid-cols-1 gap-4 lg:gap-6 lg:grid-cols-12">
+                <div className="lg:col-span-7 lg:h-[500px]">
+                  <NetworkMap
+                    topology={topology}
+                    isLoading={topoLoading}
+                    isError={topoError}
+                    severityBySite={severityBySite}
+                    impactedSiteIds={impactedSiteIds}
+                    failedLinkId={
+                      impact.target?.type === "link" ? impact.target.id : null
+                    }
+                    failedSiteId={
+                      impact.target?.type === "site" ? impact.target.id : null
+                    }
                   />
-                  <div className="ns-scroll">
-                    <KpiActivity activity={kpiActivity} status={kpiStatus} />
-                  </div>
-                </section>
+                </div>
+                <div className="lg:col-span-5 lg:h-[500px]">
+                  <section className="ns-card">
+                    <CardHeader
+                      title="KPI activity"
+                      subtitle="Live KPI samples streaming from the cells."
+                      info={TIPS.panelKpiActivity}
+                    />
+                    <div className="ns-scroll">
+                      <KpiActivity activity={kpiActivity} status={kpiStatus} />
+                    </div>
+                  </section>
+                </div>
               </div>
-            </div>
 
-            {/* Impact / RCA + PQC status */}
-            <div className="grid grid-cols-1 gap-4 lg:gap-6 lg:grid-cols-12">
-              <div className="lg:col-span-7 lg:h-[460px]">
-                <RcaGraph
-                  topology={topology}
-                  onImpact={onImpact}
-                  agentRun={run}
-                />
+              {/* Impact / RCA + PQC status */}
+              <div className="grid grid-cols-1 gap-4 lg:gap-6 lg:grid-cols-12">
+                <div className="lg:col-span-7 lg:h-[460px]">
+                  <RcaGraph
+                    topology={topology}
+                    onImpact={onImpact}
+                    agentRun={run}
+                  />
+                </div>
+                <div className="lg:col-span-5 lg:h-[460px]">
+                  <PqcStatus
+                    data={pqc.data}
+                    error={pqc.error}
+                    isLoading={pqc.isLoading}
+                  />
+                </div>
               </div>
-              <div className="lg:col-span-5 lg:h-[460px]">
-                <PqcStatus
-                  data={pqc.data}
-                  error={pqc.error}
-                  isLoading={pqc.isLoading}
-                />
-              </div>
-            </div>
+            </section>
 
-            <div className="grid grid-cols-1 gap-4 lg:gap-6 lg:grid-cols-2">
-              <KpiChartsContainer />
-              <AnomaliesContainer />
-            </div>
+            <section id="section-analysis" className="scroll-mt-16 space-y-4 lg:space-y-6">
+              <div className="grid grid-cols-1 gap-4 lg:gap-6 lg:grid-cols-2">
+                <KpiChartsContainer />
+                <AnomaliesContainer />
+              </div>
 
-            {/* Multi-agent copilot chat + trace */}
-            <div className="grid grid-cols-1 gap-4 lg:gap-6 lg:grid-cols-12">
-              <div className="lg:col-span-7 lg:h-[640px]">
-                <CopilotChat
-                  incidentId={incidentId}
-                  siteId={selected?.siteId ?? null}
-                  run={run}
-                  runs={runs}
-                  isStarting={startRun.isPending}
-                  isDeciding={runDecision.isPending}
-                  error={startRun.error ?? runDecision.error}
-                  canOperate={canCopilot}
-                  onStart={(target) =>
-                    startRun.mutate(target, {
-                      onSuccess: (r) => setRunId(r.runId),
-                    })
-                  }
-                  onSelectRun={setRunId}
-                  onDecide={(approved, note) =>
-                    run &&
-                    runDecision.mutate({ runId: run.runId, approved, note })
-                  }
-                />
+              {/* Multi-agent copilot chat + trace */}
+              <div className="grid grid-cols-1 gap-4 lg:gap-6 lg:grid-cols-12">
+                <div className="lg:col-span-7 lg:h-[640px]">
+                  <CopilotChat
+                    incidentId={incidentId}
+                    siteId={selected?.siteId ?? null}
+                    run={run}
+                    runs={runs}
+                    isStarting={startRun.isPending}
+                    isDeciding={runDecision.isPending}
+                    error={startRun.error ?? runDecision.error}
+                    canOperate={canCopilot}
+                    onStart={(target) =>
+                      startRun.mutate(target, {
+                        onSuccess: (r) => setRunId(r.runId),
+                      })
+                    }
+                    onSelectRun={setRunId}
+                    onDecide={(approved, note) =>
+                      run &&
+                      runDecision.mutate({ runId: run.runId, approved, note })
+                    }
+                  />
+                </div>
+                <div className="ns-card lg:col-span-5 lg:h-[640px]">
+                  <TraceView run={run} />
+                </div>
               </div>
-              <div className="ns-card lg:col-span-5 lg:h-[640px]">
-                <TraceView run={run} />
-              </div>
-            </div>
 
-            {canCopilot && (
-              <div>
-                <CopilotPanel
-                  defaultSiteId={selected?.siteId ?? null}
-                  onAnalyze={(siteId, window) =>
-                    copilot.mutate({ siteId, window })
-                  }
-                  result={copilot.data}
-                  isPending={copilot.isPending}
-                  error={copilot.error}
-                  onOpenRunbook={setRunbookId}
-                  canAnalyze={canCopilot}
-                />
-              </div>
-            )}
+              {canCopilot && (
+                <div>
+                  <CopilotPanel
+                    defaultSiteId={selected?.siteId ?? null}
+                    onAnalyze={(siteId, window) =>
+                      copilot.mutate({ siteId, window })
+                    }
+                    result={copilot.data}
+                    isPending={copilot.isPending}
+                    error={copilot.error}
+                    onOpenRunbook={setRunbookId}
+                    canAnalyze={canCopilot}
+                  />
+                </div>
+              )}
+            </section>
           </main>
         )}
         <ShapDrawer

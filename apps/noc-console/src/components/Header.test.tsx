@@ -21,6 +21,12 @@ describe('Header (W11)', () => {
     expect(screen.queryByTestId('user-badge')).toBeNull();
   });
 
+  it('shows the timezone label only once in the clock', () => {
+    render(<Header wsStatus="open" />);
+    expect(screen.queryByText(/IST IST$/)).toBeNull();
+    expect(screen.getByText(/IST$/)).toBeInTheDocument();
+  });
+
   it('profile menu offers Change password and shows a role badge (13b)', () => {
     const onChangePassword = vi.fn();
     render(

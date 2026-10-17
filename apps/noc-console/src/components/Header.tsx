@@ -110,7 +110,7 @@ export const Header: React.FC<HeaderProps> = ({
         </Tooltip>
         <Tooltip content={TIPS.chipClock} side="bottom">
           <span className="rounded-full bg-white px-3.5 py-1 font-semibold text-navy shadow-sm">
-            {istTime} IST
+            {istTime}
           </span>
         </Tooltip>
         {user && (
@@ -124,7 +124,7 @@ export const Header: React.FC<HeaderProps> = ({
                 aria-haspopup="menu"
                 aria-expanded={menuOpen}
                 onClick={() => setMenuOpen((o) => !o)}
-                className="flex items-center gap-1.5 rounded-full bg-navy px-3 py-1 font-extrabold text-white shadow-sm hover:opacity-90"
+                className="flex items-center gap-2 rounded-full bg-navy px-3.5 py-1.5 text-sm font-extrabold text-white shadow-sm hover:opacity-90"
               >
                 <span>{user.username}</span>
                 <span

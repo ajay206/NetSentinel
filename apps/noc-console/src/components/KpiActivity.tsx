@@ -36,12 +36,17 @@ export const KpiActivity: React.FC<Props> = ({ activity, status }) => {
     open: 'bg-emerald-500',
     closed: 'bg-red-500',
   }[status];
+  const statusLabel = {
+    connecting: 'Connecting to sample stream…',
+    open: 'Sample stream connected',
+    closed: 'Sample stream offline',
+  }[status];
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-2 text-sm text-slate-600 mb-2">
+      <div role="status" className="flex items-center gap-2 text-sm text-slate-600 mb-2">
         <span className={`w-2 h-2 rounded-full ${statusColor}`} />
-        Connection: {status}
+        {statusLabel}
       </div>
 
       {!activity ? (
@@ -71,8 +76,11 @@ export const KpiActivity: React.FC<Props> = ({ activity, status }) => {
               </div>
               {stale && (
                 <div className="mt-1">
-                  <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-amber-600 text-[10px] font-medium text-white">
-                    stale
+                  <span
+                    title="No KPI sample has arrived in the last 60 seconds."
+                    className="inline-flex items-center px-1.5 py-0.5 rounded bg-amber-600 text-[10px] font-medium text-white"
+                  >
+                    No recent sample
                   </span>
                 </div>
               )}
