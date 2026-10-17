@@ -1,8 +1,9 @@
 import React from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import App from './App';
 import type { Topology } from './types';
+import { makeEnriched } from './test/enrichedFixture';
 
 class FakeWebSocket {
   static CONNECTING = 0;
@@ -10,6 +11,7 @@ class FakeWebSocket {
   static CLOSED = 3;
   readyState = FakeWebSocket.OPEN;
   url: string;
+  static instances: FakeWebSocket[] = [];
   onopen: (() => void) | null = null;
   onclose: (() => void) | null = null;
   onmessage: ((ev: MessageEvent) => void) | null = null;
@@ -17,6 +19,7 @@ class FakeWebSocket {
 
   constructor(url: string) {
     this.url = url;
+    FakeWebSocket.instances.push(this);
     setTimeout(() => this.onopen?.(), 0);
   }
 
@@ -35,6 +38,7 @@ describe('App', () => {
   const queryClient = new QueryClient();
 
   beforeEach(() => {
+    FakeWebSocket.instances = [];
     // mock health endpoint
     globalThis.fetch = vi.fn((input: RequestInfo) => {
       const url = typeof input === 'string' ? input : input.url;
@@ -104,6 +108,7 @@ describe('App', () => {
     fireEvent.click(screen.getByRole('button', { name: /Network:/ }));
     expect(await screen.findByRole('heading', { name: /Network map and impact/i })).toBeInTheDocument();
     expect(await screen.findByRole('heading', { name: 'Network map' })).toBeInTheDocument();
+    expect(screen.queryByTestId('alarm-drawer')).not.toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Operations overview' })).not.toBeInTheDocument();
 
     // Header clock and other timestamps carry the IST label
@@ -114,5 +119,33 @@ describe('App', () => {
     expect(screen.queryByTestId('alarm-drawer')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /Investigation:/ }));
     expect(screen.getByRole('heading', { name: 'Copilot analyze' })).toBeInTheDocument();
+    expect(screen.queryByTestId('alarm-drawer')).not.toBeInTheDocument();
+  });
+
+  it('shows selected alarm details inline only on the alarm page', async () => {
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <App />
+      </QueryClientProvider>,
+    );
+
+    const enrichedSocket = FakeWebSocket.instances.find((socket) => socket.url.includes('/ws/enriched'));
+    expect(enrichedSocket).toBeDefined();
+    act(() => {
+      enrichedSocket?._emit(JSON.stringify({
+        type: 'snapshot',
+        alarms: [makeEnriched({ siteId: 'SITE-001', specificProblem: 'LOS' })],
+      }));
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /Alarms:/ }));
+    fireEvent.click(await screen.findByText('LOS'));
+    expect(await screen.findByRole('region', { name: 'Alarm details' })).toBeInTheDocument();
+    expect(screen.queryByRole('dialog', { name: 'Alarm details' })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /Network:/ }));
+    expect(screen.queryByTestId('alarm-drawer')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Alarms:/ }));
+    expect(await screen.findByRole('region', { name: 'Alarm details' })).toBeInTheDocument();
   });
 });
