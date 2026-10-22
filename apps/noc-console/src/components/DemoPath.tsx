@@ -45,8 +45,8 @@ export const DemoPath: React.FC<DemoPathProps> = ({ activePage, onNavigate }) =>
                 {pages.indexOf(page) + 1}
               </span>
               <span className="min-w-0">
-                <span className="block truncate text-sm font-bold">{page.label}</span>
-                <span className={`hidden truncate text-[11px] sm:block ${selected ? 'text-white/75' : 'text-bento-muted'}`}>{page.description}</span>
+                <span className="block truncate text-sm font-bold" title={page.label}>{page.label}</span>
+                <span title={page.description} className={`hidden truncate text-[11px] sm:block ${selected ? 'text-white/75' : 'text-bento-muted'}`}>{page.description}</span>
               </span>
             </button>
           );

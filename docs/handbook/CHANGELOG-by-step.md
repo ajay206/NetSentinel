@@ -462,3 +462,10 @@ Built straight after Step 18; Steps 19–20 (TelcoGPT-mini) moved to the next ph
 - **Date:** 2026-10-17
 - **Scope:** Kept the colours. Added a spacing scale and stopped lists spilling: tables and lists now scroll inside their cards; Live and Enriched alarms used to run on into later sections. Fixed missing tile padding (`p-4.5` doesn't exist in Tailwind), made card headers stack on phones, and gave every select and input one height. Fixed a sideways scroll at 375px, the KPI activity text that was still grey-on-cream, the incident board columns and the admin settings and health column. Added the Playwright layout audit plus mocks.
 - **Verification:** lint, typecheck, 184 unit tests and the layout audit at 4 widths with 0 problems.
+
+
+## Cleanup: README status, layout audit in CI, incident-service token
+
+- **Date:** 2026-10-21
+- **Scope:** README status now lists the Phase 2 services (topology-service/Neo4j, Graph RAG, ticket-service, LangGraph copilot, llm-gateway, PQC) and the bento console; TelcoGPT-mini is marked planned (Phase 3). New CI job `layout-audit` runs the Playwright layout audit with `LAYOUT_STRICT=1`; fixed two truncated page-nav labels it caught (added `title`). incident-service now checks `X-NS-Internal-Token` against `INCIDENT_SERVICE_TOKEN` on write actions (same pattern as ticket-service), the gateway sends it, compose has a dev-only default and `env.example.txt` a placeholder.
+- **Verification:** ruff, 609 pytest passed (new token test), console lint/typecheck/187 Vitest, layout audit 8/8 at 4 widths.

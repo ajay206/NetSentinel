@@ -447,6 +447,9 @@ Then refresh the console.
 ### 75. ticket-service answers 401 "missing or invalid internal token"
 - The gateway and ticket-service must share `TICKET_SERVICE_TOKEN`. Set it once in `.env` and recreate both containers. Direct `curl` to :8009 without the header is refused on purpose: go through the gateway.
 
+### 75b. incident-service answers 401 "missing or invalid internal token"
+- Incident/alarm actions (ack, assign, resolve, notes) need the gateway and incident-service to share `INCIDENT_SERVICE_TOKEN`. Set it once in `.env` and recreate both containers (`make up-ui` plus the `ops` profile). Direct `curl` to :8007 actions is refused on purpose.
+
 ### 76. Approve returns 403 / 409
 - 403: you are a viewer, or the call used the MCP service token, which may draft but never decide. 409: the ticket was already approved or rejected (by someone else, or with a stale `version`). Refresh the queue.
 - `GET /api/tickets/audit/verify` returning `ok: false` means someone edited an audit row directly in the database. Treat it as an incident; the log itself is never rewritten.

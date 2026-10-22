@@ -101,3 +101,14 @@ def test_apply_rules():
     for i in range(60):
         apply(many, "note", "op", note=f"n{i}")
     assert len(many["notes"]) == 50 and many["notes"][-1]["text"] == "n59"
+
+
+def test_internal_token_required_when_set(setup, monkeypatch):
+    c, inc = setup
+    monkeypatch.setenv("INCIDENT_SERVICE_TOKEN", "test-token")
+    body = {"action": "ack"}
+    assert c.post(f"/incidents/{inc}/actions", json=body, headers=OP).status_code == 401
+    bad = {**OP, "X-NS-Internal-Token": "wrong"}
+    assert c.post(f"/incidents/{inc}/actions", json=body, headers=bad).status_code == 401
+    good = {**OP, "X-NS-Internal-Token": "test-token"}
+    assert c.post(f"/incidents/{inc}/actions", json=body, headers=good).status_code == 200

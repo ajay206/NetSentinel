@@ -1,30 +1,35 @@
-# NetSentinel – Phase 1 (Weeks 1-12)
+# NetSentinel – AI copilot for telecom NOC operations
 
-NetSentinel is an AI-assisted NOC copilot for telecom operators. It runs locally on a Mac M2 (8 GB) using Docker and native processes and works only with synthetic data. Phase 1 delivers the core data-pipeline, a set of analysis services, and a web console.
+NetSentinel is an AI-assisted NOC copilot for telecom operators. It runs locally on a Mac M2 (8 GB) using Docker and native processes and works only with synthetic data. Phase 1 (Weeks 1-12) delivered the core data pipeline, analysis services and web console; Phase 2 added graph RAG, multi-agent workflows, ticketing, an LLM gateway and post-quantum crypto.
 
 ## Status
-**Phase 1 complete, v0.1.0 pending tag**
+**Phase 1 and Phase 2 complete (v0.1.0 = Phase 1, v0.2.0 = Phase 2). Phase 3 (TelcoGPT-mini) is planned.**
 
 **Built services (Docker + tests)**
-- api-gateway (FastAPI, port 8000)
-- alarm-ingest (port 8001)
-- kpi-service (port 8002)
-- ml-service (port 8003)
-- rag-service (port 8004)
-- copilot-orchestrator (port 8005)
-- mcp-server (port 8006, internal)
+- api-gateway (FastAPI, port 8000): JWT auth, role-based access (viewer / operator / admin)
+- alarm-ingest (port 8001)
+- kpi-service (port 8002)
+- ml-service (port 8003): anomaly detection, XGBoost fault classifier with SHAP
+- rag-service (port 8004): hybrid runbook search in Qdrant
+- copilot-orchestrator (port 8005): LangGraph multi-agent copilot with a human approval node (Step 17)
+- mcp-server (port 8006, internal)
+- incident-service (port 8007): alarm correlation, incident board, operator workflow
+- topology-service (port 8008): Neo4j topology, impact/RCA graph and Graph RAG (Steps 14-15)
+- ticket-service (port 8009): ticket drafts with human approval and an audit trail (Step 16)
+- llm-gateway (port 8010, internal): model router, prompt-injection guard, PII redaction (Step 18)
 - netgen-simulator (CLI batch publisher)
+- Post-quantum: hybrid ML-KEM TLS, ML-DSA model signing and a PQC panel (Step 21)
 
 **Infrastructure (built)**
 - Kafka (KRaft)
 - TimescaleDB
 - Qdrant
+- Neo4j
 
-**Not yet built (Phase 2+)**
-- Neo4j / graph RAG
-- LangGraph agents
-- Ticket service
-- llm-gateway
+**Console:** React/TypeScript/Tailwind NOC console with a responsive bento theme (375–1920 px), checked in CI by a Playwright layout audit.
+
+**Planned**
+- Phase 3: TelcoGPT-mini (Steps 19-20), a small telecom-tuned model behind the llm-gateway (its route is reserved but not used yet)
 - Kubernetes deployment
 
 ## Quick start
@@ -36,7 +41,7 @@ git clone https://github.com/ajay206/NetSentinel.git && cd NetSentinel
 make demo          # .env from env.example.txt if missing; build, start, topics, KPIs, fibre_cut, smoke
 ```
 Open http://localhost:5173 and sign in with the demo user **operator** (password = `operator`).
-For real secrets, edit `.env` (JWT_SECRET ≥32 chars, GATEWAY_SERVICE_TOKEN, MCP_SERVICE_TOKEN, POSTGRES_PASSWORD) before the first run.
+For real secrets, edit `.env` (JWT_SECRET ≥32 chars, GATEWAY_SERVICE_TOKEN, MCP_SERVICE_TOKEN, TICKET_SERVICE_TOKEN, INCIDENT_SERVICE_TOKEN, POSTGRES_PASSWORD) before the first run.
 Logs: `make logs S=<service>`; stop: `make down`.
 
 ## Demo walkthrough

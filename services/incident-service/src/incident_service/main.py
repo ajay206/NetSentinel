@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import hmac
 import json
 import logging
 import os
@@ -178,8 +179,15 @@ def _with_wf(item: dict[str, Any]) -> dict[str, Any]:
     return {**item, "workflow": wf}
 
 
-def _actor(user: str | None, role: str | None) -> str:
-    """The gateway forwards the signed-in user; only operator/admin may write."""
+def _actor(user: str | None, role: str | None, token: str | None = None) -> str:
+    """The gateway forwards the signed-in user; only operator/admin may write.
+
+    With ``INCIDENT_SERVICE_TOKEN`` set, callers must also send ``X-NS-Internal-Token``
+    (the gateway does), so the user/role headers cannot be forged from outside.
+    """
+    expected = os.getenv("INCIDENT_SERVICE_TOKEN")
+    if expected and not hmac.compare_digest((token or "").encode(), expected.encode()):
+        raise HTTPException(status_code=401, detail="missing or invalid internal token")
     if role not in WRITE_ROLES:
         raise HTTPException(status_code=403, detail="Requires role operator")
     if not user or not ACTOR_RE.match(user):
@@ -193,8 +201,9 @@ async def incident_action(
     req: IncidentAction,
     x_ns_user: str | None = Header(default=None),
     x_ns_role: str | None = Header(default=None),
+    x_ns_internal_token: str | None = Header(default=None),
 ) -> dict[str, Any]:
-    actor = _actor(x_ns_user, x_ns_role)
+    actor = _actor(x_ns_user, x_ns_role, x_ns_internal_token)
     inc = clusterer.incidents.get(incident_id)
     if inc is None:
         raise HTTPException(status_code=404, detail="Incident not found")
@@ -210,8 +219,9 @@ async def alarm_action(
     req: AlarmAction,
     x_ns_user: str | None = Header(default=None),
     x_ns_role: str | None = Header(default=None),
+    x_ns_internal_token: str | None = Header(default=None),
 ) -> dict[str, Any]:
-    actor = _actor(x_ns_user, x_ns_role)
+    actor = _actor(x_ns_user, x_ns_role, x_ns_internal_token)
     try:
         wf = apply(workflow.alarm(req.key), req.action, actor, req.note)
     except ActionError as exc:

@@ -90,3 +90,56 @@ jobs:
         if: steps.filter.outputs.console == 'true'
         run: npm run build
         working-directory: apps/noc-console
+
+  layout-audit:
+    runs-on: ubuntu-latest
+    needs: console
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: apps/noc-console
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Path filter
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            console:
+              - 'apps/noc-console/**'
+              - '.github/workflows/ci.yml'
+
+      - name: Set up Node
+        if: steps.filter.outputs.console == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: apps/noc-console/package-lock.json
+
+      - name: Install dependencies
+        if: steps.filter.outputs.console == 'true'
+        run: npm ci
+
+      - name: Install Chromium
+        if: steps.filter.outputs.console == 'true'
+        run: npx playwright install --with-deps chromium
+
+      - name: Layout audit (mocked APIs, 4 widths)
+        if: steps.filter.outputs.console == 'true'
+        env:
+          LAYOUT_STRICT: "1"
+          CONSOLE_URL: http://127.0.0.1:5179/
+        run: |
+          npx vite --port 5179 --strictPort --host 127.0.0.1 > vite.log 2>&1 &
+          npx -y wait-on -t 60000 http://127.0.0.1:5179/
+          npx playwright test e2e/layout-audit.spec.ts --reporter=line
+
+      - name: Upload layout screenshots
+        if: failure() && steps.filter.outputs.console == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: layout-audit
+          path: apps/noc-console/test-results/
+          retention-days: 7
