@@ -739,6 +739,8 @@ make incident-eval    # run evaluation and write evals/rca_report.md
 ```
 The service uses 128 MiB memory and listens on port **8007**.
 
+**Internal token:** the gateway forwards `X-NS-User` / `X-NS-Role` on incident and alarm actions. With `INCIDENT_SERVICE_TOKEN` set (compose sets a dev-only default; set your own in `.env`), `POST /incidents/{id}/actions` and `POST /alarms/actions` also require `X-NS-Internal-Token`, which only the gateway sends, so those headers can't be forged by calling :8007 directly. Reads stay open. Unset = dev mode, no check.
+
 ## topology-service: network knowledge graph (Step 14, W14)
 
 **Purpose:** answers "which cells lose service if link LNK-012 fails?" and other topology questions with Cypher on Neo4j (ADR-014). Port **8008**, compose profile **`graph`** (with `neo4j`).

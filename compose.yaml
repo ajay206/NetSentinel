@@ -90,6 +90,7 @@ services:
       TOPOLOGY_SERVICE_URL: http://topology-service:8008
       TICKET_SERVICE_URL: http://ticket-service:8009
       TICKET_SERVICE_TOKEN: ${TICKET_SERVICE_TOKEN:-dev-only-ticket-token}
+      INCIDENT_SERVICE_TOKEN: ${INCIDENT_SERVICE_TOKEN:-dev-only-incident-token}
       # W11: JWT/RBAC. Dev-only defaults; set real values in .env (never commit them)
       JWT_SECRET: ${JWT_SECRET:-dev-only-change-me-0123456789abcdefghij}
       GATEWAY_SERVICE_TOKEN: ${GATEWAY_SERVICE_TOKEN:-dev-only-service-token}
@@ -168,6 +169,8 @@ services:
       TOPOLOGY_FULL: "0"
       INCIDENT_GAP_SECONDS: "300"
       INCIDENT_MAX_HOPS: "4"
+      # Only the gateway knows this token, so X-NS-User / X-NS-Role cannot be forged
+      INCIDENT_SERVICE_TOKEN: ${INCIDENT_SERVICE_TOKEN:-dev-only-incident-token}
     mem_limit: 128m
     depends_on:
       kafka:

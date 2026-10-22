@@ -13,6 +13,9 @@ The GitHub Actions CI pipeline automatically runs on every push and pull request
 3. Runs `uv run ruff check .` (Linter).
 4. Runs `uv run ruff format --check .` (Formatter check).
 5. Runs `uv run pytest` (Test suite).
+6. `console` job (only when `apps/noc-console/**` changes): `npm ci`, lint, typecheck, Vitest, build.
+7. `layout-audit` job (after `console`, same path filter plus `ci.yml`): installs Chromium, starts Vite on `127.0.0.1:5179` and runs `LAYOUT_STRICT=1 npx playwright test e2e/layout-audit.spec.ts` with mocked APIs at 375 / 768 / 1280 / 1440 px. It fails on sideways page scroll, elements spilling out of cards, or truncated text without a `title`. Screenshots are uploaded as the `layout-audit` artifact only when it fails.
+   Run it locally: `cd apps/noc-console && npx vite --port 5179 --strictPort & LAYOUT_STRICT=1 npx playwright test e2e/layout-audit.spec.ts`.
 
 ## verify-model workflow (Step 21, `.github/workflows/verify-model.yml`)
 

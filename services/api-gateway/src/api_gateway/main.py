@@ -704,6 +704,14 @@ async def incidents_proxy(request: Request, incident_id: str | None = None) -> J
     return JSONResponse(payload, status_code=resp.status_code)
 
 
+def _incident_headers(headers: dict[str, str]) -> dict[str, str]:
+    """Add the shared internal token for incident-service when one is configured."""
+    token = os.getenv("INCIDENT_SERVICE_TOKEN")
+    if token:
+        headers["X-NS-Internal-Token"] = token
+    return headers
+
+
 _INCIDENT_ID_RE = re.compile(r"^INC-[0-9A-F]{10}$")
 
 
@@ -718,11 +726,13 @@ async def _workflow_call(request: Request, path: str, target: str) -> JSONRespon
             resp = await client.post(
                 f"{INCIDENT_SERVICE_URL}/{path}",
                 content=body,
-                headers={
-                    "Content-Type": "application/json",
-                    "X-NS-User": user["username"],
-                    "X-NS-Role": user["role"],
-                },
+                headers=_incident_headers(
+                    {
+                        "Content-Type": "application/json",
+                        "X-NS-User": user["username"],
+                        "X-NS-Role": user["role"],
+                    }
+                ),
             )
     except httpx.HTTPError as exc:
         logger.warning("incident-service unreachable: %s", exc)
