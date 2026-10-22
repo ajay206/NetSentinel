@@ -18,13 +18,16 @@ describe('ServiceHealth W22 sparklines', () => {
     renderWith((u) =>
       u.includes('sparklines')
         ? { enabled: true, services: { 'ml-service': { p95Ms: [10, 20, 30], errorRate: [0, 0, 0.02] } } }
-        : { grafana: 'http://localhost:3000', langfuse: 'http://localhost:3001', mlflow: null, prometheus: null },
+        : u.includes('model/info')
+          ? { name: 'fault_classifier', version: 'v1', gate: { passed: false, reasons: ['macro_f1 0.2 < 0.8'] }, loaded: true }
+          : { grafana: 'http://localhost:3000', langfuse: 'http://localhost:3001', mlflow: null, prometheus: null },
     );
     await waitFor(() => expect(screen.getByTestId('service-spark')).toBeInTheDocument());
     expect(screen.getByText(/p95 30 ms/)).toBeInTheDocument();
     expect(screen.getByText('2.0% 5xx')).toBeInTheDocument();
     expect(screen.getByText('Open Grafana')).toHaveAttribute('href', 'http://localhost:3000');
     expect(screen.queryByText('Open MLflow')).toBeNull();
+    expect(screen.getByTestId('model-version-chip')).toHaveTextContent('gate blocked');
   });
 
   it('hides sparklines and links when the obs profile is off', async () => {

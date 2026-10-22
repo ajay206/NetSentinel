@@ -5,6 +5,7 @@ import type { HealthResponse } from '../types';
 import { formatIST } from '../lib/time';
 import { last, useObsLinks, useSparklines } from '../hooks/useObs';
 import { Sparkline } from './Sparkline';
+import { ModelVersionChip } from './ModelVersionChip';
 
 interface ServiceHealthProps {
   health: HealthResponse | undefined;
@@ -81,6 +82,7 @@ export const ServiceHealth: React.FC<ServiceHealthProps> = ({ health, isError })
       </div>
       <div className="mt-4 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-600">
         <p>Last checked: {formatIST(health.checkedAt)}</p>
+        <ModelVersionChip />
         {sparkOn && links && (
           <div data-testid="obs-links" className="flex flex-wrap gap-2">
             {links.grafana && <a className="font-semibold text-navy underline" href={links.grafana} target="_blank" rel="noreferrer">Open Grafana</a>}

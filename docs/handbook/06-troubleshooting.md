@@ -772,3 +772,9 @@ Also hit, already documented:
 - **HPA shows `<unknown>`:** metrics-server needs about a minute after the cluster starts. `kubectl top pods` should work first.
 - **Console loads but API calls 404:** check `kubectl get ingress netsentinel`. Requests to `/api` must go to `api-gateway:8000`.
 - **Load test logins fail with 429:** the chart sets `RATE_LIMIT_PER_MIN=6000`. If you changed it, raise it again for the test.
+
+### W24 CI / MLOps
+- **`eval-gate` fails after a feature or generator change:** if the drop is intended, re-baseline the champion. Run `uv run python evals/gate.py --train`, copy `macro_f1` / `accuracy` into `evals/gate_thresholds.json` under `champion`, and explain why in the PR.
+- **Signature verify fails with "file set changed":** something wrote into the signed version dir. Gate results belong in `<version>.gate.json` next to it.
+- **`images` job fails to push:** in repo Settings → Actions → Workflow permissions, allow read and write, or give the package write access for the repo.
+- **Retrain didn't register in MLflow:** add the `MLFLOW_TRACKING_URI` secret pointing at a reachable MLflow. The local `obs` MLflow isn't reachable from GitHub.

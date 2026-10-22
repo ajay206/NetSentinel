@@ -6,8 +6,53 @@ on:
   pull_request:
     branches: [ "**" ]
 
+# W24: one paths-filter job decides what runs; skipped jobs count as passed.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      python: ${{ steps.f.outputs.python }}
+      console: ${{ steps.f.outputs.console }}
+      ml: ${{ steps.f.outputs.ml }}
+      deploy: ${{ steps.f.outputs.deploy }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: f
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            ci: &ci
+              - '.github/workflows/ci.yml'
+            python:
+              - *ci
+              - 'services/**'
+              - 'libs/**'
+              - 'scripts/**'
+              - 'evals/**'
+              - 'tests/**'
+              - 'contracts/**'
+              - 'docs/**'
+              - 'pyproject.toml'
+              - 'uv.lock'
+            console:
+              - *ci
+              - 'apps/noc-console/**'
+            ml:
+              - *ci
+              - 'services/ml-service/**'
+              - 'evals/gate*'
+              - 'evals/drift_check.py'
+            deploy:
+              - *ci
+              - 'deploy/**'
+
   python:
+    needs: changes
+    if: needs.changes.outputs.python == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -39,26 +84,17 @@ jobs:
 
   console:
     runs-on: ubuntu-latest
-    needs: python
+    needs: changes
+    if: needs.changes.outputs.console == 'true'
     steps:
       - uses: actions/checkout@v4
 
-      - name: Path filter
-        id: filter
-        uses: dorny/paths-filter@v3
-        with:
-          filters: |
-            console:
-              - 'apps/noc-console/**'
-
       - name: Set up Node
-        if: steps.filter.outputs.console == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: '22'
 
       - name: Cache npm
-        if: steps.filter.outputs.console == 'true'
         uses: actions/cache@v4
         with:
           path: ~/.npm
@@ -67,33 +103,29 @@ jobs:
             ${{ runner.os }}-node-
 
       - name: Install dependencies
-        if: steps.filter.outputs.console == 'true'
         run: npm ci
         working-directory: apps/noc-console
 
       - name: Lint
-        if: steps.filter.outputs.console == 'true'
         run: npm run lint
         working-directory: apps/noc-console
 
       - name: Typecheck
-        if: steps.filter.outputs.console == 'true'
         run: npm run typecheck
         working-directory: apps/noc-console
 
       - name: Test
-        if: steps.filter.outputs.console == 'true'
         run: npm test
         working-directory: apps/noc-console
 
       - name: Build
-        if: steps.filter.outputs.console == 'true'
         run: npm run build
         working-directory: apps/noc-console
 
   layout-audit:
     runs-on: ubuntu-latest
-    needs: console
+    needs: [changes, console]
+    if: needs.changes.outputs.console == 'true'
     timeout-minutes: 15
     defaults:
       run:
@@ -101,17 +133,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Path filter
-        id: filter
-        uses: dorny/paths-filter@v3
-        with:
-          filters: |
-            console:
-              - 'apps/noc-console/**'
-              - '.github/workflows/ci.yml'
-
       - name: Set up Node
-        if: steps.filter.outputs.console == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -119,15 +141,12 @@ jobs:
           cache-dependency-path: apps/noc-console/package-lock.json
 
       - name: Install dependencies
-        if: steps.filter.outputs.console == 'true'
         run: npm ci
 
       - name: Install Chromium
-        if: steps.filter.outputs.console == 'true'
         run: npx playwright install --with-deps chromium
 
       - name: Layout audit (mocked APIs, 4 widths)
-        if: steps.filter.outputs.console == 'true'
         env:
           LAYOUT_STRICT: "1"
           CONSOLE_URL: http://127.0.0.1:5179/
@@ -137,9 +156,59 @@ jobs:
           npx playwright test e2e/layout-audit.spec.ts --reporter=line
 
       - name: Upload layout screenshots
-        if: failure() && steps.filter.outputs.console == 'true'
+        if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: layout-audit
           path: apps/noc-console/test-results/
           retention-days: 7
+
+  eval-gate:
+    # W24: retrain the fault classifier, re-score it on an independent hold-out and block
+    # the PR if it falls below evals/gate_thresholds.json or regresses vs the champion.
+    needs: changes
+    if: needs.changes.outputs.ml == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: uv sync --all-extras --dev
+      - name: Eval gate (must pass)
+        run: uv run python evals/gate.py --train --out gate.json
+      - name: Degraded model must be blocked (gate self-test)
+        run: |
+          if uv run python evals/gate.py --train --degrade > /dev/null; then
+            echo "degraded model passed the gate: FAIL"; exit 1
+          fi
+      - name: PSI drift check
+        run: uv run python evals/drift_check.py --out drift.json
+      - name: Summary
+        if: always()
+        run: |
+          python3 - >> "$GITHUB_STEP_SUMMARY" <<'PY'
+          import json, os
+          for f in ("gate.json", "drift.json"):
+              if os.path.exists(f):
+                  print(f"### {f}\n```json\n{open(f).read()}\n```")
+          PY
+
+  helm:
+    needs: changes
+    if: needs.changes.outputs.deploy == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-helm@v4
+        with:
+          version: v3.17.3
+      - name: helm lint
+        run: helm lint deploy/helm/netsentinel -f deploy/helm/values-local.yaml
+      - name: kubeconform
+        run: |
+          curl -sSL https://github.com/yannh/kubeconform/releases/download/v0.6.7/kubeconform-linux-amd64.tar.gz | tar xz
+          helm template ns deploy/helm/netsentinel -f deploy/helm/values-local.yaml | ./kubeconform -strict -summary

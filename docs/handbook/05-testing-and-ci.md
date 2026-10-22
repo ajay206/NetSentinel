@@ -28,3 +28,22 @@ This workflow runs inside the `python:3.12-slim-trixie` container (the service b
 
 The handshake tests skip themselves on hosts with OpenSSL < 3.5; in this workflow they always run.
 
+
+## W24: path-filtered CI, eval gate, images, retraining
+
+- **`ci.yml`** starts with a `changes` job (dorny/paths-filter). `python` runs for services, libs, scripts, evals, docs and lock changes. `console` and `layout-audit` run for `apps/noc-console/**`. `eval-gate` runs for ml-service and evals changes. `helm` (lint + kubeconform) runs for `deploy/**`. Every job also runs when `ci.yml` itself changes. Skipped jobs count as passed.
+- **Eval gate** (`evals/gate.py`, `ml_service/gate.py`):
+  - It retrains the fault classifier, loads `model.json` and re-scores it on an independent synthetic hold-out (seed 9001). It never trusts `meta.json`.
+  - It blocks when accuracy or macro-F1 is below 0.80, any class F1 is below 0.60, or macro-F1 falls more than 0.03 below the champion in `evals/gate_thresholds.json`.
+  - CI also trains a deliberately degraded model (shuffled labels) and fails if that one passes.
+  - Results go to the sidecar `<version>.gate.json`, outside the signed file set.
+  - To try it locally: `uv run python evals/gate.py --train` (passes) and `--train --degrade` (blocked, exit 1).
+- **Drift:** `evals/drift_check.py` computes PSI per feature. Above 0.1 is a warning, above 0.2 is drift (exit 1). `--shift 1.5` demonstrates an alert.
+- **`images.yml`** builds all 13 images. PRs build only. Pushes to `main` and `v*` tags push `ghcr.io/<owner>/netsentinel-<svc>:{sha,latest,tag}` with `GITHUB_TOKEN` (no extra secrets).
+- **`retrain.yml`** runs Mondays at 09:00 IST, or by hand with `gh workflow run retrain.yml -f promote=true`. The steps are: train, sign with ML-DSA-65 (ephemeral CI key), verify, gate, drift, then `scripts/mlflow_promote.py`.
+  - The promote step registers `netsentinel-fault-classifier` and moves the `champion` alias only if the gate passed.
+  - Without the `MLFLOW_TRACKING_URI` repo secret it's a dry run.
+  - The model, gate result and drift report are uploaded as artifacts.
+- **`verify-model.yml`** (Step 21) still runs on every push/PR: sign, verify, tamper must fail.
+- **Console:** Service health shows a `model <version> · gate pass|blocked|not gated` chip from `GET /api/ml/model/info`. "Not gated" is the dev model auto-trained at start-up.
+- **Governance:** `docs/risk_register.md`, `docs/data_contract.md` and `docs/stakeholder_onepager.md`.

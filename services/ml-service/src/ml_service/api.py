@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextlib
 import json
 import logging
 import os
@@ -309,6 +310,36 @@ def model_signature() -> dict[str, Any]:
         except (ModelRejected, FileNotFoundError):
             pass
     return dict(_signature)
+
+
+@app.get("/model/info")
+def model_info() -> dict[str, Any]:
+    """W24: served model version, its metrics and last eval-gate result (console chip).
+
+    Reads the registry and sidecar files only, so it never triggers training or loading.
+    """
+    try:
+        vdir = _version_dir()
+    except (FileNotFoundError, json.JSONDecodeError):
+        return {"name": MODEL_NAME, "version": None, "gate": None, "loaded": False}
+    meta: dict[str, Any] = {}
+    gate: dict[str, Any] | None = None
+    with contextlib.suppress(FileNotFoundError, json.JSONDecodeError):
+        meta = json.loads((vdir / "meta.json").read_text())
+    with contextlib.suppress(FileNotFoundError, json.JSONDecodeError):
+        g = json.loads((vdir.parent / f"{vdir.name}.gate.json").read_text())
+        gate = {"passed": bool(g.get("passed")), "reasons": g.get("reasons", [])[:5]}
+    m = meta.get("metrics") or {}
+    return {
+        "name": MODEL_NAME,
+        "version": vdir.name,
+        "trainedAt": meta.get("trainedAt"),
+        "metrics": {k: m[k] for k in ("accuracy", "macro_f1") if k in m},
+        "gate": gate,
+        "registry": os.getenv("MODEL_REGISTRY_LABEL") or None,
+        "signature": _signature.get("status"),
+        "loaded": _model is not None,
+    }
 
 
 @app.post("/predict")

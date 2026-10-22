@@ -481,3 +481,19 @@ Built straight after Step 18; Steps 19–20 (TelcoGPT-mini) moved to the next ph
 - **Date:** 2026-10-21
 - **Scope:** `deploy/k3d/cluster.yaml` (1 server, ingress on :8080, memory eviction threshold). `deploy/helm/netsentinel` umbrella chart: one values block per component, with requests/limits, readiness/liveness probes, a dev-only Secret, a Traefik ingress, a Kafka topics hook Job and a simulator Job. HPA on copilot-orchestrator (1–3, 60% CPU). `loadtest/` has the Locust file, a runner and a report generator. New Make targets: `k3d-up`, `k3d-images`, `k3d-install`, `k3d-status`, `k3d-load`, `k3d-down` and `helm-lint`.
 - **Verification:** `helm lint` clean; `helm template | kubeconform -strict` gives 23/23 valid; the locustfile imports under Locust. No cluster was run on the box (no Docker). The load-test report and HPA scaling still need a run on the Mac.
+
+## W24 CI/CD + MLOps
+
+- **Date:** 2026-10-21
+- **Scope:**
+  - CI: `ci.yml` is path-filtered through one `changes` job. New `eval-gate` job (gate plus a degraded-model self-test plus PSI) and `helm` job (lint + kubeconform).
+  - Workflows: new `images.yml` (13 images to GHCR on main and tags) and `retrain.yml` (weekly: train, sign, gate, drift, MLflow register/promote).
+  - Model code: `ml_service/gate.py` and `ml_service/drift.py` with the CLIs `evals/gate.py` and `evals/drift_check.py`, thresholds in `evals/gate_thresholds.json`, and `scripts/mlflow_promote.py`.
+  - API and console: ml-service `GET /model/info`, gateway `/api/ml/model/info`, and a model-version chip in Service health.
+  - Docs: risk register, data contract and stakeholder one-pager.
+- **Verification:**
+  - ruff; pytest 622 passed (6 new gate/drift/model-info tests).
+  - Gate passes the seed-42 model (macro-F1 0.868) and blocks the degraded one. PSI is stable at 0.012 and flags drift with `--shift 1.5`.
+  - The retrain steps run end to end locally (signature still verifies after gating), with the MLflow step as a dry run.
+  - Console tests and the layout audit 8/8.
+  - The workflows were parsed, not run. The first real run happens on GitHub after merge.
