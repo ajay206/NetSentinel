@@ -1,4 +1,4 @@
-.PHONY: logs ps reset-db tools-build incidents up-core up-tools up-ui down topics test lint fmt smoke sim sim-loop sim-docker gateway console-install console console-build console-lint console-test test-all ingest up-pipeline enriched-peek ingest-stats kpi-service kpi-stats kpi-query ml ml-train anomalies topology kpis kpis-follow kpis-peek docs-check ml-train-xgb up-rag rag rag-ingest rag-eval runbooks copilot up-copilot analyze ollama-pull mcp mcp-dev mcp-contract copilot-contract gateway-contract token demo kafka-smoke incident up-incident incidents-peek incident-eval up-graph topo-load impact topology-contract rag-bench rag-bench-dev up-tickets ticket-migrate ticket-contract tickets agents agent-runs llm-gateway-contract llm-gateway-redteam pqc-init pqc-probe pqc-bench pqc-tamper pqc-verify up-obs down-obs obs-check
+.PHONY: logs ps reset-db tools-build incidents up-core up-tools up-ui down topics test lint fmt smoke sim sim-loop sim-docker gateway console-install console console-build console-lint console-test test-all ingest up-pipeline enriched-peek ingest-stats kpi-service kpi-stats kpi-query ml ml-train anomalies topology kpis kpis-follow kpis-peek docs-check ml-train-xgb up-rag rag rag-ingest rag-eval runbooks copilot up-copilot analyze ollama-pull mcp mcp-dev mcp-contract copilot-contract gateway-contract token demo kafka-smoke incident up-incident incidents-peek incident-eval up-graph topo-load impact topology-contract rag-bench rag-bench-dev up-tickets ticket-migrate ticket-contract tickets agents agent-runs llm-gateway-contract llm-gateway-redteam pqc-init pqc-probe pqc-bench pqc-tamper pqc-verify up-obs down-obs obs-check k3d-up k3d-images k3d-install k3d-status k3d-load k3d-down helm-lint
 
 # Targets marked (dev) run on the host and need uv / Node; everything else needs only Docker.
 
@@ -26,6 +26,31 @@ down-obs:
 
 obs-check:
 	python3 scripts/obs_check.py
+
+# W23 local Kubernetes (opt-in). Stop compose first on 8 GB: `make down`.
+K3D_IMAGES := api-gateway alarm-ingest kpi-service ml-service incident-service copilot-orchestrator netgen-simulator noc-console
+k3d-up:
+	k3d cluster create --config deploy/k3d/cluster.yaml
+
+k3d-images:
+	COMPOSE_PROJECT_NAME=netsentinel docker compose --profile ui --profile pipeline --profile ops --profile copilot --profile sim build $(K3D_IMAGES)
+	for s in $(K3D_IMAGES); do docker tag netsentinel-$$s netsentinel-$$s:local; done
+	k3d image import -c netsentinel $(addprefix netsentinel-,$(addsuffix :local,$(K3D_IMAGES)))
+
+k3d-install:
+	helm upgrade --install ns deploy/helm/netsentinel -f deploy/helm/values-local.yaml --wait --timeout 10m
+
+k3d-status:
+	kubectl get pods,svc,hpa,ingress
+
+k3d-load:
+	bash loadtest/run.sh
+
+k3d-down:
+	k3d cluster delete netsentinel
+
+helm-lint:
+	helm lint deploy/helm/netsentinel -f deploy/helm/values-local.yaml
 
 down:
 	docker compose $(PROFILES) down

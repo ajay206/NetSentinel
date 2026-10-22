@@ -1,0 +1,110 @@
+# W23 umbrella chart. One chart, one block per component; flip `enabled` to trim the set.
+# Synthetic data only. Every secret below is a dev-only default; override in values-local.yaml
+# or with --set for anything that is not a laptop.
+
+image:
+  registry: ""            # "" = images imported into k3d (`make k3d-images`); or ghcr.io/ajay206
+  tag: local
+  pullPolicy: IfNotPresent
+
+secrets:
+  postgresPassword: dev-only-postgres
+  jwtSecret: dev-only-change-me-0123456789abcdefghij
+  gatewayServiceToken: dev-only-service-token
+  incidentServiceToken: dev-only-incident-token
+
+ingress:
+  enabled: true
+  className: traefik
+  host: ""                # "" = any host (localhost:8080 via k3d)
+
+kafka:
+  enabled: true
+  image: apache/kafka:3.8.0
+  heap: "-Xms256m -Xmx256m"
+  resources: {requests: {cpu: 100m, memory: 384Mi}, limits: {memory: 640Mi}}
+  topics: [alarms.raw, alarms.enriched, kpis, incidents]
+
+timescaledb:
+  enabled: true
+  image: timescale/timescaledb:latest-pg16
+  resources: {requests: {cpu: 50m, memory: 192Mi}, limits: {memory: 384Mi}}
+
+# Python services and the console. port = container port; env = plain settings.
+apps:
+  api-gateway:
+    enabled: true
+    port: 8000
+    probe: /healthz
+    resources: {requests: {cpu: 50m, memory: 128Mi}, limits: {memory: 192Mi}}
+    env:
+      KAFKA_BOOTSTRAP: kafka:29092
+      ALARM_TOPIC: alarms.raw
+      KPI_TOPIC: kpis
+      ENRICHED_TOPIC: alarms.enriched
+      KPI_SERVICE_URL: http://kpi-service:8002
+      ML_SERVICE_URL: http://ml-service:8003
+      COPILOT_URL: http://copilot-orchestrator:8005
+      ALARM_INGEST_URL: http://alarm-ingest:8001
+      INCIDENT_SERVICE_URL: http://incident-service:8007
+      TOPOLOGY_SEED: "42"
+      TOPOLOGY_FULL: "0"
+      TIMESCALE_HOST: timescaledb
+      TIMESCALE_PORT: "5432"
+      CORS_ORIGINS: http://localhost:8080
+      DEMO_USERS: "1"
+      RATE_LIMIT_PER_MIN: "6000"   # the load test signs in as one user
+      USER_STORE: postgres
+      PQC_TLS_TARGETS: ""
+    secretEnv:
+      POSTGRES_PASSWORD: postgresPassword
+      JWT_SECRET: jwtSecret
+      GATEWAY_SERVICE_TOKEN: gatewayServiceToken
+      INCIDENT_SERVICE_TOKEN: incidentServiceToken
+  alarm-ingest:
+    enabled: true
+    port: 8001
+    probe: /healthz
+    resources: {requests: {cpu: 50m, memory: 96Mi}, limits: {memory: 160Mi}}
+    env: {KAFKA_BOOTSTRAP: "kafka:29092", RAW_TOPIC: alarms.raw, ENRICHED_TOPIC: alarms.enriched, TOPOLOGY_SEED: "42", TOPOLOGY_FULL: "0"}
+  kpi-service:
+    enabled: true
+    port: 8002
+    probe: /healthz
+    resources: {requests: {cpu: 50m, memory: 128Mi}, limits: {memory: 192Mi}}
+    env: {KAFKA_BOOTSTRAP: "kafka:29092", KPI_TOPIC: kpis, KPI_STORE: postgres, TIMESCALE_HOST: timescaledb, TIMESCALE_PORT: "5432"}
+    secretEnv: {POSTGRES_PASSWORD: postgresPassword}
+  ml-service:
+    enabled: true
+    port: 8003
+    probe: /healthz
+    resources: {requests: {cpu: 100m, memory: 160Mi}, limits: {memory: 256Mi}}
+    # No pqc-init in k3d: the auto-trained model is unsigned, so verification is off here
+    env: {KPI_SERVICE_URL: "http://kpi-service:8002", ANOMALY_Z: "3.5", MODELS_DIR: /tmp/models, AUTO_TRAIN: "1", MODEL_VERIFY: "off"}
+  incident-service:
+    enabled: true
+    port: 8007
+    probe: /healthz
+    resources: {requests: {cpu: 50m, memory: 96Mi}, limits: {memory: 128Mi}}
+    env: {KAFKA_BOOTSTRAP: "kafka:29092", ENRICHED_TOPIC: alarms.enriched, INCIDENTS_TOPIC: incidents, TOPOLOGY_SEED: "42", TOPOLOGY_FULL: "0"}
+    secretEnv: {INCIDENT_SERVICE_TOKEN: incidentServiceToken}
+  copilot-orchestrator:
+    enabled: true
+    port: 8005
+    probe: /healthz
+    # requests drive the HPA percentage, so keep them honest and small
+    resources: {requests: {cpu: 100m, memory: 128Mi}, limits: {cpu: 500m, memory: 192Mi}}
+    # Lean k3d mode: direct tools, deterministic answers (no llm-gateway / Ollama / MCP pods)
+    env: {GATEWAY_URL: "http://api-gateway:8000", ML_SERVICE_URL: "http://ml-service:8003", RAG_MODE: hybrid, AGENT_TRIGGER: "off", TOOLS: http, LLM: "off", KAFKA_BOOTSTRAP: "kafka:29092"}
+    secretEnv: {GATEWAY_SERVICE_TOKEN: gatewayServiceToken}
+    hpa: {enabled: true, minReplicas: 1, maxReplicas: 3, cpuPercent: 60}
+  noc-console:
+    enabled: true
+    port: 80
+    probe: /
+    resources: {requests: {cpu: 10m, memory: 16Mi}, limits: {memory: 64Mi}}
+    env: {}
+
+simulator:
+  enabled: true          # one-shot Job: seeds synthetic alarms after install
+  resources: {requests: {cpu: 50m, memory: 64Mi}, limits: {memory: 128Mi}}

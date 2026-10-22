@@ -1,0 +1,6 @@
+apiVersion: v2
+name: netsentinel
+description: NetSentinel umbrella chart (W23) - reduced Phase 1 set + incident-service and copilot, for k3d on an 8 GB laptop
+type: application
+version: 0.3.0
+appVersion: "0.3.0"

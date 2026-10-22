@@ -527,3 +527,28 @@ and re-signs. To sign a real release offline, use `scripts/sign_model.py sign --
 --key <private key> --model-dir models/fault_classifier/<version> --card
 docs/model_card_fault_classifier.md`. Keep private keys in `.pqc/` (gitignored) or a secrets store.
 
+
+## Local Kubernetes with k3d + Helm (W23, opt-in)
+
+This doesn't change `make demo`. It needs `k3d`, `kubectl` and `helm` (`brew install k3d kubectl helm`). On an 8 GB Mac, stop compose first and give Docker 4–5 GB.
+
+```bash
+make down                 # free RAM: compose and k3d together will not fit
+make k3d-up               # 1-node cluster, ingress on localhost:8080 (deploy/k3d/cluster.yaml)
+make k3d-images           # build with compose, tag :local, import into k3d
+make k3d-install          # helm upgrade --install ns deploy/helm/netsentinel -f deploy/helm/values-local.yaml
+make k3d-status           # pods, services, HPA, ingress
+open http://localhost:8080   # operator / operator
+make k3d-load             # Locust 20 users / 3 min -> loadtest/report.md (RPS, p50/p95/p99, replicas)
+make k3d-down             # delete the cluster
+```
+
+**What runs:** Kafka (256 MB heap) and its topics Job, TimescaleDB (emptyDir), api-gateway, alarm-ingest, kpi-service, ml-service, incident-service, copilot-orchestrator, noc-console and a one-shot netgen-simulator Job. Total limits are about 2.4 GiB with the copilot at 3 replicas.
+- Left out for RAM: rag-service/Qdrant, Neo4j/topology-service, ticket-service, llm-gateway/Ollama, mcp-server and the `obs` stack.
+- The copilot runs in lean mode (`TOOLS=http`, `LLM=off`, deterministic answers), and ml-service has `MODEL_VERIFY=off` because pqc-init doesn't run in k3d.
+
+**HPA:** `copilot-orchestrator` scales 1 to 3 at 60% of its 100m CPU request. It uses k3s's bundled metrics-server. Watch it with `kubectl get hpa -w` while `make k3d-load` runs.
+
+**Ingress:** Traefik routes `/api`, `/health` and `/ws` straight to the gateway, and `/` to the console. The console's nginx uses Docker's DNS, so it can't proxy inside Kubernetes.
+
+**Secrets:** `values.yaml` has only dev-only defaults, stored in a Secret called `netsentinel-secrets`. Override them with `--set secrets.jwtSecret=...` for anything that isn't a laptop.
