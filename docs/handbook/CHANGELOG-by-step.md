@@ -497,3 +497,9 @@ Built straight after Step 18; Steps 19–20 (TelcoGPT-mini) moved to the next ph
   - The retrain steps run end to end locally (signature still verifies after gating), with the MLflow step as a dry run.
   - Console tests and the layout audit 8/8.
   - The workflows were parsed, not run. The first real run happens on GitHub after merge.
+
+## Review 2026-10 fixes
+
+- **Date:** 2026-10-21
+- **Scope:** Whole-repo review (free model laguna-s-2.1, then a hand check), written up in `docs/handbook/review-2026-10.md`. Fixed: start-up check for placeholder secrets (`NS_STRICT_SECRETS=1` refuses them) and `timeout-minutes` on every workflow job. The rest is deferred or rejected, with reasons, in the review doc.
+- **Verification:** ruff; pytest 625 passed (3 new).
