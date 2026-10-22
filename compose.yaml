@@ -104,6 +104,12 @@ services:
       # Step 21: PQC status panel probes these with real hybrid / classical handshakes
       PQC_TLS_TARGETS: llm-gateway=llm-gateway:8443
       PQC_CA_FILE: /pqc/ca.crt
+      # W22: observability (profile `obs`). Unreachable = sparklines/links simply hidden
+      PROMETHEUS_URL: ${PROMETHEUS_URL:-http://prometheus:9090}
+      GRAFANA_PUBLIC_URL: ${GRAFANA_PUBLIC_URL:-http://localhost:3000}
+      LANGFUSE_PUBLIC_URL: ${LANGFUSE_PUBLIC_URL:-http://localhost:3001}
+      MLFLOW_PUBLIC_URL: ${MLFLOW_PUBLIC_URL:-http://localhost:5000}
+      PROMETHEUS_PUBLIC_URL: ${PROMETHEUS_PUBLIC_URL:-http://localhost:9090}
     volumes:
       - pqc:/pqc:ro
     mem_limit: 192m
@@ -522,9 +528,117 @@ services:
     mem_limit: 192m
     restart: "no"
 
+  # ---------------------------------------------------------------------------
+  # W22 observability (opt-in: `make up-obs`). Not part of `make demo`.
+  # Budget: ~0.9 GB total. All ports bound to localhost; dev-only credentials.
+  # ---------------------------------------------------------------------------
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.130.0
+    profiles: ["obs"]
+    command: ["--config=/etc/otelcol/config.yaml"]
+    volumes:
+      - ./infra/otel-collector.yaml:/etc/otelcol/config.yaml:ro
+    ports:
+      - "127.0.0.1:4317:4317"
+      - "127.0.0.1:4318:4318"
+    mem_limit: 128m
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:v3.5.0
+    profiles: ["obs"]
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.retention.time=2d
+      - --storage.tsdb.retention.size=256MB
+    volumes:
+      - ./infra/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prom-data:/prometheus
+    ports:
+      - "127.0.0.1:9090:9090"
+    mem_limit: 192m
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana-oss:12.1.0
+    profiles: ["obs"]
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-dev-only-grafana}
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/netsentinel-services.json
+    volumes:
+      - ./infra/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./infra/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports:
+      - "127.0.0.1:3000:3000"
+    mem_limit: 160m
+    depends_on: [prometheus]
+    restart: unless-stopped
+
+  langfuse-db-init:
+    image: timescale/timescaledb:latest-pg16
+    profiles: ["obs"]
+    environment:
+      PGPASSWORD: ${POSTGRES_PASSWORD:?set in .env}
+    entrypoint: ["sh", "-c"]
+    command:
+      - >-
+        psql -h timescaledb -U postgres -tc "SELECT 1 FROM pg_database WHERE datname='langfuse'"
+        | grep -q 1 || psql -h timescaledb -U postgres -c "CREATE DATABASE langfuse"
+    mem_limit: 64m
+    depends_on:
+      timescaledb:
+        condition: service_healthy
+    restart: "no"
+
+  langfuse:
+    # v2 needs only Postgres (v3 adds ClickHouse/Redis/S3: too heavy for 8 GB)
+    image: langfuse/langfuse:2
+    profiles: ["obs"]
+    environment:
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:?set in .env}@timescaledb:5432/langfuse
+      NEXTAUTH_URL: http://localhost:3001
+      NEXTAUTH_SECRET: ${LANGFUSE_NEXTAUTH_SECRET:-dev-only-langfuse-nextauth}
+      SALT: ${LANGFUSE_SALT:-dev-only-langfuse-salt}
+      TELEMETRY_ENABLED: "false"
+      LANGFUSE_INIT_ORG_ID: netsentinel
+      LANGFUSE_INIT_PROJECT_ID: netsentinel
+      LANGFUSE_INIT_PROJECT_PUBLIC_KEY: ${LANGFUSE_PUBLIC_KEY:-pk-lf-dev-only}
+      LANGFUSE_INIT_PROJECT_SECRET_KEY: ${LANGFUSE_SECRET_KEY:-sk-lf-dev-only}
+    ports:
+      - "127.0.0.1:3001:3000"
+    mem_limit: 384m
+    depends_on:
+      langfuse-db-init:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:v3.1.1
+    profiles: ["obs"]
+    command:
+      - mlflow
+      - server
+      - --host=0.0.0.0
+      - --port=5000
+      - --backend-store-uri=sqlite:////mlflow/mlflow.db
+      - --artifacts-destination=/mlflow/artifacts
+      - --workers=1
+    volumes:
+      - mlflow-data:/mlflow
+    ports:
+      - "127.0.0.1:5000:5000"
+    mem_limit: 256m
+    restart: unless-stopped
+
 volumes:
   kafka-data: {}
   qdrant-data: {}
   pg-data: {}
   neo4j-data: {}
   pqc: {}
+  prom-data: {}
+  mlflow-data: {}

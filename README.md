@@ -26,6 +26,8 @@ NetSentinel is an AI-assisted NOC copilot for telecom operators. It runs locally
 - Qdrant
 - Neo4j
 
+**Observability (opt-in, `make up-obs`):** OTel collector, Prometheus, Grafana dashboards, Langfuse and MLflow under compose profile `obs` (W22); Service health shows latency/error sparklines and Grafana/Langfuse links when it's running.
+
 **Console:** React/TypeScript/Tailwind NOC console with a responsive bento theme (375–1920 px), checked in CI by a Playwright layout audit.
 
 **Planned**

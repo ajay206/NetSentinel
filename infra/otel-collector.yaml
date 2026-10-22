@@ -1,0 +1,50 @@
+# W22: OpenTelemetry collector (compose profile `obs`).
+# Receives OTLP (gRPC 4317 / HTTP 4318) from any service that opts in, batches it,
+# drops attributes that could carry PII, and exposes metrics for Prometheus on :8889.
+# Traces go to the debug exporter (sampled) so nothing leaves the laptop.
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  memory_limiter:
+    check_interval: 2s
+    limit_mib: 96
+    spike_limit_mib: 24
+  batch: {}
+  attributes/no-pii:
+    actions:
+      - {key: user.email, action: delete}
+      - {key: enduser.id, action: delete}
+      - {key: http.request.header.authorization, action: delete}
+      - {key: llm.prompt, action: delete}
+      - {key: llm.completion, action: delete}
+
+exporters:
+  prometheus:
+    endpoint: 0.0.0.0:8889
+    namespace: otel
+  debug:
+    verbosity: basic
+    sampling_initial: 5
+    sampling_thereafter: 200
+
+extensions:
+  health_check:
+    endpoint: 0.0.0.0:13133
+
+service:
+  extensions: [health_check]
+  pipelines:
+    metrics:
+      receivers: [otlp]
+      processors: [memory_limiter, attributes/no-pii, batch]
+      exporters: [prometheus]
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, attributes/no-pii, batch]
+      exporters: [debug]

@@ -23,12 +23,13 @@ import httpx
 from aiokafka import AIOKafkaConsumer
 from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, PlainTextResponse
 
 # netgen is a workspace dependency
 from netgen import build_topology
 
 from api_gateway import auth as auth_mod
+from api_gateway import obs
 from api_gateway.auth import AuthMiddleware, admin_router
 from api_gateway.auth import router as auth_router
 from api_gateway.pqc_status import PqcStatus
@@ -340,7 +341,29 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["X-Trace-Id"],
 )
+# W22: outermost, so it times and tags every response (401s and CORS preflights included)
+app.add_middleware(obs.MetricsMiddleware)
+sparklines = obs.Sparklines()
+
+
+@app.get("/metrics")
+async def metrics() -> PlainTextResponse:
+    """W22: Prometheus text format (scraped by the `obs` profile; bound to localhost)."""
+    return PlainTextResponse(obs.registry.render(), media_type="text/plain; version=0.0.4")
+
+
+@app.get("/api/obs/sparklines")
+async def obs_sparklines() -> JSONResponse:
+    """W22: last 30 min of p95 latency and error rate per service, from Prometheus."""
+    return JSONResponse(await sparklines.get())
+
+
+@app.get("/api/obs/links")
+async def obs_links() -> JSONResponse:
+    """W22: where Grafana / Langfuse / MLflow live (null when the obs profile is off)."""
+    return JSONResponse(obs.links())
 
 
 async def check_http_service(name: str, base_url: str) -> dict[str, Any]:

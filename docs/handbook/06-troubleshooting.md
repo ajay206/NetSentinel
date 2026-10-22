@@ -760,3 +760,8 @@ Also hit, already documented:
 - Mermaid fails to render on GitHub — #8
 - `retrieval_report.md` numbers differ from the PR — #73
 
+
+### W22 observability
+- **No sparklines in Service health:** expected unless `make up-obs` is running. `make obs-check` should list `api-gateway up` under targets. If Prometheus is up but the gateway target is down, recreate the gateway so it joins the same compose project.
+- **Langfuse restarts:** it needs the `langfuse` database. Check `docker compose logs langfuse-db-init`. On 8 GB Macs, stop the `copilot` / `graph` profiles before starting `obs`.
+- **Grafana dashboard empty:** generate some traffic (open the console, or `make smoke`). Panels use 5-minute rates.
