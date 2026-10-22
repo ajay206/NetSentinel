@@ -28,11 +28,13 @@ NetSentinel is an AI-assisted NOC copilot for telecom operators. It runs locally
 
 **Observability (opt-in, `make up-obs`):** OTel collector, Prometheus, Grafana dashboards, Langfuse and MLflow under compose profile `obs` (W22); Service health shows latency/error sparklines and Grafana/Langfuse links when it's running.
 
+**Kubernetes (opt-in, W23):** k3d cluster + Helm umbrella chart (`deploy/helm/netsentinel`) for a reduced service set, HPA on the copilot, Locust load test (`make k3d-up k3d-images k3d-install k3d-load`).
+
 **Console:** React/TypeScript/Tailwind NOC console with a responsive bento theme (375–1920 px), checked in CI by a Playwright layout audit.
 
 **Planned**
 - Phase 3: TelcoGPT-mini (Steps 19-20), a small telecom-tuned model behind the llm-gateway (its route is reserved but not used yet)
-- Kubernetes deployment
+- Managed Kubernetes / cloud deployment (W25+)
 
 ## Quick start
 **Prerequisites:** Docker (Desktop or Engine with Compose v2), git and make. That's all: Python, uv and Node are only needed for development. Windows: use WSL2. On 8 GB machines, give Docker 4–5 GB (see `docs/handbook/02-local-setup.md`).

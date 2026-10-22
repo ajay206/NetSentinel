@@ -1,0 +1,25 @@
+{{- if .Values.ingress.enabled }}
+# Console at /, gateway at /api, /health and /ws (the console's nginx uses Docker DNS,
+# so in Kubernetes the ingress routes API calls straight to the gateway instead).
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: netsentinel
+  labels: {{- include "ns.labels" . | nindent 4 }}
+spec:
+  ingressClassName: {{ .Values.ingress.className }}
+  rules:
+    - {{- if .Values.ingress.host }}
+      host: {{ .Values.ingress.host }}
+      {{- end }}
+      http:
+        paths:
+          {{- range list "/api" "/health" "/ws" }}
+          - path: {{ . }}
+            pathType: Prefix
+            backend: {service: {name: api-gateway, port: {number: 8000}}}
+          {{- end }}
+          - path: /
+            pathType: Prefix
+            backend: {service: {name: noc-console, port: {number: 80}}}
+{{- end }}

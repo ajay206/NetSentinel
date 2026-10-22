@@ -1,0 +1,138 @@
+{{- if .Values.kafka.enabled }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kafka
+  labels: {{- include "ns.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  strategy: {type: Recreate}
+  selector: {matchLabels: {app.kubernetes.io/name: kafka}}
+  template:
+    metadata: {labels: {app.kubernetes.io/name: kafka, app.kubernetes.io/part-of: netsentinel}}
+    spec:
+      automountServiceAccountToken: false
+      enableServiceLinks: false   # else KAFKA_PORT etc. confuse the image's config script
+      containers:
+        - name: kafka
+          image: {{ .Values.kafka.image }}
+          ports: [{containerPort: 29092, name: kafka}]
+          env:
+            - {name: KAFKA_NODE_ID, value: "1"}
+            - {name: KAFKA_PROCESS_ROLES, value: "broker,controller"}
+            - {name: KAFKA_LISTENERS, value: "PLAINTEXT://:29092,CONTROLLER://:9093"}
+            - {name: KAFKA_ADVERTISED_LISTENERS, value: "PLAINTEXT://kafka:29092"}
+            - {name: KAFKA_LISTENER_SECURITY_PROTOCOL_MAP, value: "CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT"}
+            - {name: KAFKA_CONTROLLER_LISTENER_NAMES, value: CONTROLLER}
+            - {name: KAFKA_CONTROLLER_QUORUM_VOTERS, value: "1@localhost:9093"}
+            - {name: KAFKA_INTER_BROKER_LISTENER_NAME, value: PLAINTEXT}
+            - {name: KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR, value: "1"}
+            - {name: KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR, value: "1"}
+            - {name: KAFKA_TRANSACTION_STATE_LOG_MIN_ISR, value: "1"}
+            - {name: KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS, value: "0"}
+            - {name: KAFKA_AUTO_CREATE_TOPICS_ENABLE, value: "false"}
+            - {name: KAFKA_HEAP_OPTS, value: {{ .Values.kafka.heap | quote }}}
+          readinessProbe:
+            tcpSocket: {port: kafka}
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources: {{- toYaml .Values.kafka.resources | nindent 12 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kafka
+  labels: {{- include "ns.labels" . | nindent 4 }}
+spec:
+  selector: {app.kubernetes.io/name: kafka}
+  ports: [{name: kafka, port: 29092, targetPort: kafka}]
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: kafka-topics
+  labels: {{- include "ns.labels" . | nindent 4 }}
+  annotations:
+    helm.sh/hook: post-install,post-upgrade
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: 20
+  template:
+    spec:
+      restartPolicy: OnFailure
+      automountServiceAccountToken: false
+      containers:
+        - name: topics
+          image: {{ .Values.kafka.image }}
+          command: ["sh", "-c"]
+          args:
+            - >-
+              for t in {{ join " " .Values.kafka.topics }}; do
+              /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:29092 --create --if-not-exists
+              --topic "$t" --partitions 3 --replication-factor 1 || exit 1; done
+          env: [{name: KAFKA_HEAP_OPTS, value: "-Xmx128m"}]
+          resources: {limits: {memory: 256Mi}}
+{{- end }}
+{{- if .Values.timescaledb.enabled }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: timescaledb
+  labels: {{- include "ns.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  strategy: {type: Recreate}
+  selector: {matchLabels: {app.kubernetes.io/name: timescaledb}}
+  template:
+    metadata: {labels: {app.kubernetes.io/name: timescaledb, app.kubernetes.io/part-of: netsentinel}}
+    spec:
+      automountServiceAccountToken: false
+      containers:
+        - name: timescaledb
+          image: {{ .Values.timescaledb.image }}
+          ports: [{containerPort: 5432, name: pg}]
+          env:
+            - name: POSTGRES_PASSWORD
+              valueFrom: {secretKeyRef: {name: netsentinel-secrets, key: postgresPassword}}
+          readinessProbe:
+            exec: {command: ["pg_isready", "-U", "postgres"]}
+            periodSeconds: 10
+          resources: {{- toYaml .Values.timescaledb.resources | nindent 12 }}
+          volumeMounts: [{name: data, mountPath: /var/lib/postgresql/data}]
+      volumes: [{name: data, emptyDir: {}}]   # laptop demo: data is synthetic and disposable
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: timescaledb
+  labels: {{- include "ns.labels" . | nindent 4 }}
+spec:
+  selector: {app.kubernetes.io/name: timescaledb}
+  ports: [{name: pg, port: 5432, targetPort: pg}]
+{{- end }}
+{{- if .Values.simulator.enabled }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: netgen-simulator
+  labels: {{- include "ns.labels" . | nindent 4 }}
+  annotations:
+    helm.sh/hook: post-install
+    helm.sh/hook-weight: "5"
+    helm.sh/hook-delete-policy: before-hook-creation
+spec:
+  backoffLimit: 10
+  template:
+    spec:
+      restartPolicy: OnFailure
+      automountServiceAccountToken: false
+      containers:
+        - name: netgen
+          image: {{ include "ns.image" (list . "netgen-simulator") }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env: [{name: KAFKA_BOOTSTRAP, value: "kafka:29092"}]
+          resources: {{- toYaml .Values.simulator.resources | nindent 12 }}
+{{- end }}

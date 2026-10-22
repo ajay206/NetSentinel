@@ -765,3 +765,10 @@ Also hit, already documented:
 - **No sparklines in Service health:** expected unless `make up-obs` is running. `make obs-check` should list `api-gateway up` under targets. If Prometheus is up but the gateway target is down, recreate the gateway so it joins the same compose project.
 - **Langfuse restarts:** it needs the `langfuse` database. Check `docker compose logs langfuse-db-init`. On 8 GB Macs, stop the `copilot` / `graph` profiles before starting `obs`.
 - **Grafana dashboard empty:** generate some traffic (open the console, or `make smoke`). Panels use 5-minute rates.
+
+### W23 k3d / Helm
+- **`ErrImageNeverPull` / `ImagePullBackOff`:** run `make k3d-images` again. Images must be named `netsentinel-<svc>:local` and imported into the `netsentinel` cluster.
+- **Pods `OOMKilled` or the Mac freezes:** compose is probably still running (`make down`). Or trim the set with `--set apps.ml-service.enabled=false`.
+- **HPA shows `<unknown>`:** metrics-server needs about a minute after the cluster starts. `kubectl top pods` should work first.
+- **Console loads but API calls 404:** check `kubectl get ingress netsentinel`. Requests to `/api` must go to `api-gateway:8000`.
+- **Load test logins fail with 429:** the chart sets `RATE_LIMIT_PER_MIN=6000`. If you changed it, raise it again for the test.

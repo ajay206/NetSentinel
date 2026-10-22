@@ -1,0 +1,6 @@
+# W23: k3d on an 8 GB Mac. Total limits ~2.4 GiB with the copilot at 3 replicas.
+# Defaults in netsentinel/values.yaml are already laptop-sized; this file is where you
+# trim further or point at GHCR images (W24) instead of locally imported ones.
+image:
+  registry: ""
+  tag: local

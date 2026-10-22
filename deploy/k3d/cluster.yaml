@@ -1,0 +1,19 @@
+# W23: single-node k3d cluster for NetSentinel (8 GB Mac: 1 server, 0 agents).
+# Create: make k3d-up   (or: k3d cluster create --config deploy/k3d/cluster.yaml)
+apiVersion: k3d.io/v1alpha5
+kind: Simple
+metadata:
+  name: netsentinel
+servers: 1
+agents: 0
+ports:
+  - port: 8080:80          # ingress (Traefik, bundled with k3s) -> console + /api
+    nodeFilters: [loadbalancer]
+options:
+  k3s:
+    extraArgs:
+      - arg: --disable=servicelb@server:0   # k3d's own LB container is enough
+        nodeFilters: [server:*]
+      # keep the node from swapping the Mac to death; pods are evicted first
+      - arg: --kubelet-arg=eviction-hard=memory.available<300Mi
+        nodeFilters: [server:*]

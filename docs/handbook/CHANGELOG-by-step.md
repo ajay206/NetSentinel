@@ -475,3 +475,9 @@ Built straight after Step 18; Steps 19–20 (TelcoGPT-mini) moved to the next ph
 - **Date:** 2026-10-21
 - **Scope:** New compose profile `obs`: OTel collector (PII-dropping processor), Prometheus (2-day retention), Grafana with a provisioned services dashboard, Langfuse v2 on the existing TimescaleDB, and MLflow (SQLite). All have memory limits (~0.9 GB total) and localhost ports. `make up-obs`, `down-obs` and `obs-check` added; `make demo` is unchanged. Gateway: dependency-free metrics middleware, `/metrics`, `X-Trace-Id` / `traceparent`, `/api/obs/sparklines` and `/api/obs/links`. Console: Service health latency and error sparklines plus Open Grafana / Langfuse / MLflow links, hidden when `obs` is off.
 - **Verification:** ruff, gateway pytest (7 new obs tests), console lint/typecheck/Vitest (2 new), and the layout audit 8/8 with sparklines mocked. Compose and dashboard JSON parse. Images weren't pulled on the box (no Docker); verify on the Mac with `make up-obs && make obs-check`.
+
+## W23 k3d + Helm
+
+- **Date:** 2026-10-21
+- **Scope:** `deploy/k3d/cluster.yaml` (1 server, ingress on :8080, memory eviction threshold). `deploy/helm/netsentinel` umbrella chart: one values block per component, with requests/limits, readiness/liveness probes, a dev-only Secret, a Traefik ingress, a Kafka topics hook Job and a simulator Job. HPA on copilot-orchestrator (1–3, 60% CPU). `loadtest/` has the Locust file, a runner and a report generator. New Make targets: `k3d-up`, `k3d-images`, `k3d-install`, `k3d-status`, `k3d-load`, `k3d-down` and `helm-lint`.
+- **Verification:** `helm lint` clean; `helm template | kubeconform -strict` gives 23/23 valid; the locustfile imports under Locust. No cluster was run on the box (no Docker). The load-test report and HPA scaling still need a run on the Mac.

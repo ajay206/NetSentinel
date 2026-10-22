@@ -1,0 +1,7 @@
+NetSentinel {{ .Chart.AppVersion }} is installing (synthetic data, dev-only secrets).
+
+  kubectl get pods -w                 # wait for Running / Ready
+  kubectl get hpa copilot-orchestrator
+  open http://localhost:8080          # sign in as operator / operator
+
+Load test: make k3d-load   (Locust, headless, writes loadtest/report.md)
