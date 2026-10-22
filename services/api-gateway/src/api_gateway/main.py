@@ -525,8 +525,8 @@ async def kpi_proxy(path: str, request: Request) -> JSONResponse:
 
 @app.get("/api/ml/{path:path}")
 async def ml_proxy(path: str, request: Request) -> JSONResponse:
-    """Forward read-only anomaly queries to ml-service (W6): /api/ml/anomalies[/cells/{id}]."""
-    if not re.fullmatch(r"anomalies(/cells/[A-Za-z0-9_.\-]+)?", path) or ".." in path:
+    """Read-only ml-service GETs: anomalies[/cells/{id}] (W6) and model/info (W24)."""
+    if not re.fullmatch(r"anomalies(/cells/[A-Za-z0-9_.\-]+)?|model/info", path) or ".." in path:
         return JSONResponse({"detail": "Not found"}, status_code=404)
     try:
         # ml-service scans up to 20 cells, so allow a longer timeout than the KPI proxy

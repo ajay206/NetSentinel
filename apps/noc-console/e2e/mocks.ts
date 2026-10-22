@@ -112,6 +112,7 @@ export async function mockApis(page: Page, role: 'admin' | 'operator' = 'admin')
     const json = (body: unknown) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
     if (p === '/health') return json(health);
     if (p === '/api/obs/sparklines') return json({ enabled: true, windowMinutes: 30, stepSeconds: 60, services: Object.fromEntries(health.services.map((s, i) => [s.name, { p95Ms: Array.from({ length: 30 }, (_, k) => 20 + ((k * (i + 3)) % 17) * 9.5), errorRate: Array.from({ length: 30 }, (_, k) => (k % (i + 4) ? 0 : 0.031)) }])) });
+    if (p === '/api/ml/model/info') return json({ name: 'fault_classifier', version: 'v20261021093000', metrics: { accuracy: 0.867, macro_f1: 0.868 }, gate: { passed: true, reasons: [] }, signature: 'pass', loaded: true });
     if (p === '/api/obs/links') return json({ grafana: 'http://localhost:3000', langfuse: 'http://localhost:3001', mlflow: 'http://localhost:5000', prometheus: 'http://localhost:9090' });
     if (p.startsWith('/api/topology')) return json(topology);
     if (p.startsWith('/api/alarms/timeline')) return json({ buckets, bucketSeconds: 60, total: 158, peak: 42 });

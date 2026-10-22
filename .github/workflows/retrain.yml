@@ -1,0 +1,69 @@
+name: retrain
+
+# W24: scheduled retrain of the fault classifier on fresh synthetic data.
+# train -> sign (ML-DSA-65) -> eval gate -> PSI drift -> register in MLflow (if configured).
+# Promotion to the `champion` alias only happens when the gate passes: no silent swaps.
+on:
+  schedule:
+    - cron: "30 3 * * 1"     # Mondays 03:30 UTC (09:00 IST)
+  workflow_dispatch:
+    inputs:
+      seed:
+        description: "training seed"
+        default: "42"
+      promote:
+        description: "move the MLflow champion alias if the gate passes"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  retrain:
+    runs-on: ubuntu-latest
+    container: python:3.12-slim-trixie   # OpenSSL 3.5 for ML-DSA
+    env:
+      UV_LINK_MODE: copy
+      MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI }}
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install --no-cache-dir "uv==0.12.23"
+      - run: uv sync --frozen --all-extras --dev
+      - name: Train
+        run: |
+          SEED="${{ github.event.inputs.seed || '42' }}"
+          uv run --no-sync python -c "from ml_service.train_xgb import train; train(seed=int('$SEED'), out_dir='models')"
+          echo "MODEL_DIR=$(ls -d models/fault_classifier/*/ | head -1)" >> "$GITHUB_ENV"
+      - name: Sign (ephemeral CI key; release key stays with Ajay)
+        run: |
+          uv run --no-sync python scripts/sign_model.py keygen --key /tmp/k.pem --pub /tmp/p.pem
+          uv run --no-sync python scripts/sign_model.py sign --alg ML-DSA-65 --key /tmp/k.pem \
+            --model-dir "$MODEL_DIR" --card docs/model_card_fault_classifier.md
+          uv run --no-sync python scripts/sign_model.py verify --pub /tmp/p.pem --model-dir "$MODEL_DIR" \
+            --card docs/model_card_fault_classifier.md
+      - name: Eval gate
+        run: uv run --no-sync python evals/gate.py --model-dir "$MODEL_DIR" --out gate.json
+      - name: PSI drift
+        run: uv run --no-sync python evals/drift_check.py --out drift.json
+      - name: Register in MLflow (dry-run without MLFLOW_TRACKING_URI)
+        run: |
+          PROMOTE=""
+          if [ "${{ github.event_name }}" = "schedule" ] || [ "${{ github.event.inputs.promote }}" = "true" ]; then PROMOTE="--promote"; fi
+          uv run --no-sync python scripts/mlflow_promote.py --model-dir "$MODEL_DIR" $PROMOTE
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "### Retrain $(basename "$MODEL_DIR")"
+            for f in gate.json drift.json; do [ -f "$f" ] && { echo "\`$f\`"; echo '```json'; cat "$f"; echo '```'; }; done
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: fault-classifier
+          path: |
+            models/
+            gate.json
+            drift.json
+          retention-days: 30

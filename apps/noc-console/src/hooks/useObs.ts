@@ -42,3 +42,23 @@ export function useObsLinks() {
 }
 
 export const last = (xs: number[]): number | undefined => (xs.length ? xs[xs.length - 1] : undefined);
+
+/** W24: served fault-classifier version and its last eval-gate result. */
+export interface ModelInfo {
+  name: string;
+  version: string | null;
+  trainedAt?: string | null;
+  metrics?: { accuracy?: number; macro_f1?: number };
+  gate: { passed: boolean; reasons: string[] } | null;
+  signature?: string | null;
+  loaded: boolean;
+}
+
+export function useModelInfo() {
+  return useQuery<ModelInfo>({
+    queryKey: ['model-info'],
+    queryFn: () => getJson<ModelInfo>('/api/ml/model/info'),
+    refetchInterval: 60_000,
+    retry: false,
+  });
+}

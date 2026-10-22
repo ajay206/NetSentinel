@@ -3,7 +3,7 @@
 NetSentinel is an AI-assisted NOC copilot for telecom operators. It runs locally on a Mac M2 (8 GB) using Docker and native processes and works only with synthetic data. Phase 1 (Weeks 1-12) delivered the core data pipeline, analysis services and web console; Phase 2 added graph RAG, multi-agent workflows, ticketing, an LLM gateway and post-quantum crypto.
 
 ## Status
-**Phase 1 and Phase 2 complete (v0.1.0 = Phase 1, v0.2.0 = Phase 2). Phase 3 (TelcoGPT-mini) is planned.**
+**Phase 1 and Phase 2 complete (v0.1.0 = Phase 1, v0.2.0 = Phase 2). Phase 3: W22–W24 (observability, k3d/Helm, CI/CD + MLOps) built; TelcoGPT-mini (W19–20) and cloud (W25–26) planned.**
 
 **Built services (Docker + tests)**
 - api-gateway (FastAPI, port 8000): JWT auth, role-based access (viewer / operator / admin)
@@ -29,6 +29,8 @@ NetSentinel is an AI-assisted NOC copilot for telecom operators. It runs locally
 **Observability (opt-in, `make up-obs`):** OTel collector, Prometheus, Grafana dashboards, Langfuse and MLflow under compose profile `obs` (W22); Service health shows latency/error sparklines and Grafana/Langfuse links when it's running.
 
 **Kubernetes (opt-in, W23):** k3d cluster + Helm umbrella chart (`deploy/helm/netsentinel`) for a reduced service set, HPA on the copilot, Locust load test (`make k3d-up k3d-images k3d-install k3d-load`).
+
+**CI/CD + MLOps (W24):** path-filtered CI, eval gate that blocks degraded models, PSI drift check, ML-DSA verify, GHCR image builds, weekly signed retrain with MLflow promotion; governance in `docs/risk_register.md`, `docs/data_contract.md`, `docs/stakeholder_onepager.md`.
 
 **Console:** React/TypeScript/Tailwind NOC console with a responsive bento theme (375–1920 px), checked in CI by a Playwright layout audit.
 

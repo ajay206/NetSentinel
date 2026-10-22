@@ -1,0 +1,14 @@
+{
+  "_comment": "W24 eval gate. Changing these is a reviewed diff. champion = last promoted model scored on the hold-out (seed 9001).",
+  "thresholds": {
+    "accuracy": 0.8,
+    "macro_f1": 0.8,
+    "per_class_f1_min": 0.6,
+    "max_regression": 0.03
+  },
+  "champion": {
+    "model": "fault_classifier seed 42 (W24 baseline)",
+    "macro_f1": 0.8682,
+    "accuracy": 0.8667
+  }
+}
