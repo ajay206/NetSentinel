@@ -931,3 +931,25 @@ Every panel title has an **ⓘ** button. Hover it, or Tab to it, to read what th
 
 ### Impact / RCA graph panel (Step 14)
 Below the network map, **Impact / RCA graph**: choose Link, Site or Node and an element; the panel shows "LNK-012 fails → 1 site isolated, 3 cells lose service", the backend and server time (e.g. `neo4j · 5.4 ms`) and a table of impacted sites with the reason and the cells. The network map rings impacted sites in orange and draws the failed link (or site) in red. When the `graph` profile is not running the panel shows the gateway's 503 hint. Files: `src/views/RcaGraph.tsx`, `src/hooks/useImpact.ts`, `src/types.graph.ts`.
+
+## Observability stack (W22, compose profile `obs`)
+
+Opt-in and not part of `make demo`. Start it after the demo with `make up-obs` (about 0.9 GB extra), check it with `make obs-check`, and stop it with `make down-obs`.
+
+| Service | Port (localhost) | Memory limit | What it does |
+|---|---|---|---|
+| otel-collector | 4317 gRPC / 4318 HTTP | 128m | Receives OTLP from services that opt in. Drops PII-looking attributes (`user.email`, `enduser.id`, auth headers, `llm.prompt` / `llm.completion`). Metrics go to Prometheus on :8889, traces to the sampled debug exporter, so nothing leaves the laptop |
+| prometheus | 9090 | 192m | Scrapes `api-gateway:8000/metrics` and the collector every 15 s. Keeps 2 days or 256 MB |
+| grafana | 3000 | 160m | Prometheus datasource and the **NetSentinel – services** dashboard (`infra/grafana/dashboards/netsentinel-services.json`). Anonymous viewer; admin password `GRAFANA_ADMIN_PASSWORD` (dev default) |
+| langfuse (v2) | 3001 | 384m | LLM traces, using a `langfuse` database on the existing TimescaleDB (created by `langfuse-db-init`). Dev-only init keys `pk-lf-dev-only` / `sk-lf-dev-only` |
+| mlflow | 5000 | 256m | Model registry and tracking (SQLite + local artifacts in the `mlflow-data` volume) |
+
+**Gateway metrics:** `MetricsMiddleware` (`services/api-gateway/src/api_gateway/obs.py`, no new dependencies) records `ns_http_requests_total{service,code}` and `ns_http_request_duration_seconds{service}`. The `service` label comes from a fixed path-prefix table, so IDs and user input never become labels and cardinality stays low. `/metrics` is public on the gateway, but nginx only proxies `/api`, `/health` and `/ws`, and port 8000 is bound to localhost.
+
+**Trace IDs:** every gateway response has `X-Trace-Id`. An incoming W3C `traceparent` is reused; otherwise a new ID is made. It's logged as `trace_id=` on each request line, so you can follow one incident with `docker compose logs api-gateway | grep trace_id=<id>`.
+
+**Console:** `GET /api/obs/sparklines` (viewer) returns 30 minutes of p95 latency and 5xx ratio per service from `PROMETHEUS_URL`, cached for 15 s. `GET /api/obs/links` returns `GRAFANA_PUBLIC_URL`, `LANGFUSE_PUBLIC_URL`, `MLFLOW_PUBLIC_URL` and `PROMETHEUS_PUBLIC_URL`. Service health shows the sparklines and the **Open Grafana / Langfuse / MLflow** links only when Prometheus answers, so with `obs` off the panel looks exactly as before.
+
+**Copilot to Langfuse:** to send agent traces, set `LANGFUSE_HOST=http://langfuse:3000`, `LANGFUSE_PUBLIC_KEY=pk-lf-dev-only` and `LANGFUSE_SECRET_KEY=sk-lf-dev-only` in `.env`, then recreate copilot-orchestrator.
+
+**ml-service to MLflow:** `MLFLOW_TRACKING_URI=http://localhost:5000 make ml-train-xgb` logs the run (this hook already existed).

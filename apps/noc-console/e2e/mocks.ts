@@ -111,6 +111,8 @@ export async function mockApis(page: Page, role: 'admin' | 'operator' = 'admin')
     if (!p.startsWith('/api') && p !== '/health') return route.continue();
     const json = (body: unknown) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
     if (p === '/health') return json(health);
+    if (p === '/api/obs/sparklines') return json({ enabled: true, windowMinutes: 30, stepSeconds: 60, services: Object.fromEntries(health.services.map((s, i) => [s.name, { p95Ms: Array.from({ length: 30 }, (_, k) => 20 + ((k * (i + 3)) % 17) * 9.5), errorRate: Array.from({ length: 30 }, (_, k) => (k % (i + 4) ? 0 : 0.031)) }])) });
+    if (p === '/api/obs/links') return json({ grafana: 'http://localhost:3000', langfuse: 'http://localhost:3001', mlflow: 'http://localhost:5000', prometheus: 'http://localhost:9090' });
     if (p.startsWith('/api/topology')) return json(topology);
     if (p.startsWith('/api/alarms/timeline')) return json({ buckets, bucketSeconds: 60, total: 158, peak: 42 });
     if (p.startsWith('/api/alarms/workflow')) return json({ items: workflowItems });

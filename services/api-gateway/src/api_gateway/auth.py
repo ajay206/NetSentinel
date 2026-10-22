@@ -252,6 +252,7 @@ def required_role(method: str, path: str) -> str | None:
         "/health",
         "/healthz",
         "/readyz",
+        "/metrics",
         "/api/auth/login",
         "/docs",
         "/openapi.json",

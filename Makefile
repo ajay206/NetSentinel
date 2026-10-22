@@ -1,4 +1,4 @@
-.PHONY: logs ps reset-db tools-build incidents up-core up-tools up-ui down topics test lint fmt smoke sim sim-loop sim-docker gateway console-install console console-build console-lint console-test test-all ingest up-pipeline enriched-peek ingest-stats kpi-service kpi-stats kpi-query ml ml-train anomalies topology kpis kpis-follow kpis-peek docs-check ml-train-xgb up-rag rag rag-ingest rag-eval runbooks copilot up-copilot analyze ollama-pull mcp mcp-dev mcp-contract copilot-contract gateway-contract token demo kafka-smoke incident up-incident incidents-peek incident-eval up-graph topo-load impact topology-contract rag-bench rag-bench-dev up-tickets ticket-migrate ticket-contract tickets agents agent-runs llm-gateway-contract llm-gateway-redteam pqc-init pqc-probe pqc-bench pqc-tamper pqc-verify
+.PHONY: logs ps reset-db tools-build incidents up-core up-tools up-ui down topics test lint fmt smoke sim sim-loop sim-docker gateway console-install console console-build console-lint console-test test-all ingest up-pipeline enriched-peek ingest-stats kpi-service kpi-stats kpi-query ml ml-train anomalies topology kpis kpis-follow kpis-peek docs-check ml-train-xgb up-rag rag rag-ingest rag-eval runbooks copilot up-copilot analyze ollama-pull mcp mcp-dev mcp-contract copilot-contract gateway-contract token demo kafka-smoke incident up-incident incidents-peek incident-eval up-graph topo-load impact topology-contract rag-bench rag-bench-dev up-tickets ticket-migrate ticket-contract tickets agents agent-runs llm-gateway-contract llm-gateway-redteam pqc-init pqc-probe pqc-bench pqc-tamper pqc-verify up-obs down-obs obs-check
 
 # Targets marked (dev) run on the host and need uv / Node; everything else needs only Docker.
 
@@ -12,9 +12,20 @@ up-ui:
 	docker compose --profile core --profile ui up --build -d
 
 # Every compose profile: `docker compose logs/ps/down` only see services whose profile is enabled
-PROFILES := --profile core --profile tools --profile ui --profile sim --profile pipeline --profile rag --profile copilot --profile ops --profile graph --profile cli
+PROFILES := --profile core --profile tools --profile ui --profile sim --profile pipeline --profile rag --profile copilot --profile ops --profile graph --profile cli --profile obs
 # One-shot tools container (netgen-sim, smoke.py, gw.py) on the compose network
 TOOLS := docker compose --profile cli run --rm --no-deps -T tools
+
+# W22 observability (opt-in, ~0.9 GB): Prometheus :9090, Grafana :3000, Langfuse :3001,
+# MLflow :5000, OTel collector :4317/:4318. Run after `make demo` / `make up-ui`.
+up-obs:
+	docker compose --profile core --profile ui --profile obs up -d otel-collector prometheus grafana langfuse-db-init langfuse mlflow
+
+down-obs:
+	docker compose --profile obs stop otel-collector prometheus grafana langfuse mlflow
+
+obs-check:
+	python3 scripts/obs_check.py
 
 down:
 	docker compose $(PROFILES) down

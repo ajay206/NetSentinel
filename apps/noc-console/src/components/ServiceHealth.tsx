@@ -3,6 +3,8 @@ import { TIPS } from '../lib/tooltips';
 import { CardHeader } from './ui/Card';
 import type { HealthResponse } from '../types';
 import { formatIST } from '../lib/time';
+import { last, useObsLinks, useSparklines } from '../hooks/useObs';
+import { Sparkline } from './Sparkline';
 
 interface ServiceHealthProps {
   health: HealthResponse | undefined;
@@ -10,6 +12,9 @@ interface ServiceHealthProps {
 }
 
 export const ServiceHealth: React.FC<ServiceHealthProps> = ({ health, isError }) => {
+  const spark = useSparklines().data;
+  const links = useObsLinks().data;
+  const sparkOn = Boolean(spark?.enabled && !spark.error);
   if (isError || !health) {
     return (
       <div className="ns-card">
@@ -59,10 +64,31 @@ export const ServiceHealth: React.FC<ServiceHealthProps> = ({ health, isError })
               <span className="truncate font-semibold text-navy" title={svc.name}>{svc.name}</span>
             </div>
             {svc.detail && <span className="pl-4 text-xs leading-snug text-slate-600">{svc.detail}</span>}
+            {sparkOn && spark?.services[svc.name] && (
+              <div data-testid="service-spark" className="flex flex-wrap items-center gap-x-3 gap-y-1 pl-4 text-[11px] text-slate-600">
+                <span className="flex items-center gap-1">
+                  <Sparkline values={spark.services[svc.name].p95Ms} label={`${svc.name} p95 latency, last 30 min`} />
+                  p95 {last(spark.services[svc.name].p95Ms) ?? '–'} ms
+                </span>
+                <span className="flex items-center gap-1">
+                  <Sparkline values={spark.services[svc.name].errorRate} label={`${svc.name} error rate, last 30 min`} stroke="#E4572E" />
+                  {(((last(spark.services[svc.name].errorRate) ?? 0) * 100)).toFixed(1)}% 5xx
+                </span>
+              </div>
+            )}
           </div>
         ))}
       </div>
-      <p className="mt-4 text-xs text-slate-600">Last checked: {formatIST(health.checkedAt)}</p>
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-600">
+        <p>Last checked: {formatIST(health.checkedAt)}</p>
+        {sparkOn && links && (
+          <div data-testid="obs-links" className="flex flex-wrap gap-2">
+            {links.grafana && <a className="font-semibold text-navy underline" href={links.grafana} target="_blank" rel="noreferrer">Open Grafana</a>}
+            {links.langfuse && <a className="font-semibold text-navy underline" href={links.langfuse} target="_blank" rel="noreferrer">Open Langfuse</a>}
+            {links.mlflow && <a className="font-semibold text-navy underline" href={links.mlflow} target="_blank" rel="noreferrer">Open MLflow</a>}
+          </div>
+        )}
+      </div>
     </div>
   );
 };

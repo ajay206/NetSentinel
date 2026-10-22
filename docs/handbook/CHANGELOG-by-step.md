@@ -469,3 +469,9 @@ Built straight after Step 18; Steps 19–20 (TelcoGPT-mini) moved to the next ph
 - **Date:** 2026-10-21
 - **Scope:** README status now lists the Phase 2 services (topology-service/Neo4j, Graph RAG, ticket-service, LangGraph copilot, llm-gateway, PQC) and the bento console; TelcoGPT-mini is marked planned (Phase 3). New CI job `layout-audit` runs the Playwright layout audit with `LAYOUT_STRICT=1`; fixed two truncated page-nav labels it caught (added `title`). incident-service now checks `X-NS-Internal-Token` against `INCIDENT_SERVICE_TOKEN` on write actions (same pattern as ticket-service), the gateway sends it, compose has a dev-only default and `env.example.txt` a placeholder.
 - **Verification:** ruff, 609 pytest passed (new token test), console lint/typecheck/187 Vitest, layout audit 8/8 at 4 widths.
+
+## W22 observability
+
+- **Date:** 2026-10-21
+- **Scope:** New compose profile `obs`: OTel collector (PII-dropping processor), Prometheus (2-day retention), Grafana with a provisioned services dashboard, Langfuse v2 on the existing TimescaleDB, and MLflow (SQLite). All have memory limits (~0.9 GB total) and localhost ports. `make up-obs`, `down-obs` and `obs-check` added; `make demo` is unchanged. Gateway: dependency-free metrics middleware, `/metrics`, `X-Trace-Id` / `traceparent`, `/api/obs/sparklines` and `/api/obs/links`. Console: Service health latency and error sparklines plus Open Grafana / Langfuse / MLflow links, hidden when `obs` is off.
+- **Verification:** ruff, gateway pytest (7 new obs tests), console lint/typecheck/Vitest (2 new), and the layout audit 8/8 with sparklines mocked. Compose and dashboard JSON parse. Images weren't pulled on the box (no Docker); verify on the Mac with `make up-obs && make obs-check`.
