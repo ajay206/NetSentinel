@@ -13,6 +13,7 @@ concurrency:
 
 jobs:
   changes:
+    timeout-minutes: 5
     runs-on: ubuntu-latest
     outputs:
       python: ${{ steps.f.outputs.python }}
@@ -53,6 +54,7 @@ jobs:
   python:
     needs: changes
     if: needs.changes.outputs.python == 'true'
+    timeout-minutes: 20
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -83,6 +85,7 @@ jobs:
         run: python3 scripts/check_llm_calls.py
 
   console:
+    timeout-minutes: 20
     runs-on: ubuntu-latest
     needs: changes
     if: needs.changes.outputs.console == 'true'
@@ -168,6 +171,7 @@ jobs:
     # the PR if it falls below evals/gate_thresholds.json or regresses vs the champion.
     needs: changes
     if: needs.changes.outputs.ml == 'true'
+    timeout-minutes: 20
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -200,6 +204,7 @@ jobs:
   helm:
     needs: changes
     if: needs.changes.outputs.deploy == 'true'
+    timeout-minutes: 20
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

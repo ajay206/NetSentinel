@@ -953,3 +953,7 @@ Opt-in and not part of `make demo`. Start it after the demo with `make up-obs` (
 **Copilot to Langfuse:** to send agent traces, set `LANGFUSE_HOST=http://langfuse:3000`, `LANGFUSE_PUBLIC_KEY=pk-lf-dev-only` and `LANGFUSE_SECRET_KEY=sk-lf-dev-only` in `.env`, then recreate copilot-orchestrator.
 
 **ml-service to MLflow:** `MLFLOW_TRACKING_URI=http://localhost:5000 make ml-train-xgb` logs the run (this hook already existed).
+
+## Secrets check (review 2026-10)
+
+On start-up the gateway logs the names (never the values) of any `JWT_SECRET`, `GATEWAY_SERVICE_TOKEN`, `TICKET_SERVICE_TOKEN`, `INCIDENT_SERVICE_TOKEN` or `POSTGRES_PASSWORD` that still holds a `dev-only` / `change-me` placeholder. Set `NS_STRICT_SECRETS=1` to make that a hard failure, for anything beyond a laptop demo.

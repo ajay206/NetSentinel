@@ -29,7 +29,7 @@ from fastapi.responses import JSONResponse, PlainTextResponse
 from netgen import build_topology
 
 from api_gateway import auth as auth_mod
-from api_gateway import obs
+from api_gateway import obs, secrets_check
 from api_gateway.auth import AuthMiddleware, admin_router
 from api_gateway.auth import router as auth_router
 from api_gateway.pqc_status import PqcStatus
@@ -304,6 +304,7 @@ async def kpi_handler(sample: dict[str, Any]) -> None:
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """Application lifespan manager."""
+    secrets_check.check()
     consumer_tasks: list[asyncio.Task] = []
     # Step 13b: open the user store (retries in the background while Postgres starts)
     consumer_tasks.append(asyncio.create_task(auth_mod.init_store()))
